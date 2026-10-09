@@ -4,8 +4,8 @@ const navigation = [
 	{ label: 'HOME', href: '/' },
 	{ label: 'MATCHES', href: '/' },
 	{ label: 'TOURNAMENTS', href: '/tournaments' },
-	{ label: 'TEAMS', href: '/leaderboards/teams' },
-	{ label: 'PLAYERS', href: '/leaderboards/players' },
+	{ label: 'TEAMS', href: '/teams' },
+	{ label: 'PLAYERS', href: '/players' },
 ];
 
 export default function Header() {
