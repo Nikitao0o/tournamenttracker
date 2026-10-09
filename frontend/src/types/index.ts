@@ -23,3 +23,29 @@ export type Tournament = {
   status: TournamentStatus
   location: string
 }
+
+export type Team = {
+  id: string
+  name: string
+  shortName: string
+  region: string
+  coach: string
+  description: string
+  ranking: number
+  roster: string[]
+}
+
+export type Player = {
+  id: string
+  name: string
+  age: number
+  role: string
+  nationality: string
+  teamId: string
+  teamName: string
+  stats: {
+    kd: string
+    impact: number
+    maps: number
+  }
+}

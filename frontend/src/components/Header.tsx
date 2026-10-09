@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 
 const navigation = [
 	{ label: 'HOME', href: '/' },
-	{ label: 'MATCHES', href: '/matches' },
+	{ label: 'MATCHES', href: '/' },
 	{ label: 'TOURNAMENTS', href: '/tournaments' },
 	{ label: 'TEAMS', href: '/teams' },
-	{ label: 'RANKINGS', href: '/rankings' },
+	{ label: 'PLAYERS', href: '/players' },
 ];
 
 export default function Header() {
