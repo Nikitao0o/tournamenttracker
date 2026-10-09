@@ -4,7 +4,7 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
 import { formatDate, MatchStatusLabel, ScorePair } from '../components/StatusChips'
-import { getMatchById } from '../mock/data'
+import { getMatchById, getTeamSlug } from '../mock/data'
 
 export function MatchPage() {
   const { id } = useParams<{ id: string }>()
@@ -62,10 +62,15 @@ export function MatchPage() {
           }}
         >
           <Typography
+            component={Link}
+            to={`/teams/${getTeamSlug(match.teamA)}`}
             sx={{
               fontSize: { xs: 22, sm: 28 },
               fontWeight: 800,
               textAlign: { sm: 'right' },
+              color: 'inherit',
+              textDecoration: 'none',
+              '&:hover': { color: 'primary.main' },
             }}
           >
             {match.teamA}
@@ -73,7 +78,19 @@ export function MatchPage() {
           <Box sx={{ justifySelf: 'center', transform: 'scale(1.6)', transformOrigin: 'center' }}>
             <ScorePair scoreA={match.scoreA} scoreB={match.scoreB} live={match.status === 'LIVE'} />
           </Box>
-          <Typography sx={{ fontSize: { xs: 22, sm: 28 }, fontWeight: 800 }}>{match.teamB}</Typography>
+          <Typography
+            component={Link}
+            to={`/teams/${getTeamSlug(match.teamB)}`}
+            sx={{
+              fontSize: { xs: 22, sm: 28 },
+              fontWeight: 800,
+              color: 'inherit',
+              textDecoration: 'none',
+              '&:hover': { color: 'primary.main' },
+            }}
+          >
+            {match.teamB}
+          </Typography>
         </Box>
 
         <Box
