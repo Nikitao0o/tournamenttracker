@@ -6,12 +6,12 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
-import { getPlayersByTeamId, getTeamById } from '../mock/data'
+import { getPlayersByTeamId, getTeamByReference } from '../mock/data'
 
 export function TeamPage() {
-  const { id } = useParams<{ id: string }>()
-  const team = id ? getTeamById(id) : undefined
-  const players = id ? getPlayersByTeamId(id) : []
+  const { teamRef } = useParams<{ teamRef: string }>()
+  const team = teamRef ? getTeamByReference(teamRef) : undefined
+  const players = team ? getPlayersByTeamId(team.id) : []
 
   if (!team) {
     return (

@@ -2,7 +2,8 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import type { Tournament } from '../types'
-import { formatDateShort, TournamentStatusLabel } from './StatusChips'
+import { TournamentStatusLabel } from './StatusChips'
+import { formatDateShort } from '../utils/formatting'
 
 type TournamentCardProps = {
   tournament: Tournament

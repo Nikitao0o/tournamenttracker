@@ -4,7 +4,8 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
 import { MatchList } from '../components/MatchList'
-import { formatDate, TournamentStatusLabel } from '../components/StatusChips'
+import { TournamentStatusLabel } from '../components/StatusChips'
+import { formatDate } from '../utils/formatting'
 import { getMatchesByTournamentId, getTournamentById } from '../mock/data'
 
 export function TournamentPage() {
