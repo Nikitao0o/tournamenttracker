@@ -8,3 +8,7 @@ pages overview:
 **team profile** list of players
 **admin page** control match and tournament 
 
+to setup frontend use:
+
+cd frontend/
+npm run dev
