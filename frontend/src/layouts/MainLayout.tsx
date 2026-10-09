@@ -25,7 +25,7 @@ export function MainLayout() {
           fontSize: 11,
         }}
       >
-        Demo frontend · mock data · not affiliated with HLTV.org · {new Date().getFullYear()}
+        Demo frontend · mock data · {new Date().getFullYear()}
       </Box>
     </Box>
   )
