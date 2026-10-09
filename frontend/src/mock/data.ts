@@ -231,3 +231,36 @@ export const MOCK_RANKING = [
   'Liquid',
   'FaZe',
 ]
+
+export const MOCK_PLAYERS = [
+  { name: 'donk', team: 'Spirit', rating: 1.32 },
+  { name: 'ZywOo', team: 'Vitality', rating: 1.29 },
+  { name: 'm0NESY', team: 'Falcons', rating: 1.24 },
+  { name: 'sh1ro', team: 'Spirit', rating: 1.21 },
+  { name: 'ropz', team: 'Vitality', rating: 1.18 },
+  { name: 'frozen', team: 'FaZe', rating: 1.16 },
+  { name: 'NiKo', team: 'Falcons', rating: 1.14 },
+  { name: 'iM', team: 'Natus Vincere', rating: 1.12 },
+  { name: 'KSCERATO', team: 'FURIA', rating: 1.1 },
+  { name: 'xertioN', team: 'MOUZ', rating: 1.08 },
+]
+
+export function getTeamSlug(name: string) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export function getAllTeamNames() {
+  return [...new Set([...MOCK_RANKING, ...MOCK_MATCHES.flatMap(({ teamA, teamB }) => [teamA, teamB])])]
+}
+
+export function getTeamBySlug(slug: string) {
+  return getAllTeamNames().find((team) => getTeamSlug(team) === slug)
+}
+
+export function getMatchesByTeam(team: string) {
+  return MOCK_MATCHES.filter((match) => match.teamA === team || match.teamB === team)
+}
