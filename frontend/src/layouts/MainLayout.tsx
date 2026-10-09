@@ -8,6 +8,8 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 const navItems = [
   { to: '/', label: 'Matches', end: true },
   { to: '/tournaments', label: 'Events' },
+  { to: '/leaderboards/teams', label: 'Teams' },
+  { to: '/leaderboards/players', label: 'Players' },
   { to: '/about', label: 'About' },
 ]
 
@@ -40,7 +42,7 @@ export function MainLayout() {
           >
             TRACKER
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'stretch', height: 52, ml: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'stretch', height: 52, ml: 1, minWidth: 0, overflowX: 'auto' }}>
             {navItems.map((item) => (
               <Box
                 key={item.to}
@@ -51,6 +53,7 @@ export function MainLayout() {
                   display: 'flex',
                   alignItems: 'center',
                   px: 1.5,
+                  flexShrink: 0,
                   color: '#d5dde4',
                   textDecoration: 'none',
                   fontSize: 12,

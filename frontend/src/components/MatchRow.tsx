@@ -2,6 +2,7 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import type { Match } from '../types'
+import { getTeamSlug } from '../mock/data'
 import { formatDateShort, MatchStatusLabel, ScorePair } from './StatusChips'
 
 type MatchRowProps = {
@@ -15,8 +16,6 @@ export function MatchRow({ match }: MatchRowProps) {
 
   return (
     <Box
-      component={Link}
-      to={`/matches/${match.id}`}
       sx={{
         display: 'grid',
         gridTemplateColumns: {
@@ -27,15 +26,16 @@ export function MatchRow({ match }: MatchRowProps) {
         columnGap: 1,
         px: 1,
         py: 0.6,
-        textDecoration: 'none',
-        color: 'inherit',
         borderBottom: '1px solid',
         borderColor: 'divider',
         bgcolor: '#fff',
-        '&:hover': { bgcolor: '#f3f5f7' },
       }}
     >
-      <Box>
+      <Box
+        component={Link}
+        to={`/matches/${match.id}`}
+        sx={{ color: 'inherit', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+      >
         {match.status === 'LIVE' ? (
           <MatchStatusLabel status="LIVE" />
         ) : (
@@ -46,12 +46,16 @@ export function MatchRow({ match }: MatchRowProps) {
       </Box>
 
       <Typography
+        component={Link}
+        to={`/matches/${match.id}`}
         sx={{
           fontSize: 11,
           color: 'text.secondary',
+          textDecoration: 'none',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          '&:hover': { color: 'primary.main' },
           display: { xs: 'none', sm: 'block' },
         }}
       >
@@ -69,27 +73,41 @@ export function MatchRow({ match }: MatchRowProps) {
         }}
       >
         <Typography
+          component={Link}
+          to={`/teams/${getTeamSlug(match.teamA)}`}
           sx={{
             fontSize: 13,
             fontWeight: decided && aWon ? 800 : 600,
             textAlign: 'right',
             color: decided && !aWon ? 'text.secondary' : 'text.primary',
+            textDecoration: 'none',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            '&:hover': { color: 'primary.main' },
           }}
         >
           {match.teamA}
         </Typography>
-        <ScorePair scoreA={match.scoreA} scoreB={match.scoreB} live={match.status === 'LIVE'} />
+        <Box
+          component={Link}
+          to={`/matches/${match.id}`}
+          sx={{ display: 'flex', color: 'inherit', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+        >
+          <ScorePair scoreA={match.scoreA} scoreB={match.scoreB} live={match.status === 'LIVE'} />
+        </Box>
         <Typography
+          component={Link}
+          to={`/teams/${getTeamSlug(match.teamB)}`}
           sx={{
             fontSize: 13,
             fontWeight: decided && bWon ? 800 : 600,
             color: decided && !bWon ? 'text.secondary' : 'text.primary',
+            textDecoration: 'none',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            '&:hover': { color: 'primary.main' },
           }}
         >
           {match.teamB}
