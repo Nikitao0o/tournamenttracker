@@ -1,50 +1,59 @@
-import { Link } from 'react-router-dom';
+import Box from '@mui/material/Box'
+import { Link, NavLink } from 'react-router-dom'
 
 const navigation = [
-	{ label: 'HOME', href: '/' },
-	{ label: 'MATCHES', href: '/' },
-	{ label: 'TOURNAMENTS', href: '/tournaments' },
-	{ label: 'TEAMS', href: '/teams' },
-	{ label: 'PLAYERS', href: '/players' },
-];
+  { label: 'MATCHES', href: '/', end: true },
+  { label: 'TOURNAMENTS', href: '/tournaments' },
+  { label: 'TEAMS', href: '/teams' },
+  { label: 'PLAYERS', href: '/players' },
+  { label: 'ABOUT', href: '/about' },
+]
 
 export default function Header() {
-	return (
-		<header className="w-full border-b border-[#30343b] bg-[#17191e] text-white shadow-lg">
-			<div className="mx-auto flex max-w-7xl items-center gap-8 px-5">
-				<Link to="/" className="flex shrink-0 items-center gap-2 py-4" aria-label="Tournament Tracker home">
-					<span className="grid h-8 w-8 place-items-center rounded bg-[#f04b3a] text-sm font-black italic">T</span>
-					<span className="text-lg font-extrabold tracking-tight">TOURNAMENT<span className="text-[#f04b3a]">TRACKER</span></span>
-				</Link>
+  return (
+    <Box component="header" sx={{ width: '100%', borderBottom: '1px solid #30343b', bgcolor: '#17191e', color: '#fff', boxShadow: 3 }}>
+      <Box sx={{ mx: 'auto', display: 'flex', maxWidth: 1100, alignItems: 'center', gap: { xs: 1, sm: 3 }, px: { xs: 1, sm: 2 } }}>
+        <Box
+          component={Link}
+          to="/"
+          aria-label="Tournament Tracker home"
+          sx={{ display: 'flex', flexShrink: 0, alignItems: 'center', gap: 1, py: 2, color: 'inherit', textDecoration: 'none' }}
+        >
+          <Box sx={{ display: 'grid', width: 32, height: 32, placeItems: 'center', borderRadius: 1, bgcolor: '#f04b3a', fontSize: 14, fontWeight: 900, fontStyle: 'italic' }}>
+            T
+          </Box>
+          <Box component="span" sx={{ fontSize: { xs: 14, sm: 18 }, fontWeight: 800, letterSpacing: '-0.025em', whiteSpace: 'nowrap' }}>
+            TOURNAMENT<Box component="span" sx={{ color: '#f04b3a' }}>TRACKER</Box>
+          </Box>
+        </Box>
 
-				<nav aria-label="Main navigation" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-					{navigation.map((item, index) => (
-						<Link
-							key={item.label}
-							to={item.href}
-							className={`whitespace-nowrap border-b-2 px-4 py-5 text-xs font-bold tracking-wide transition-colors hover:text-white ${
-								index === 0
-									? 'border-[#f04b3a] text-white'
-									: 'border-transparent text-[#a7aab0] hover:border-[#f04b3a]'
-							}`}
-						>
-							{item.label}
-						</Link>
-					))}
-				</nav>
-
-				<Link
-					to="/search"
-					className="hidden shrink-0 items-center gap-2 rounded bg-[#24272e] px-3 py-2 text-sm text-[#a7aab0] transition hover:bg-[#30343b] hover:text-white sm:flex"
-					aria-label="Search"
-				>
-					<svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-						<circle cx="11" cy="11" r="7" />
-						<path d="m16 16 4 4" />
-					</svg>
-					<span>Search</span>
-				</Link>
-			</div>
-		</header>
-	);
+        <Box component="nav" aria-label="Main navigation" sx={{ display: 'flex', minWidth: 0, flex: 1, alignItems: 'center', overflowX: 'auto' }}>
+          {navigation.map((item) => (
+            <Box
+              key={item.href}
+              component={NavLink}
+              to={item.href}
+              end={item.end}
+              sx={{
+                px: { xs: 1, sm: 1.5 },
+                py: 2.5,
+                borderBottom: '2px solid transparent',
+                color: '#a7aab0',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                transition: 'color 150ms, border-color 150ms',
+                '&.active': { borderBottomColor: '#f04b3a', color: '#fff' },
+                '&:hover': { borderBottomColor: '#f04b3a', color: '#fff' },
+              }}
+            >
+              {item.label}
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Box>
+  )
 }
