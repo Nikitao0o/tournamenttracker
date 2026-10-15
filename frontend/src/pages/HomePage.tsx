@@ -5,12 +5,28 @@ import { RankingBox } from '../components/RankingBox'
 import { TournamentCard } from '../components/TournamentCard'
 import { SectionHeader } from '../components/SectionHeader'
 import Box from '@mui/material/Box'
-import { MOCK_MATCHES, MOCK_TOURNAMENTS } from '../mock/data'
+import { ApiState } from '../components/ApiState'
+import { getMatches, getTeamLeaderboard, getTournaments } from '../api/client'
+import { useApi } from '../api/useApi'
+import { useCallback } from 'react'
 
 export function HomePage() {
-  const live = MOCK_MATCHES.filter((match) => match.status === 'LIVE')
-  const upcoming = MOCK_MATCHES.filter((match) => match.status === 'UPCOMING')
-  const results = MOCK_MATCHES.filter((match) => match.status === 'FINISHED')
+  const loadHomePage = useCallback(async () => {
+    const [matches, tournaments, teams] = await Promise.all([
+      getMatches(),
+      getTournaments(),
+      getTeamLeaderboard(),
+    ])
+    return { matches, tournaments, teams }
+  }, [])
+  const { data, loading, error } = useApi(loadHomePage)
+
+  if (loading || error) return <ApiState loading={loading} error={error} />
+  if (!data) return null
+
+  const live = data.matches.filter((match) => match.status === 'LIVE')
+  const upcoming = data.matches.filter((match) => match.status === 'UPCOMING')
+  const results = data.matches.filter((match) => match.status === 'FINISHED')
 
   return (
     <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
@@ -23,10 +39,10 @@ export function HomePage() {
       </Grid>
       <Grid size={{ xs: 12, md: 4 }}>
         <Stack spacing={1.5}>
-          <RankingBox />
+          <RankingBox teams={data.teams} />
           <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
             <SectionHeader title="Events" />
-            {MOCK_TOURNAMENTS.map((tournament) => (
+            {data.tournaments.map((tournament) => (
               <TournamentCard key={tournament.id} tournament={tournament} />
             ))}
           </Box>

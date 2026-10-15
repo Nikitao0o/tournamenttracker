@@ -2,9 +2,15 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
-import { getTeamSlug, MOCK_PLAYER_RANKINGS } from '../mock/data'
+import { getPlayerLeaderboard, getTeamSlug } from '../api/client'
+import { useApi } from '../api/useApi'
+import { ApiState } from '../components/ApiState'
 
 export function PlayerLeaderboardPage() {
+  const { data, loading, error } = useApi(getPlayerLeaderboard)
+  if (loading || error) return <ApiState loading={loading} error={error} />
+  if (!data) return null
+
   return (
     <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
       <SectionHeader title="Top players" />
@@ -27,9 +33,9 @@ export function PlayerLeaderboardPage() {
         <span>Team</span>
         <span>Rating</span>
       </Box>
-      {MOCK_PLAYER_RANKINGS.map((player, index) => (
+      {data.map((player) => (
         <Box
-          key={player.name}
+          key={player.playerId}
           sx={{
             display: 'grid',
             gridTemplateColumns: '36px minmax(0, 1fr) minmax(0, 1fr) 72px',
@@ -42,12 +48,18 @@ export function PlayerLeaderboardPage() {
           }}
         >
           <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
-            {index + 1}
+            {player.rank}
           </Typography>
-          <Typography sx={{ fontWeight: 700 }}>{player.name}</Typography>
           <Typography
             component={Link}
-            to={`/teams/${getTeamSlug(player.team)}`}
+            to={`/players/${player.playerId}`}
+            sx={{ color: 'text.primary', fontWeight: 700, textDecoration: 'none' }}
+          >
+            {player.nickname}
+          </Typography>
+          <Typography
+            component={Link}
+            to={`/teams/${getTeamSlug(player.teamName)}`}
             sx={{
               color: 'text.primary',
               textDecoration: 'none',
@@ -57,7 +69,7 @@ export function PlayerLeaderboardPage() {
               '&:hover': { color: 'primary.main' },
             }}
           >
-            {player.team}
+            {player.teamName}
           </Typography>
           <Typography sx={{ fontVariantNumeric: 'tabular-nums' }}>{player.rating.toFixed(2)}</Typography>
         </Box>

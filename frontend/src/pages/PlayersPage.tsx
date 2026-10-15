@@ -5,15 +5,21 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
-import { MOCK_PLAYERS } from '../mock/data'
+import { getPlayers } from '../api/client'
+import { useApi } from '../api/useApi'
+import { ApiState } from '../components/ApiState'
 
 export function PlayersPage() {
+  const { data, loading, error } = useApi(getPlayers)
+  if (loading || error) return <ApiState loading={loading} error={error} />
+  if (!data) return null
+
   return (
     <Stack spacing={2.5}>
       <Typography variant="h1">Players</Typography>
 
       <Grid container spacing={2}>
-        {MOCK_PLAYERS.map((player) => (
+        {data.map((player) => (
           <Grid key={player.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Paper variant="outlined" sx={{ p: 2.5, height: '100%' }}>
               <Stack spacing={1.5}>
