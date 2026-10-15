@@ -6,23 +6,12 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
-import { getTeamByReference, getTeamPlayers } from '../api/client'
-import { useApi } from '../api/useApi'
-import { ApiState } from '../components/ApiState'
-import { useCallback } from 'react'
+import { getPlayersByTeamId, getTeamByReference } from '../mock/data'
 
 export function TeamPage() {
   const { teamRef } = useParams<{ teamRef: string }>()
-  const loadTeam = useCallback(async () => {
-    const team = teamRef ? await getTeamByReference(teamRef) : undefined
-    const players = team ? await getTeamPlayers(team.id) : []
-    return { team, players }
-  }, [teamRef])
-  const { data, loading, error } = useApi(loadTeam)
-
-  if (loading || error) return <ApiState loading={loading} error={error} />
-  if (!data) return null
-  const { team, players } = data
+  const team = teamRef ? getTeamByReference(teamRef) : undefined
+  const players = team ? getPlayersByTeamId(team.id) : []
 
   if (!team) {
     return (

@@ -5,17 +5,11 @@ import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
 import { MatchStatusLabel, ScorePair } from '../components/StatusChips'
 import { formatDate } from '../utils/formatting'
-import { getMatch, getTeamSlug } from '../api/client'
-import { useApi } from '../api/useApi'
-import { ApiState } from '../components/ApiState'
-import { useCallback } from 'react'
+import { getMatchById, getTeamSlug } from '../mock/data'
 
 export function MatchPage() {
   const { id } = useParams<{ id: string }>()
-  const loadMatch = useCallback(() => getMatch(id ?? ''), [id])
-  const { data: match, loading, error } = useApi(loadMatch)
-
-  if (loading || error) return <ApiState loading={loading} error={error} />
+  const match = id ? getMatchById(id) : undefined
 
   if (!match) {
     return (
@@ -70,7 +64,7 @@ export function MatchPage() {
         >
           <Typography
             component={Link}
-            to={`/teams/${match.teamAId ?? getTeamSlug(match.teamA)}`}
+            to={`/teams/${getTeamSlug(match.teamA)}`}
             sx={{
               fontSize: { xs: 22, sm: 28 },
               fontWeight: 800,
@@ -87,7 +81,7 @@ export function MatchPage() {
           </Box>
           <Typography
             component={Link}
-            to={`/teams/${match.teamBId ?? getTeamSlug(match.teamB)}`}
+            to={`/teams/${getTeamSlug(match.teamB)}`}
             sx={{
               fontSize: { xs: 22, sm: 28 },
               fontWeight: 800,

@@ -5,17 +5,12 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
-import { getPlayer } from '../api/client'
-import { useApi } from '../api/useApi'
-import { ApiState } from '../components/ApiState'
-import { useCallback } from 'react'
+import { getPlayerById, getTeamById } from '../mock/data'
 
 export function PlayerPage() {
   const { id } = useParams<{ id: string }>()
-  const loadPlayer = useCallback(() => getPlayer(id ?? ''), [id])
-  const { data: player, loading, error } = useApi(loadPlayer)
-
-  if (loading || error) return <ApiState loading={loading} error={error} />
+  const player = id ? getPlayerById(id) : undefined
+  const team = player ? getTeamById(player.teamId) : undefined
 
   if (!player) {
     return (
@@ -50,9 +45,11 @@ export function PlayerPage() {
             Team: <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>{player.teamName}</Box>
           </Typography>
 
-          <Button component={Link} to={`/teams/${player.teamId}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>
-            View team roster
-          </Button>
+          {team ? (
+            <Button component={Link} to={`/teams/${team.id}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>
+              View team roster
+            </Button>
+          ) : null}
         </Stack>
       </Paper>
 

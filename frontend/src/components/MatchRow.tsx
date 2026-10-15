@@ -2,7 +2,7 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import type { Match } from '../types'
-import { getTeamSlug } from '../api/client'
+import { getTeamSlug } from '../mock/data'
 import { MatchStatusLabel, ScorePair } from './StatusChips'
 import { formatDateShort } from '../utils/formatting'
 
@@ -75,7 +75,7 @@ export function MatchRow({ match }: MatchRowProps) {
       >
         <Typography
           component={Link}
-          to={`/teams/${match.teamAId ?? getTeamSlug(match.teamA)}`}
+          to={`/teams/${getTeamSlug(match.teamA)}`}
           sx={{
             fontSize: 13,
             fontWeight: decided && aWon ? 800 : 600,
@@ -99,7 +99,7 @@ export function MatchRow({ match }: MatchRowProps) {
         </Box>
         <Typography
           component={Link}
-          to={`/teams/${match.teamBId ?? getTeamSlug(match.teamB)}`}
+          to={`/teams/${getTeamSlug(match.teamB)}`}
           sx={{
             fontSize: 13,
             fontWeight: decided && bWon ? 800 : 600,

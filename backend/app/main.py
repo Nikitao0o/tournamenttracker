@@ -1,25 +1,32 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from .routers import leaderboards, matches, players, teams, tournaments
 
-# Создаём таблицы, если их нет (не обязательно, если используешь seed)
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Выполняется один раз при старте приложения
+    Base.metadata.create_all(bind=engine)
+    # Импорт внутри функции, чтобы избежать циклических зависимостей
+    from .seed import seed_if_empty
+    seed_if_empty()
+    yield
+    # Здесь можно закрывать ресурсы при остановке
+
 
 app = FastAPI(
     title="Tournament Tracker API",
     version="0.1.0",
-    description="Backend for the CS tournament tracker demo.",
+    lifespan=lifespan,
 )
 
-# CORS — чтобы фронт с localhost:5173 мог обращаться к API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=["*"],  # в docker-режиме фронт ходит через nginx-прокси, CORS не нужен
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

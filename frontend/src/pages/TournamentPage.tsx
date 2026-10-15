@@ -6,25 +6,12 @@ import { Link, useParams } from 'react-router-dom'
 import { MatchList } from '../components/MatchList'
 import { TournamentStatusLabel } from '../components/StatusChips'
 import { formatDate } from '../utils/formatting'
-import { getMatches, getTournament } from '../api/client'
-import { useApi } from '../api/useApi'
-import { ApiState } from '../components/ApiState'
-import { useCallback } from 'react'
+import { getMatchesByTournamentId, getTournamentById } from '../mock/data'
 
 export function TournamentPage() {
   const { id } = useParams<{ id: string }>()
-  const loadTournament = useCallback(async () => {
-    const [tournament, matches] = await Promise.all([
-      getTournament(id ?? ''),
-      getMatches(id ?? ''),
-    ])
-    return { tournament, matches }
-  }, [id])
-  const { data, loading, error } = useApi(loadTournament)
-
-  if (loading || error) return <ApiState loading={loading} error={error} />
-  if (!data) return null
-  const { tournament, matches } = data
+  const tournament = id ? getTournamentById(id) : undefined
+  const matches = id ? getMatchesByTournamentId(id) : []
 
   if (!tournament) {
     return (

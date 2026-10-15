@@ -2,21 +2,15 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
-import { getTeamLeaderboard } from '../api/client'
-import { useApi } from '../api/useApi'
-import { ApiState } from '../components/ApiState'
+import { getTeamSlug, MOCK_RANKING } from '../mock/data'
 
 export function TeamLeaderboardPage() {
-  const { data, loading, error } = useApi(getTeamLeaderboard)
-  if (loading || error) return <ApiState loading={loading} error={error} />
-  if (!data) return null
-
   return (
     <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
       <SectionHeader title="Top teams" />
-      {data.map((team) => (
+      {MOCK_RANKING.map((team, index) => (
         <Box
-          key={team.teamId}
+          key={team}
           sx={{
             display: 'grid',
             gridTemplateColumns: '36px 1fr',
@@ -29,14 +23,14 @@ export function TeamLeaderboardPage() {
           }}
         >
           <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
-            {team.rank}
+            {index + 1}
           </Typography>
           <Typography
             component={Link}
-            to={`/teams/${team.teamId}`}
+            to={`/teams/${getTeamSlug(team)}`}
             sx={{ color: 'text.primary', fontWeight: 700, textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
           >
-            {team.name}
+            {team}
           </Typography>
         </Box>
       ))}

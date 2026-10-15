@@ -5,8 +5,6 @@ export type Match = {
   id: string
   teamA: string
   teamB: string
-  teamAId?: string
-  teamBId?: string
   scoreA?: number
   scoreB?: number
   status: MatchStatus

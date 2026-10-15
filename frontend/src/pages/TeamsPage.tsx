@@ -4,20 +4,14 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
-import { getTeamsWithRosters } from '../api/client'
-import { useApi } from '../api/useApi'
-import { ApiState } from '../components/ApiState'
+import { MOCK_TEAMS } from '../mock/data'
 
 export function TeamsPage() {
-  const { data, loading, error } = useApi(getTeamsWithRosters)
-  if (loading || error) return <ApiState loading={loading} error={error} />
-  if (!data) return null
-
   return (
     <Stack spacing={2.5}>
       <Typography variant="h1">Teams</Typography>
 
-      {data.map((team) => (
+      {MOCK_TEAMS.map((team) => (
         <Paper key={team.id} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>

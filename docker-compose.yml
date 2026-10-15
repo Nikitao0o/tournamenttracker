@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tracker
+      POSTGRES_PASSWORD: tracker
+      POSTGRES_DB: tracker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracker -d tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Наружу порт не публикуем — доступ только изнутри сети.
+    # Если хочешь подключаться psql-ом с хоста, раскомментируй:
+    # ports:
+    #   - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tracker-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://tracker:tracker@db:5432/tracker
+    depends_on:
+      db:
+        condition: service_healthy
+    # Наружу не публикуем — доступ через nginx фронта.
+    # Для отладки можно открыть: "8000:8000"
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tracker-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"        # браузер → localhost:5173 → nginx :80
+
+volumes:
+  pgdata:

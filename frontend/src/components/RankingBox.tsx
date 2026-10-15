@@ -1,16 +1,16 @@
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
-import type { TeamLeaderboardEntry } from '../api/client'
+import { getTeamSlug, MOCK_RANKING } from '../mock/data'
 import { SectionHeader } from './SectionHeader'
 
-export function RankingBox({ teams }: { teams: TeamLeaderboardEntry[] }) {
+export function RankingBox() {
   return (
     <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
       <SectionHeader title="Ranking" />
-      {teams.map((team) => (
+      {MOCK_RANKING.map((team, index) => (
         <Box
-          key={team.teamId}
+          key={team}
           sx={{
             display: 'flex',
             gap: 1.25,
@@ -22,14 +22,14 @@ export function RankingBox({ teams }: { teams: TeamLeaderboardEntry[] }) {
           }}
         >
           <Typography sx={{ width: 18, color: 'text.secondary', fontWeight: 700 }}>
-            {team.rank}.
+            {index + 1}.
           </Typography>
           <Typography
             component={Link}
-            to={`/teams/${team.teamId}`}
+            to={`/teams/${getTeamSlug(team)}`}
             sx={{ fontWeight: 700, color: 'inherit', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
           >
-            {team.name}
+            {team}
           </Typography>
         </Box>
       ))}
