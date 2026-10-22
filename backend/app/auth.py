@@ -14,19 +14,19 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .database import get_db
 
-# Секретный ключ для подписи токенов
+# Secret key for token signing
 SECRET_KEY = os.getenv("SECRET_KEY", "tournament-tracker-super-secret-key-2026")
-TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7 дней
+TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7 days
 
 security_bearer = HTTPBearer(auto_error=False)
 
 
 # ==========================================
-# Хеширование паролей (PBKDF2-HMAC-SHA256)
+# Password Hashing (PBKDF2-HMAC-SHA256)
 # ==========================================
 
 def hash_password(password: str) -> tuple[str, str]:
-    """Генерирует случайную соль и вычисляет PBKDF2 хеш пароля."""
+    """Generates a random salt and computes the PBKDF2 hash of the password."""
     salt = secrets.token_hex(16)
     hashed = hashlib.pbkdf2_hmac(
         "sha256",
@@ -38,7 +38,7 @@ def hash_password(password: str) -> tuple[str, str]:
 
 
 def verify_password(password: str, hashed: str, salt: str) -> bool:
-    """Проверяет соответствие пароля его хешу с солью."""
+    """Verifies that a password matches its salt and hash."""
     check = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
@@ -49,7 +49,7 @@ def verify_password(password: str, hashed: str, salt: str) -> bool:
 
 
 # ==========================================
-# Токены авторизации (HMAC-SHA256 Bearer Token)
+# Authorization Tokens (HMAC-SHA256 Bearer Token)
 # ==========================================
 
 def _b64_encode(data: bytes) -> str:
@@ -64,7 +64,7 @@ def _b64_decode(data: str) -> bytes:
 
 
 def create_access_token(user_id: int, email: str, nickname: str) -> str:
-    """Создает подписанный токен доступа с временем жизни."""
+    """Creates a signed bearer access token with expiration time."""
     payload = {
         "sub": user_id,
         "email": email,
@@ -85,7 +85,7 @@ def create_access_token(user_id: int, email: str, nickname: str) -> str:
 
 
 def decode_access_token(token: str) -> dict | None:
-    """Проверяет подпись и срок действия токена, возвращает payload."""
+    """Verifies signature and expiration of token, returning the payload if valid."""
     try:
         parts = token.split(".")
         if len(parts) != 2:
@@ -114,13 +114,13 @@ def decode_access_token(token: str) -> dict | None:
 
 
 # ==========================================
-# Чтение файла администраторов (admins.txt)
+# Admin File Reader (admins.txt)
 # ==========================================
 
 def get_admin_identifiers() -> set[str]:
-    """Считывает список учетных записей администраторов из файла.
-    Проверяются пути в backend/admins.txt, admins.txt и рядом с приложением.
-    Считывание происходит динамически, поэтому изменения файла вступают в силу немедленно.
+    """Reads the set of administrator identifiers from admins.txt.
+    Checks backend/admins.txt, admins.txt, and parent directories.
+    Evaluated dynamically so file edits take effect immediately without restart.
     """
     possible_paths = [
         Path("admins.txt"),
@@ -145,7 +145,7 @@ def get_admin_identifiers() -> set[str]:
 
 
 def is_user_admin(email: str, nickname: str | None = None) -> bool:
-    """Проверяет, является ли пользователь администратором на основе файла admins.txt."""
+    """Checks whether a user is an administrator based on the admins.txt file."""
     admins = get_admin_identifiers()
     if email.lower() in admins:
         return True
@@ -155,14 +155,14 @@ def is_user_admin(email: str, nickname: str | None = None) -> bool:
 
 
 # ==========================================
-# Зависимости FastAPI (Dependency Injection)
+# FastAPI Dependencies
 # ==========================================
 
 def get_current_user_optional(
     auth: HTTPAuthorizationCredentials | None = Depends(security_bearer),
     db: Session = Depends(get_db),
 ):
-    """Возвращает текущего пользователя, если передан валидный токен, либо None."""
+    """Returns the current user if a valid bearer token is provided, or None."""
     if not auth or not auth.credentials:
         return None
 
@@ -174,7 +174,6 @@ def get_current_user_optional(
     if not user_id:
         return None
 
-    # Импорт внутри функции для исключения циклических импортов
     from .models import User
     user = db.get(User, user_id)
     if not user or not user.is_active:
@@ -186,12 +185,12 @@ def get_current_user(
     auth: HTTPAuthorizationCredentials | None = Depends(security_bearer),
     db: Session = Depends(get_db),
 ):
-    """Требует аутентификации. Возвращает объект пользователя User или 401."""
+    """Requires authentication. Returns the authenticated User model or raises 401."""
     user = get_current_user_optional(auth, db)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Необходима авторизация (недействительный или отсутствующий Bearer token)",
+            detail="Authentication required (invalid or missing Bearer token)",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
@@ -200,10 +199,10 @@ def get_current_user(
 def get_current_admin(
     current_user = Depends(get_current_user),
 ):
-    """Требует прав администратора (наличие email или никнейма в файле admins.txt)."""
+    """Requires administrator privileges (user email or nickname must exist in admins.txt)."""
     if not is_user_admin(current_user.email, current_user.nickname):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Доступ запрещен. Действие разрешено только администраторам турнира.",
+            detail="Access denied. Action allowed only for tournament administrators.",
         )
     return current_user

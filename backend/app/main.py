@@ -10,7 +10,7 @@ from .routers import admin, auth, leaderboards, matches, players, teams, tournam
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Инициализация при старте приложения: создание таблиц и заполнение данными."""
+    """Application startup initialization: database schema creation and seed."""
     Base.metadata.create_all(bind=engine)
     from .seed import seed_if_empty
     seed_if_empty()
@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_TITLE,
     version=settings.APP_VERSION,
-    description="REST API для управления киберспортивными турнирами, сетками (Double/Single Elimination, Round Robin, Swiss), командами, матчами и учетными записями.",
+    description="REST API for esports tournaments, multi-type brackets (Double/Single Elimination, Round Robin, Swiss), teams, matches, and user accounts.",
     lifespan=lifespan,
 )
 
@@ -32,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Регистрация маршрутов
+# Router registrations
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(tournaments.router)
@@ -42,6 +42,6 @@ app.include_router(players.router)
 app.include_router(leaderboards.router)
 
 
-@app.get("/api/health", tags=["meta"], summary="Проверка доступности сервиса")
+@app.get("/api/health", tags=["meta"], summary="Service health check")
 def health():
     return {"status": "ok", "version": settings.APP_VERSION}

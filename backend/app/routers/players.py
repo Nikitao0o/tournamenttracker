@@ -10,13 +10,13 @@ router = APIRouter(prefix="/api/players", tags=["players"])
 
 @router.get("", response_model=list[schemas.PlayerOut])
 def list_players(team_id: int | None = None, db: Session = Depends(get_db)):
-    """Публичный список игроков с фильтрацией по команде."""
+    """Public list of players with optional team filtering."""
     return crud.get_players(db, team_id=team_id)
 
 
 @router.get("/{player_id}", response_model=schemas.PlayerOut)
 def get_player(player_id: int, db: Session = Depends(get_db)):
-    """Профиль игрока."""
+    """Get player profile by ID."""
     p = crud.get_player_or_404(db, player_id)
     return crud.enrich_player(p)
 
@@ -27,8 +27,8 @@ def create_player(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Создание игрока (только для администраторов).
-    Может быть создан без почты и пароля (user_id=None), либо привязан к зарегистрированному аккаунту.
+    """Create a player (admin only).
+    Can be created without account (user_id=None) or bound to an existing registered user.
     """
     return crud.create_player(db, payload)
 
@@ -40,7 +40,7 @@ def update_player(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Изменение данных и статистики игрока (только для администраторов турнира)."""
+    """Update player details and statistics (admin only)."""
     return crud.update_player(db, player_id, payload)
 
 
@@ -50,5 +50,5 @@ def delete_player(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Удаление профиля игрока (только для администраторов)."""
+    """Delete player profile (admin only)."""
     crud.delete_player(db, player_id)

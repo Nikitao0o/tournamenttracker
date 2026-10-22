@@ -10,24 +10,24 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def register(payload: schemas.UserRegister, db: Session = Depends(get_db)):
-    """Регистрация нового пользователя."""
+    """Register a new user account."""
     return crud.create_user(db, payload)
 
 
 @router.post("/login", response_model=schemas.TokenOut)
 def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
-    """Аутентификация пользователя и получение Bearer токена."""
+    """Authenticate user and return a Bearer access token."""
     user = crud.get_user_by_email(db, payload.email)
     if not user or not verify_password(payload.password, user.hashed_password, user.salt):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный email или пароль",
+            detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Учетная запись отключена",
+            detail="Account is inactive",
         )
 
     token = create_access_token(user.id, user.email, user.nickname)
@@ -37,7 +37,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=schemas.UserOut)
 def get_me(current_user = Depends(get_current_user)):
-    """Получение профиля текущего пользователя."""
+    """Retrieve profile of the currently authenticated user."""
     return crud.enrich_user(current_user)
 
 
@@ -47,5 +47,5 @@ def update_me(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Обычный пользователь может редактировать ТОЛЬКО свою почту, никнейм и пароль."""
+    """Standard user can update ONLY their email, nickname, and password."""
     return crud.update_user_self(db, current_user, payload)

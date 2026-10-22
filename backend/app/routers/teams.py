@@ -10,19 +10,19 @@ router = APIRouter(prefix="/api/teams", tags=["teams"])
 
 @router.get("", response_model=list[schemas.TeamOut])
 def list_teams(db: Session = Depends(get_db)):
-    """Публичный список команд по рейтингу."""
+    """Public list of teams ordered by ranking."""
     return crud.get_teams(db)
 
 
 @router.get("/{team_id}", response_model=schemas.TeamOut)
 def get_team(team_id: int, db: Session = Depends(get_db)):
-    """Получение информации о команде."""
+    """Get team details by ID."""
     return crud.get_team_or_404(db, team_id)
 
 
 @router.get("/{team_id}/players", response_model=list[schemas.PlayerOut])
 def get_team_players(team_id: int, db: Session = Depends(get_db)):
-    """Игроки команды."""
+    """Get roster of a team."""
     crud.get_team_or_404(db, team_id)
     return crud.get_players(db, team_id=team_id)
 
@@ -33,7 +33,7 @@ def create_team(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Создание команды (только для администраторов)."""
+    """Create team (admin only)."""
     return crud.create_team(db, payload)
 
 
@@ -44,7 +44,7 @@ def update_team(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Обновление данных команды (только для администраторов)."""
+    """Update team details (admin only)."""
     return crud.update_team(db, team_id, payload)
 
 
@@ -54,5 +54,5 @@ def delete_team(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Удаление команды (только для администраторов)."""
+    """Delete team (admin only)."""
     crud.delete_team(db, team_id)

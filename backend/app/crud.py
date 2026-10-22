@@ -8,7 +8,7 @@ from .auth import hash_password, is_user_admin
 
 
 # ==========================================
-# Users & Authentication (Пользователи)
+# Users & Authentication
 # ==========================================
 
 def get_user_by_email(db: Session, email: str) -> models.User | None:
@@ -33,12 +33,12 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
     if get_user_by_email(db, email_clean):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Пользователь с email '{payload.email}' уже зарегистрирован",
+            detail=f"User with email '{payload.email}' already exists",
         )
     if get_user_by_nickname(db, nick_clean):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Пользователь с никнеймом '{payload.nickname}' уже зарегистрирован",
+            detail=f"User with nickname '{payload.nickname}' already exists",
         )
 
     hashed_pw, salt = hash_password(payload.password)
@@ -59,7 +59,7 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
 
 
 def update_user_self(db: Session, user: models.User, payload: schemas.UserUpdate) -> schemas.UserOut:
-    """Обычный пользователь может изменять ТОЛЬКО почту, никнейм и пароль."""
+    """Standard user can update ONLY their email, nickname, and password."""
     if payload.email is not None:
         new_email = payload.email.strip().lower()
         if new_email != user.email:
@@ -67,7 +67,7 @@ def update_user_self(db: Session, user: models.User, payload: schemas.UserUpdate
             if existing and existing.id != user.id:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Email '{payload.email}' уже занят другим пользователем",
+                    detail=f"Email '{payload.email}' is already taken",
                 )
             user.email = new_email
 
@@ -78,7 +78,7 @@ def update_user_self(db: Session, user: models.User, payload: schemas.UserUpdate
             if existing and existing.id != user.id:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Никнейм '{payload.nickname}' уже занят",
+                    detail=f"Nickname '{payload.nickname}' is already taken",
                 )
             user.nickname = new_nick
 
@@ -98,7 +98,7 @@ def get_all_users(db: Session) -> list[schemas.UserOut]:
 
 
 # ==========================================
-# Teams (Команды)
+# Teams
 # ==========================================
 
 def get_teams(db: Session) -> list[models.Team]:
@@ -110,7 +110,7 @@ def get_team_or_404(db: Session, team_id: int) -> models.Team:
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Команда с id={team_id} не найдена",
+            detail=f"Team with id={team_id} not found",
         )
     return team
 
@@ -120,7 +120,7 @@ def create_team(db: Session, payload: schemas.TeamCreate) -> models.Team:
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Команда с названием '{payload.name}' уже существует",
+            detail=f"Team with name '{payload.name}' already exists",
         )
     team = models.Team(**payload.model_dump())
     db.add(team)
@@ -131,7 +131,7 @@ def create_team(db: Session, payload: schemas.TeamCreate) -> models.Team:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ошибка целостности данных при создании команды",
+            detail="Integrity error while creating team",
         )
     return team
 
@@ -145,7 +145,7 @@ def update_team(db: Session, team_id: int, payload: schemas.TeamUpdate) -> model
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Команда с названием '{update_data['name']}' уже существует",
+                detail=f"Team with name '{update_data['name']}' already exists",
             )
 
     for key, value in update_data.items():
@@ -158,7 +158,7 @@ def update_team(db: Session, team_id: int, payload: schemas.TeamUpdate) -> model
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ошибка сохранения изменений команды",
+            detail="Error saving team updates",
         )
     return team
 
@@ -170,7 +170,7 @@ def delete_team(db: Session, team_id: int) -> None:
 
 
 # ==========================================
-# Players (Игроки)
+# Players
 # ==========================================
 
 def enrich_player(player: models.Player) -> schemas.PlayerOut:
@@ -192,7 +192,7 @@ def get_player_or_404(db: Session, player_id: int) -> models.Player:
     if not player:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Игрок с id={player_id} не найден",
+            detail=f"Player with id={player_id} not found",
         )
     return player
 
@@ -201,22 +201,21 @@ def create_player(db: Session, payload: schemas.PlayerCreate) -> schemas.PlayerO
     if not db.get(models.Team, payload.team_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Связанная команда с id={payload.team_id} не найдена",
+            detail=f"Associated team with id={payload.team_id} not found",
         )
 
-    # Проверка привязки к аккаунту (если передан user_id)
     if payload.user_id is not None:
         user = db.get(models.User, payload.user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Аккаунт пользователя с id={payload.user_id} не найден",
+                detail=f"User account with id={payload.user_id} not found",
             )
         existing_profile = db.query(models.Player).filter(models.Player.user_id == payload.user_id).first()
         if existing_profile:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Пользователь с id={payload.user_id} уже привязан к игроку {existing_profile.nickname}",
+                detail=f"User with id={payload.user_id} is already linked to player {existing_profile.nickname}",
             )
 
     player = models.Player(**payload.model_dump())
@@ -234,7 +233,7 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
         if not db.get(models.Team, update_data["team_id"]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Связанная команда с id={update_data['team_id']} не найдена",
+                detail=f"Associated team with id={update_data['team_id']} not found",
             )
 
     if "user_id" in update_data and update_data["user_id"] is not None:
@@ -242,7 +241,7 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Аккаунт пользователя с id={update_data['user_id']} не найден",
+                detail=f"User account with id={update_data['user_id']} not found",
             )
         existing_profile = (
             db.query(models.Player)
@@ -252,7 +251,7 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
         if existing_profile:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Данный аккаунт уже привязан к другому игроку",
+                detail="This account is already linked to another player",
             )
 
     for key, value in update_data.items():
@@ -264,19 +263,19 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
 
 
 def claim_player_for_user(db: Session, player_id: int, user_id: int) -> schemas.PlayerOut:
-    """Админская привязка зарегистрированного пользователя к профилю игрока."""
+    """Administrator links a registered user to a player profile."""
     player = get_player_or_404(db, player_id)
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Пользователь с id={user_id} не найден",
+            detail=f"User with id={user_id} not found",
         )
     existing = db.query(models.Player).filter(models.Player.user_id == user_id, models.Player.id != player_id).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Пользователь уже привязан к игроку '{existing.nickname}'",
+            detail=f"User is already bound to player '{existing.nickname}'",
         )
     player.user_id = user_id
     db.commit()
@@ -291,7 +290,7 @@ def delete_player(db: Session, player_id: int) -> None:
 
 
 # ==========================================
-# Tournaments (Турниры)
+# Tournaments
 # ==========================================
 
 def get_tournaments(db: Session, status_filter: str | None = None) -> list[models.Tournament]:
@@ -306,7 +305,7 @@ def get_tournament_or_404(db: Session, tournament_id: int) -> models.Tournament:
     if not tournament:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Турнир с id={tournament_id} не найден",
+            detail=f"Tournament with id={tournament_id} not found",
         )
     return tournament
 
@@ -336,7 +335,7 @@ def delete_tournament(db: Session, tournament_id: int) -> None:
 
 
 # ==========================================
-# Matches (Матчи)
+# Matches
 # ==========================================
 
 def enrich_match(match: models.Match) -> schemas.MatchOut:
@@ -371,13 +370,13 @@ def get_match_or_404(db: Session, match_id: int) -> models.Match:
     if not match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Матч с id={match_id} не найден",
+            detail=f"Match with id={match_id} not found",
         )
     return match
 
 
 def advance_bracket_progression(db: Session, match: models.Match) -> None:
-    """Автоматически продвигает победителя и проигравшего в следующие матчи турнирной сетки."""
+    """Automatically advances match winner and loser to their next bracket positions."""
     if match.status != "FINISHED" or match.score_a is None or match.score_b is None:
         return
     if match.team_a_id is None or match.team_b_id is None:
@@ -391,7 +390,7 @@ def advance_bracket_progression(db: Session, match: models.Match) -> None:
     match.winner_id = winner_id
     match.loser_id = loser_id
 
-    # 1. Продвижение победителя в следующий матч (next_match_id)
+    # 1. Advance winner to next match (next_match_id)
     if match.next_match_id:
         next_m = db.get(models.Match, match.next_match_id)
         if next_m:
@@ -400,7 +399,7 @@ def advance_bracket_progression(db: Session, match: models.Match) -> None:
             elif next_m.team_b_id is None and next_m.team_a_id != winner_id:
                 next_m.team_b_id = winner_id
 
-    # 2. Переход проигравшего в нижнюю сетку (next_loser_match_id)
+    # 2. Advance loser to lower bracket match (next_loser_match_id)
     if match.next_loser_match_id:
         loser_m = db.get(models.Match, match.next_loser_match_id)
         if loser_m:
@@ -414,23 +413,23 @@ def create_match(db: Session, payload: schemas.MatchCreate) -> schemas.MatchOut:
     if payload.team_a_id is not None and payload.team_b_id is not None and payload.team_a_id == payload.team_b_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Команда не может играть против самой себя (team_a_id == team_b_id)",
+            detail="A team cannot play against itself (team_a_id == team_b_id)",
         )
 
     if payload.team_a_id and not db.get(models.Team, payload.team_a_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Команда А с id={payload.team_a_id} не найдена",
+            detail=f"Team A with id={payload.team_a_id} not found",
         )
     if payload.team_b_id and not db.get(models.Team, payload.team_b_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Команда B с id={payload.team_b_id} не найдена",
+            detail=f"Team B with id={payload.team_b_id} not found",
         )
     if not db.get(models.Tournament, payload.tournament_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Турнир с id={payload.tournament_id} не найден",
+            detail=f"Tournament with id={payload.tournament_id} not found",
         )
 
     match = models.Match(**payload.model_dump())
@@ -453,18 +452,18 @@ def update_match(db: Session, match_id: int, payload: schemas.MatchUpdate) -> sc
     if target_team_a is not None and target_team_b is not None and target_team_a == target_team_b:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Команда не может играть против самой себя (team_a_id == team_b_id)",
+            detail="A team cannot play against itself (team_a_id == team_b_id)",
         )
 
     if "team_a_id" in update_data and update_data["team_a_id"] and not db.get(models.Team, update_data["team_a_id"]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Команда А с id={update_data['team_a_id']} не найдена",
+            detail=f"Team A with id={update_data['team_a_id']} not found",
         )
     if "team_b_id" in update_data and update_data["team_b_id"] and not db.get(models.Team, update_data["team_b_id"]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Команда B с id={update_data['team_b_id']} не найдена",
+            detail=f"Team B with id={update_data['team_b_id']} not found",
         )
 
     for key, value in update_data.items():
@@ -484,7 +483,7 @@ def delete_match(db: Session, match_id: int) -> None:
 
 
 # ==========================================
-# Bracket Generation (Генерация различных типов сеток)
+# Bracket Generation
 # ==========================================
 
 def get_tournament_brackets(db: Session, tournament_id: int) -> list[models.Bracket]:
@@ -496,15 +495,16 @@ def generate_tournament_bracket(
     tournament_id: int,
     payload: schemas.BracketCreate,
 ) -> schemas.TournamentBracketView:
-    """Генерирует турнирную сетку выбранного типа (Double Elimination, Single Elimination, Round Robin, Swiss)."""
+    """Generates a tournament bracket of the chosen type
+    (double_elimination, single_elimination, round_robin, swiss).
+    """
     tournament = get_tournament_or_404(db, tournament_id)
 
-    # Валидация участвующих команд
     teams = [db.get(models.Team, tid) for tid in payload.team_ids]
     if any(t is None for t in teams):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Одна или несколько указанных команд не существуют в базе данных",
+            detail="One or more specified teams do not exist in database",
         )
 
     bracket_type = payload.bracket_type.lower()
@@ -512,13 +512,11 @@ def generate_tournament_bracket(
     if bracket_type not in valid_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Недопустимый тип сетки. Поддерживаются: {', '.join(valid_types)}",
+            detail=f"Unsupported bracket type. Supported: {', '.join(valid_types)}",
         )
 
-    # Обновляем тип сетки у самого турнира
     tournament.bracket_type = bracket_type
 
-    # Создаем сущность сетки в БД
     bracket_model = models.Bracket(
         tournament_id=tournament.id,
         name=payload.name,
@@ -531,9 +529,8 @@ def generate_tournament_bracket(
 
     tour_date = tournament.start_date
 
-    # 1. DOUBLE ELIMINATION (как на скриншоте)
+    # 1. DOUBLE ELIMINATION
     if bracket_type == "double_elimination":
-        # Сетка на 4 команды (Opening round, Upper final, Lower final, Consolidation final, Grand final)
         t_a = payload.team_ids[0] if len(payload.team_ids) > 0 else None
         t_b = payload.team_ids[1] if len(payload.team_ids) > 1 else None
         t_c = payload.team_ids[2] if len(payload.team_ids) > 2 else None
@@ -589,7 +586,6 @@ def generate_tournament_bracket(
         db.commit()
         db.refresh(consolidation_final)
 
-        # Проигравший Upper Final идет в Consolidation Final
         upper_final.next_loser_match_id = consolidation_final.id
 
         # Lower final
@@ -609,7 +605,7 @@ def generate_tournament_bracket(
         db.commit()
         db.refresh(lower_final)
 
-        # Opening round: Match 1 & Match 2
+        # Opening round
         m1 = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -643,9 +639,8 @@ def generate_tournament_bracket(
         db.add_all([m1, m2])
         db.commit()
 
-    # 2. SINGLE ELIMINATION (Олимпийская сетка на выбывание)
+    # 2. SINGLE ELIMINATION
     elif bracket_type == "single_elimination":
-        # Final
         final_match = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -661,7 +656,6 @@ def generate_tournament_bracket(
         db.commit()
         db.refresh(final_match)
 
-        # Semifinals
         sf1 = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -693,7 +687,7 @@ def generate_tournament_bracket(
         db.add_all([sf1, sf2])
         db.commit()
 
-    # 3. ROUND ROBIN (Круговая сетка / каждый с каждым)
+    # 3. ROUND ROBIN
     elif bracket_type == "round_robin":
         team_ids = payload.team_ids
         round_idx = 1
@@ -715,10 +709,9 @@ def generate_tournament_bracket(
                 round_idx += 1
         db.commit()
 
-    # 4. SWISS SYSTEM (Швейцарская система)
+    # 4. SWISS SYSTEM
     elif bracket_type == "swiss":
         team_ids = payload.team_ids
-        # Первый раунд швейцарки (посев пар)
         for i in range(0, len(team_ids) - 1, 2):
             match = models.Match(
                 tournament_id=tournament.id,
@@ -739,7 +732,7 @@ def generate_tournament_bracket(
 
 
 def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.TournamentBracketView:
-    """Формирует структурированное представление сетки турнира."""
+    """Produces structured bracket view data for the frontend."""
     tournament = get_tournament_or_404(db, tournament_id)
     matches = (
         db.query(models.Match)
@@ -757,7 +750,6 @@ def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.Tour
 
     for m in enriched_matches:
         r_name = m.round_name or "General"
-        r_order = m.round_order or 1
 
         if m.bracket_type == "grand_final":
             grand_final = m
@@ -805,7 +797,7 @@ def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.Tour
 
 
 # ==========================================
-# Leaderboards (Таблицы лидеров)
+# Leaderboards
 # ==========================================
 
 def get_team_leaderboard(db: Session) -> list[schemas.TeamLeaderboardEntry]:

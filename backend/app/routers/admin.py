@@ -13,7 +13,7 @@ def list_users(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Список всех зарегистрированных пользователей системы (только для админов)."""
+    """List all registered system users (admin only)."""
     return crud.get_all_users(db)
 
 
@@ -23,8 +23,8 @@ def admin_create_player(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Создание профиля игрока админом.
-    Может быть создан с привязкой к аккаунту (user_id) либо БЕЗ почты и пароля (user_id=None).
+    """Admin creates a player profile.
+    Can be created with a linked user account (user_id) or WITHOUT email and password (user_id=None).
     """
     return crud.create_player(db, payload)
 
@@ -35,11 +35,11 @@ def admin_claim_player(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Привязка зарегистрированного пользователя к профилю игрока (только для админов)."""
+    """Admin binds an existing registered user to a player profile."""
     return crud.claim_player_for_user(db, payload.player_id, payload.user_id)
 
 
 @router.get("/admins-list")
 def get_admins_list(admin = Depends(get_current_admin)):
-    """Просмотр текущих учетных записей администраторов, загруженных из файла admins.txt."""
+    """View current administrator accounts loaded dynamically from admins.txt."""
     return {"admins": sorted(list(get_admin_identifiers()))}

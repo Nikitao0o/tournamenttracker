@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 from app.main import app
 
-# Используем in-memory SQLite для быстрых изолированных тестов
+# In-memory SQLite for fast isolated tests
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
 test_engine = create_engine(
@@ -20,7 +20,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Создает чистую схему БД для каждого теста."""
+    """Creates a clean database schema for each test."""
     Base.metadata.create_all(bind=test_engine)
     session = TestingSessionLocal()
     try:
@@ -32,7 +32,7 @@ def db_session():
 
 @pytest.fixture(scope="function")
 def client(db_session):
-    """Предоставляет тестовый HTTP-клиент FastAPI с подмененной сессией БД."""
+    """Provides a FastAPI test HTTP client with overridden DB session."""
     def override_get_db():
         try:
             yield db_session

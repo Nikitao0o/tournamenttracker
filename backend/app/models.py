@@ -5,7 +5,7 @@ from .database import Base
 
 
 class User(Base):
-    """Учетная запись пользователя в системе."""
+    """System user account."""
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -16,12 +16,12 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[str] = mapped_column(String(30))
 
-    # Связь с профилем игрока (1:1, опционально)
+    # Relationship to optional player profile (1:1)
     player: Mapped["Player | None"] = relationship(back_populates="user", uselist=False)
 
 
 class Tournament(Base):
-    """Киберспортивный турнир."""
+    """Esports tournament entity."""
     __tablename__ = "tournaments"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -32,11 +32,11 @@ class Tournament(Base):
     status: Mapped[str] = mapped_column(String(20), index=True)  # Upcoming / Ongoing / Completed
     location: Mapped[str] = mapped_column(String(120))
 
-    # Выбор типа сетки турнира:
+    # Tournament bracket type selection:
     # double_elimination / single_elimination / round_robin / swiss
     bracket_type: Mapped[str] = mapped_column(String(40), default="double_elimination", index=True)
 
-    # Каскадное отношение к сеткам и матчам
+    # Cascading relationships to brackets and matches
     brackets: Mapped[list["Bracket"]] = relationship(
         back_populates="tournament",
         cascade="all, delete-orphan",
@@ -50,7 +50,7 @@ class Tournament(Base):
 
 
 class Bracket(Base):
-    """Турнирная сетка (этап турнира)."""
+    """Tournament bracket stage entity."""
     __tablename__ = "brackets"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -68,7 +68,7 @@ class Bracket(Base):
 
 
 class Team(Base):
-    """Команда."""
+    """Esports team entity."""
     __tablename__ = "teams"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -87,7 +87,7 @@ class Team(Base):
 
 
 class Player(Base):
-    """Игрок. Может быть привязан к аккаунту User, либо создан админом без аккаунта."""
+    """Player entity. Can be bound to a User account or created independently by admin."""
     __tablename__ = "players"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -103,7 +103,7 @@ class Player(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
     team: Mapped["Team"] = relationship(back_populates="players")
 
-    # Привязка к аккаунту (Nullable: админ может создать игрока без почты и пароля)
+    # Optional account binding (Nullable: admins can create pro players without email/password)
     user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -114,7 +114,7 @@ class Player(Base):
 
 
 class Match(Base):
-    """Матч турнира."""
+    """Tournament match entity."""
     __tablename__ = "matches"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -126,12 +126,12 @@ class Match(Base):
     map_name: Mapped[str | None] = mapped_column(String(40), nullable=True)
     match_format: Mapped[str] = mapped_column(String(10), default="BO3")       # BO1, BO3, BO5
 
-    # Позиция и тип сетки
+    # Bracket positioning
     bracket_type: Mapped[str | None] = mapped_column(String(40), nullable=True) # upper, lower, grand_final, single, round_robin, swiss
     round_name: Mapped[str | None] = mapped_column(String(80), nullable=True)   # "Opening round", "Upper final", "Grand final"
-    round_order: Mapped[int | None] = mapped_column(Integer, nullable=True)     # Порядковый номер раунда (1, 2, 3...)
+    round_order: Mapped[int | None] = mapped_column(Integer, nullable=True)     # Round order number (1, 2, 3...)
 
-    # Участники (Nullable=True для поддержки TBD в сетках!)
+    # Match participants (Nullable=True for TBD slots in tournament brackets)
     team_a_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True)
     team_b_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True)
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
@@ -140,7 +140,7 @@ class Match(Base):
     tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
     bracket_id: Mapped[int | None] = mapped_column(ForeignKey("brackets.id", ondelete="CASCADE"), nullable=True, index=True)
 
-    # Ссылки на следующие матчи (дерево/граф продвижения по сетке)
+    # Progression graph links
     next_match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id", ondelete="SET NULL"), nullable=True)
     next_loser_match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id", ondelete="SET NULL"), nullable=True)
 

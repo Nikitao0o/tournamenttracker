@@ -2,13 +2,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # ==========================================
-# User / Auth (Пользователи и Авторизация)
+# User / Auth
 # ==========================================
 
 class UserRegister(BaseModel):
-    email: str = Field(..., min_length=3, max_length=120, description="Email пользователя")
-    nickname: str = Field(..., min_length=2, max_length=60, description="Отображаемый никнейм")
-    password: str = Field(..., min_length=6, max_length=100, description="Пароль учетной записи")
+    email: str = Field(..., min_length=3, max_length=120, description="User email address")
+    nickname: str = Field(..., min_length=2, max_length=60, description="Display nickname")
+    password: str = Field(..., min_length=6, max_length=100, description="Account password")
 
 
 class UserLogin(BaseModel):
@@ -17,7 +17,7 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Обычный пользователь может изменять ТОЛЬКО почту, пароль и никнейм."""
+    """Standard user can update ONLY email, nickname, and password."""
     email: str | None = Field(default=None, min_length=3, max_length=120)
     nickname: str | None = Field(default=None, min_length=2, max_length=60)
     password: str | None = Field(default=None, min_length=6, max_length=100)
@@ -41,16 +41,16 @@ class TokenOut(BaseModel):
 
 
 # ==========================================
-# Team (Команда)
+# Team
 # ==========================================
 
 class TeamBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120, description="Полное название команды")
-    short_name: str = Field(..., min_length=1, max_length=40, description="Короткое название/тег")
-    region: str = Field(..., min_length=1, max_length=60, description="Регион (Europe, Americas и т.д.)")
-    coach: str = Field(..., min_length=1, max_length=120, description="Тренер команды")
-    description: str = Field(..., max_length=500, description="Описание команды")
-    ranking: int = Field(..., ge=1, description="Позиция в мировом рейтинге")
+    name: str = Field(..., min_length=1, max_length=120, description="Full team name")
+    short_name: str = Field(..., min_length=1, max_length=40, description="Short tag or name")
+    region: str = Field(..., min_length=1, max_length=60, description="Region (Europe, Americas, etc.)")
+    coach: str = Field(..., min_length=1, max_length=120, description="Head coach")
+    description: str = Field(..., max_length=500, description="Team description")
+    ranking: int = Field(..., ge=1, description="World ranking position")
 
 
 class TeamCreate(TeamBase):
@@ -72,20 +72,20 @@ class TeamOut(TeamBase):
 
 
 # ==========================================
-# Player (Игрок)
+# Player
 # ==========================================
 
 class PlayerBase(BaseModel):
-    nickname: str = Field(..., min_length=1, max_length=60, description="Никнейм игрока")
-    name: str = Field(..., min_length=1, max_length=120, description="Реальное имя и фамилия")
-    age: int = Field(..., ge=10, le=100, description="Возраст игрока")
-    role: str = Field(..., min_length=1, max_length=60, description="Игровая роль (AWPer, IGL, Rifler и др.)")
-    nationality: str = Field(..., min_length=1, max_length=60, description="Национальность/гражданство")
-    kd: str = Field(..., min_length=1, max_length=10, description="Соотношение K/D (например, '1.28')")
-    impact: float = Field(..., ge=0.0, description="Рейтинг влияния (Impact)")
-    maps: int = Field(..., ge=0, description="Количество сыгранных карт")
-    team_id: int = Field(..., ge=1, description="ID команды, за которую выступает игрок")
-    user_id: int | None = Field(default=None, description="ID привязанного аккаунта User (если есть)")
+    nickname: str = Field(..., min_length=1, max_length=60, description="Player nickname")
+    name: str = Field(..., min_length=1, max_length=120, description="Full legal name")
+    age: int = Field(..., ge=10, le=100, description="Player age")
+    role: str = Field(..., min_length=1, max_length=60, description="Game role (AWPer, IGL, Rifler, etc.)")
+    nationality: str = Field(..., min_length=1, max_length=60, description="Nationality")
+    kd: str = Field(..., min_length=1, max_length=10, description="K/D ratio (e.g. '1.28')")
+    impact: float = Field(..., ge=0.0, description="Impact rating")
+    maps: int = Field(..., ge=0, description="Number of played maps")
+    team_id: int = Field(..., ge=1, description="Team ID")
+    user_id: int | None = Field(default=None, description="Linked user account ID (if any)")
 
 
 class PlayerCreate(PlayerBase):
@@ -112,26 +112,26 @@ class PlayerOut(PlayerBase):
     user_email: str | None = None
 
 
-# Админские схемы привязки аккаунтов к игрокам
+# Admin binding schema
 class AdminClaimPlayer(BaseModel):
     player_id: int
     user_id: int
 
 
 # ==========================================
-# Tournament (Турнир)
+# Tournament
 # ==========================================
 
 class TournamentBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=200, description="Название турнира")
-    prize_pool: str = Field(..., min_length=1, max_length=50, description="Призовой фонд (например, '$1,000,000')")
-    start_date: str = Field(..., min_length=8, max_length=10, description="Дата начала (YYYY-MM-DD)")
-    end_date: str = Field(..., min_length=8, max_length=10, description="Дата окончания (YYYY-MM-DD)")
-    status: str = Field(..., min_length=1, max_length=20, description="Статус (Upcoming, Ongoing, Completed)")
-    location: str = Field(..., min_length=1, max_length=120, description="Место проведения (город, страна)")
+    title: str = Field(..., min_length=1, max_length=200, description="Tournament title")
+    prize_pool: str = Field(..., min_length=1, max_length=50, description="Prize pool (e.g. '$1,000,000')")
+    start_date: str = Field(..., min_length=8, max_length=10, description="Start date (YYYY-MM-DD)")
+    end_date: str = Field(..., min_length=8, max_length=10, description="End date (YYYY-MM-DD)")
+    status: str = Field(..., min_length=1, max_length=20, description="Status (Upcoming, Ongoing, Completed)")
+    location: str = Field(..., min_length=1, max_length=120, description="Location (City, Country)")
     bracket_type: str = Field(
         default="double_elimination",
-        description="Тип сетки: double_elimination, single_elimination, round_robin, swiss",
+        description="Bracket type: double_elimination, single_elimination, round_robin, swiss",
     )
 
 
@@ -155,37 +155,37 @@ class TournamentOut(TournamentBase):
 
 
 # ==========================================
-# Match (Матч)
+# Match
 # ==========================================
 
 class MatchBase(BaseModel):
-    status: str = Field(default="UPCOMING", min_length=1, max_length=20, description="Статус матча (UPCOMING, LIVE, FINISHED)")
-    score_a: int | None = Field(default=None, ge=0, description="Счёт команды A")
-    score_b: int | None = Field(default=None, ge=0, description="Счёт команды B")
-    date: str = Field(..., min_length=8, max_length=10, description="Дата проведения (YYYY-MM-DD)")
-    start_time: str | None = Field(default=None, description="Время и день матча (например, '21:00 Friday')")
-    map_name: str | None = Field(default=None, max_length=40, description="Карта (Mirage, Inferno, Dust2...)")
-    match_format: str = Field(default="BO3", description="Формат серии (BO1, BO3, BO5)")
+    status: str = Field(default="UPCOMING", min_length=1, max_length=20, description="Match status (UPCOMING, LIVE, FINISHED)")
+    score_a: int | None = Field(default=None, ge=0, description="Team A score")
+    score_b: int | None = Field(default=None, ge=0, description="Team B score")
+    date: str = Field(..., min_length=8, max_length=10, description="Match date (YYYY-MM-DD)")
+    start_time: str | None = Field(default=None, description="Time and day (e.g. '21:00 Friday')")
+    map_name: str | None = Field(default=None, max_length=40, description="Map name (Mirage, Inferno, Dust2...)")
+    match_format: str = Field(default="BO3", description="Series format (BO1, BO3, BO5)")
 
     bracket_type: str | None = Field(default=None, description="upper, lower, grand_final, single, round_robin, swiss")
-    round_name: str | None = Field(default=None, description="Opening round, Upper final, Grand final и т.д.")
-    round_order: int | None = Field(default=None, description="Порядковый номер раунда")
+    round_name: str | None = Field(default=None, description="Opening round, Upper final, Grand final, etc.")
+    round_order: int | None = Field(default=None, description="Round order sequence number")
 
-    # None означает TBD (команда ещё не определена в сетке)
-    team_a_id: int | None = Field(default=None, description="ID команды A (None = TBD)")
-    team_b_id: int | None = Field(default=None, description="ID команды B (None = TBD)")
-    tournament_id: int = Field(..., ge=1, description="ID турнира")
-    bracket_id: int | None = Field(default=None, description="ID этапа сетки")
+    # None indicates TBD (participant team not yet determined)
+    team_a_id: int | None = Field(default=None, description="Team A ID (None = TBD)")
+    team_b_id: int | None = Field(default=None, description="Team B ID (None = TBD)")
+    tournament_id: int = Field(..., ge=1, description="Tournament ID")
+    bracket_id: int | None = Field(default=None, description="Bracket stage ID")
 
-    next_match_id: int | None = Field(default=None, description="Куда переходит победитель")
-    next_loser_match_id: int | None = Field(default=None, description="Куда переходит проигравший (для Double Elimination)")
+    next_match_id: int | None = Field(default=None, description="Next match for winner")
+    next_loser_match_id: int | None = Field(default=None, description="Next match for loser (Double Elimination)")
 
 
 class MatchCreate(MatchBase):
     @model_validator(mode="after")
     def validate_teams_distinct(self):
         if self.team_a_id is not None and self.team_b_id is not None and self.team_a_id == self.team_b_id:
-            raise ValueError("team_a_id и team_b_id должны ссылаться на разные команды")
+            raise ValueError("team_a_id and team_b_id must reference distinct teams")
         return self
 
 
@@ -214,7 +214,7 @@ class MatchUpdate(BaseModel):
             and self.team_b_id is not None
             and self.team_a_id == self.team_b_id
         ):
-            raise ValueError("team_a_id и team_b_id должны ссылаться на разные команды")
+            raise ValueError("team_a_id and team_b_id must reference distinct teams")
         return self
 
 
@@ -230,21 +230,21 @@ class MatchOut(MatchBase):
 
 
 # ==========================================
-# Bracket (Сущность и отображение турнирной сетки)
+# Bracket
 # ==========================================
 
 class BracketBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100, description="Название сетки (Playoffs, Group Stage)")
+    name: str = Field(..., min_length=1, max_length=100, description="Bracket stage name (Playoffs, Group Stage)")
     bracket_type: str = Field(
         ...,
-        description="Тип сетки: single_elimination, double_elimination, round_robin, swiss",
+        description="Bracket type: single_elimination, double_elimination, round_robin, swiss",
     )
     status: str = Field(default="ACTIVE")
 
 
 class BracketCreate(BracketBase):
-    team_ids: list[int] = Field(..., min_length=2, description="Список ID участвующих команд")
-    match_format: str = Field(default="BO3", description="Формат матчей (BO1, BO3, BO5)")
+    team_ids: list[int] = Field(..., min_length=2, description="List of participant team IDs")
+    match_format: str = Field(default="BO3", description="Series format (BO1, BO3, BO5)")
 
 
 class BracketOut(BracketBase):
@@ -270,7 +270,7 @@ class TournamentBracketView(BaseModel):
 
 
 # ==========================================
-# Leaderboards (Таблицы лидеров)
+# Leaderboards
 # ==========================================
 
 class TeamLeaderboardEntry(BaseModel):

@@ -9,14 +9,14 @@ def test_health(client):
 
 
 def test_auth_and_permissions(client):
-    # 1. Регистрация обычного пользователя
+    # 1. Register regular user
     reg_res = client.post(
         "/api/auth/register",
         json={"email": "newuser@test.local", "nickname": "new_player", "password": "password123"},
     )
     assert reg_res.status_code == 201
 
-    # 2. Логин обычного пользователя
+    # 2. Login as regular user
     login_res = client.post(
         "/api/auth/login",
         json={"email": "newuser@test.local", "password": "password123"},
@@ -25,7 +25,7 @@ def test_auth_and_permissions(client):
     token = login_res.json()["access_token"]
     user_headers = {"Authorization": f"Bearer {token}"}
 
-    # 3. Обычный пользователь смотрит свой профиль и обновляет никнейм
+    # 3. Regular user views profile and updates nickname
     me_res = client.get("/api/auth/me", headers=user_headers)
     assert me_res.status_code == 200
     assert me_res.json()["is_admin"] is False
@@ -34,7 +34,7 @@ def test_auth_and_permissions(client):
     assert up_res.status_code == 200
     assert up_res.json()["nickname"] == "updated_nick"
 
-    # 4. Обычный пользователь пытается создать турнир -> 403 Forbidden
+    # 4. Regular user attempts to create tournament -> 403 Forbidden
     tourney_payload = {
         "title": "Unauthorized Major",
         "prize_pool": "$100",
@@ -47,8 +47,7 @@ def test_auth_and_permissions(client):
     forbidden_res = client.post("/api/tournaments", headers=user_headers, json=tourney_payload)
     assert forbidden_res.status_code == 403
 
-    # 5. Логин администратора (admin@tracker.local из admins.txt)
-    # Регистрируем админа
+    # 5. Admin login (admin@tracker.local from admins.txt)
     client.post(
         "/api/auth/register",
         json={"email": "admin@tracker.local", "nickname": "admin", "password": "password123"},
@@ -60,12 +59,11 @@ def test_auth_and_permissions(client):
     admin_token = admin_login.json()["access_token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
-    # 6. Админ успешно создает турнир
+    # 6. Admin creates tournament successfully
     create_tourney = client.post("/api/tournaments", headers=admin_headers, json=tourney_payload)
     assert create_tourney.status_code == 201
-    tourney_id = create_tourney.json()["id"]
 
-    # 7. Админ создает команду и игрока БЕЗ аккаунта
+    # 7. Admin creates team and player WITHOUT account
     team_res = client.post(
         "/api/teams",
         headers=admin_headers,
@@ -101,7 +99,7 @@ def test_auth_and_permissions(client):
     player_id = player_res.json()["id"]
     assert player_res.json()["user_email"] is None
 
-    # 8. Админ привязывает обычного пользователя к игроку
+    # 8. Admin claims registered user for player profile
     regular_user_id = me_res.json()["id"]
     claim_res = client.post(
         "/api/admin/players/claim",
@@ -113,7 +111,6 @@ def test_auth_and_permissions(client):
 
 
 def test_bracket_endpoint(client):
-    # Получение сетки турнира
     tournaments = client.get("/api/tournaments").json()
     if tournaments:
         t_id = tournaments[0]["id"]

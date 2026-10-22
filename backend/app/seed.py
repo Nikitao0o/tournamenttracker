@@ -4,20 +4,19 @@ from .models import Bracket, Match, Player, Team, Tournament, User
 
 
 def seed_if_empty(db_session=None):
-    """Заполняет базу данных демонстрационными данными, если она пуста."""
+    """Fills the database with initial demonstration data if it is empty."""
     db = db_session or SessionLocal()
     try:
         if db.query(Team).count() > 0:
-            print("[seed] База данных уже содержит данные, пропускаем сидирование.")
+            print("[seed] Database already populated, skipping seed.")
             return
 
-        print("[seed] Заполнение базы демонстрационными данными...")
+        print("[seed] Populating database with demo data...")
 
-        # 0. Создание пользователей
-        # Пароль для обоих: password123
+        # 0. Create users (password for both is 'password123')
         pw_hash, salt = hash_password("password123")
 
-        # Аккаунт администратора (указан в admins.txt)
+        # Administrator account (listed in admins.txt)
         admin_user = User(
             email="admin@tracker.local",
             nickname="admin",
@@ -26,7 +25,7 @@ def seed_if_empty(db_session=None):
             is_active=True,
             created_at="2026-01-01 00:00:00",
         )
-        # Обычный пользователь (не в admins.txt)
+        # Standard user account (not in admins.txt)
         regular_user = User(
             email="user@tracker.local",
             nickname="player_alex",
@@ -38,14 +37,14 @@ def seed_if_empty(db_session=None):
         db.add_all([admin_user, regular_user])
         db.commit()
 
-        # 1. Создание команд
+        # 1. Create teams
         teams = [
             Team(
                 name="Team Spirit",
                 short_name="Spirit",
                 region="Europe",
                 coach='Yuri "Yurii" Dvoryanov',
-                description="Дисциплинированный состав по CS с элитным контролем карты.",
+                description="A disciplined counter-strike roster with elite map control and mid-round composure.",
                 ranking=1,
             ),
             Team(
@@ -53,7 +52,7 @@ def seed_if_empty(db_session=None):
                 short_name="Vitality",
                 region="Europe",
                 coach="Dennis Mølleby",
-                description="Известны взрывными первыми дуэлями и активным прессингом.",
+                description="Known for explosive opening duels and aggressive territorial pressure.",
                 ranking=2,
             ),
             Team(
@@ -61,7 +60,7 @@ def seed_if_empty(db_session=None):
                 short_name="FURIA",
                 region="Americas",
                 coach='Anderson "Ande" Brum',
-                description="Агрессивный бразильский стиль игры и высокий темп.",
+                description="Aggressive Brazilian playstyle with fast pace and fearless trades.",
                 ranking=3,
             ),
             Team(
@@ -69,18 +68,18 @@ def seed_if_empty(db_session=None):
                 short_name="MOUZ",
                 region="Europe",
                 coach="Alfie",
-                description="Структурированный и эффективный европейский коллектив.",
+                description="A structured, young, and efficient European squad with high utility impact.",
                 ranking=4,
             ),
         ]
         db.add_all(teams)
         db.commit()
 
-        # 2. Создание игроков (один привязан к regular_user, остальные - без аккаунта)
+        # 2. Create players (donk is linked to regular_user, others are standalone)
         players = [
             Player(nickname="donk", name="Danil Kryshkovets", age=19, role="Entry Fragger",
                    nationality="Russian", kd="1.28", impact=9.4, maps=59, team_id=teams[0].id,
-                   user_id=regular_user.id),  # привязан к зарегистрированному аккаунту
+                   user_id=regular_user.id),
             Player(nickname="chopper", name="Aleksandr Gorbunov", age=23, role="IGL",
                    nationality="Russian", kd="1.15", impact=8.8, maps=61, team_id=teams[0].id),
             Player(nickname="sh1ro", name="Bogdan Naumov", age=22, role="AWPer",
@@ -105,7 +104,7 @@ def seed_if_empty(db_session=None):
         db.add_all(players)
         db.commit()
 
-        # 3. Создание турниров с разными типами сеток
+        # 3. Create tournaments with distinct bracket types
         tournaments = [
             Tournament(
                 title="IEM Katowice 2026",
@@ -147,7 +146,7 @@ def seed_if_empty(db_session=None):
         db.add_all(tournaments)
         db.commit()
 
-        # 4. Создание турнирной сетки Double Elimination для IEM Katowice 2026 (точь-в-точь как на скриншоте!)
+        # 4. Create Double Elimination bracket for IEM Katowice 2026
         bracket_katowice = Bracket(
             tournament_id=tournaments[0].id,
             name="Main Playoff Bracket",
@@ -227,7 +226,7 @@ def seed_if_empty(db_session=None):
         db.commit()
         db.refresh(lower_final)
 
-        # 4.5 Opening round matches (Spirit vs MOUZ, Vitality vs FURIA)
+        # 4.5 Opening round matches
         m1 = Match(
             tournament_id=tournaments[0].id,
             bracket_id=bracket_katowice.id,
@@ -261,7 +260,7 @@ def seed_if_empty(db_session=None):
         db.add_all([m1, m2])
         db.commit()
 
-        print("[seed] Демо-данные (пользователи, команды, игроки, турниры, сетки) успешно добавлены.")
+        print("[seed] Demo data (users, teams, players, tournaments, brackets) successfully loaded.")
     finally:
         if db_session is None:
             db.close()

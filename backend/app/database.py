@@ -22,8 +22,9 @@ class Base(DeclarativeBase):
 
 
 def get_db():
-    """FastAPI вызывает эту зависимость для каждого запроса,
-    предоставляя сессию БД и автоматически закрывая её после ответа."""
+    """FastAPI dependency that yields a database session for each request
+    and guarantees its closing afterwards.
+    """
     db = SessionLocal()
     try:
         yield db

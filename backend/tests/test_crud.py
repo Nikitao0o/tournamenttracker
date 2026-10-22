@@ -2,7 +2,7 @@ import unittest
 import os
 import sys
 
-# Добавляем backend в sys.path
+# Add backend to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy import create_engine
@@ -35,19 +35,19 @@ class TestTournamentTrackerFull(unittest.TestCase):
         self.db.close()
         models.Base.metadata.drop_all(bind=self.engine)
 
-    # 1. Тестирование пользователей и админского файла
+    # 1. Test users and admins file resolution
     def test_users_and_admin_file(self):
-        # Проверяем, что admin_user из seed признан админом по admins.txt
+        # Verify admin user from seed is recognized as admin via admins.txt
         admin = crud.get_user_by_email(self.db, "admin@tracker.local")
         self.assertIsNotNone(admin)
         self.assertTrue(is_user_admin(admin.email, admin.nickname))
 
-        # Обычный пользователь не является админом
+        # Standard user is not an admin
         regular = crud.get_user_by_email(self.db, "user@tracker.local")
         self.assertIsNotNone(regular)
         self.assertFalse(is_user_admin(regular.email, regular.nickname))
 
-        # Обычный пользователь меняет себе только никнейм
+        # Standard user can update only their own nickname
         updated = crud.update_user_self(
             self.db,
             regular,
@@ -55,12 +55,12 @@ class TestTournamentTrackerFull(unittest.TestCase):
         )
         self.assertEqual(updated.nickname, "new_alex_nick")
 
-    # 2. Тестирование создания игрока админом (с аккаунтом и без)
+    # 2. Test admin creating player with and without user account
     def test_admin_create_player_with_and_without_account(self):
         teams = crud.get_teams(self.db)
         team_id = teams[0].id
 
-        # Создание игрока БЕЗ почты и пароля (user_id=None)
+        # Create player WITHOUT email and password (user_id=None)
         player_no_acc = crud.create_player(
             self.db,
             schemas.PlayerCreate(
@@ -79,7 +79,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
         self.assertIsNotNone(player_no_acc.id)
         self.assertIsNone(player_no_acc.user_id)
 
-        # Регистрация нового аккаунта
+        # Register a new user account
         new_user = crud.create_user(
             self.db,
             schemas.UserRegister(
@@ -89,17 +89,17 @@ class TestTournamentTrackerFull(unittest.TestCase):
             ),
         )
 
-        # Привязка зарегистрированного пользователя к профилю игрока админом
+        # Admin binds the registered user to the player profile
         claimed = crud.claim_player_for_user(self.db, player_no_acc.id, new_user.id)
         self.assertEqual(claimed.user_email, "pro_sniper@tracker.local")
 
-    # 3. Генерация сетки Double Elimination и автоматическое продвижение
+    # 3. Test Double Elimination bracket generation and auto-progression
     def test_double_elimination_bracket_and_progression(self):
         tournament = crud.get_tournaments(self.db)[0]
         teams = crud.get_teams(self.db)
         team_ids = [t.id for t in teams[:4]]
 
-        # Генерация Double Elimination сетки
+        # Generate Double Elimination bracket
         bracket_view = crud.generate_tournament_bracket(
             self.db,
             tournament.id,
@@ -114,7 +114,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
         self.assertTrue(len(bracket_view.upper_bracket) > 0)
         self.assertIsNotNone(bracket_view.grand_final)
 
-        # Находим первый матч Opening round
+        # Find first Opening round match
         opening_match = (
             self.db.query(models.Match)
             .filter(
@@ -128,7 +128,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
         self.assertIsNotNone(opening_match.next_match_id)
         self.assertIsNotNone(opening_match.next_loser_match_id)
 
-        # Завершаем матч: Team A побеждает Team B со счетом 2:0
+        # Finish match: Team A defeats Team B 2-0
         winner_id = opening_match.team_a_id
         loser_id = opening_match.team_b_id
 
@@ -138,16 +138,16 @@ class TestTournamentTrackerFull(unittest.TestCase):
             schemas.MatchUpdate(status="FINISHED", score_a=2, score_b=0),
         )
 
-        # Проверяем автоматическое продвижение:
-        # 1. Победитель перешел в Upper final
+        # Verify automatic progression:
+        # 1. Winner advanced to Upper final
         upper_final = self.db.get(models.Match, opening_match.next_match_id)
         self.assertIn(winner_id, [upper_final.team_a_id, upper_final.team_b_id])
 
-        # 2. Проигравший упал в Lower final
+        # 2. Loser dropped to Lower final
         lower_final = self.db.get(models.Match, opening_match.next_loser_match_id)
         self.assertIn(loser_id, [lower_final.team_a_id, lower_final.team_b_id])
 
-    # 4. Генерация других типов сеток: Single Elimination и Round Robin
+    # 4. Test Single Elimination and Round Robin generation
     def test_other_bracket_types(self):
         tournaments = crud.get_tournaments(self.db)
         teams = crud.get_teams(self.db)
@@ -166,7 +166,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
         )
         self.assertEqual(se_view.bracket_type, "single_elimination")
         se_matches = self.db.query(models.Match).filter(models.Match.tournament_id == tournaments[1].id).all()
-        # 2 полуфинала + 1 финал = 3 матча
+        # 2 semifinals + 1 final = 3 matches
         self.assertTrue(len(se_matches) >= 3)
 
         # Round Robin
@@ -182,7 +182,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
         )
         self.assertEqual(rr_view.bracket_type, "round_robin")
         rr_matches = self.db.query(models.Match).filter(models.Match.tournament_id == tournaments[2].id).all()
-        # 4 команды -> C(4, 2) = 6 матчей
+        # 4 teams -> C(4, 2) = 6 matches
         self.assertEqual(len(rr_matches), 6)
 
 

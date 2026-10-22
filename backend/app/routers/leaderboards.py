@@ -9,9 +9,11 @@ router = APIRouter(prefix="/api/leaderboards", tags=["leaderboards"])
 
 @router.get("/teams", response_model=list[schemas.TeamLeaderboardEntry])
 def team_leaderboard(db: Session = Depends(get_db)):
+    """Team leaderboard ordered by world ranking."""
     return crud.get_team_leaderboard(db)
 
 
 @router.get("/players", response_model=list[schemas.PlayerLeaderboardEntry])
 def player_leaderboard(limit: int = 10, db: Session = Depends(get_db)):
+    """Player leaderboard ordered by rating/impact."""
     return crud.get_player_leaderboard(db, limit=limit)

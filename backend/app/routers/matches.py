@@ -15,7 +15,7 @@ def list_matches(
     team_id: int | None = None,
     db: Session = Depends(get_db),
 ):
-    """Публичный список матчей с фильтрацией."""
+    """Public list of matches with filtering."""
     return crud.get_matches(
         db,
         status_filter=status,
@@ -26,7 +26,7 @@ def list_matches(
 
 @router.get("/{match_id}", response_model=schemas.MatchOut)
 def get_match(match_id: int, db: Session = Depends(get_db)):
-    """Получение детальной информации о матче."""
+    """Get match details by ID."""
     m = crud.get_match_or_404(db, match_id)
     return crud.enrich_match(m)
 
@@ -37,7 +37,7 @@ def create_match(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Создание матча (только для администраторов)."""
+    """Create a match (admin only)."""
     return crud.create_match(db, payload)
 
 
@@ -48,8 +48,8 @@ def update_match(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Обновление счета/статуса матча (только для администраторов).
-    При переходе в статус FINISHED автоматически продвигает участников по турнирной сетке.
+    """Update match score and status (admin only).
+    When marked FINISHED, automatically advances winners/losers through the bracket.
     """
     return crud.update_match(db, match_id, payload)
 
@@ -60,5 +60,5 @@ def delete_match(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Удаление матча (только для администраторов)."""
+    """Delete match (admin only)."""
     crud.delete_match(db, match_id)

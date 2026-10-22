@@ -10,26 +10,26 @@ router = APIRouter(prefix="/api/tournaments", tags=["tournaments"])
 
 @router.get("", response_model=list[schemas.TournamentOut])
 def list_tournaments(status: str | None = None, db: Session = Depends(get_db)):
-    """Публичный список всех турниров."""
+    """Public list of all tournaments."""
     return crud.get_tournaments(db, status_filter=status)
 
 
 @router.get("/{tournament_id}", response_model=schemas.TournamentOut)
 def get_tournament(tournament_id: int, db: Session = Depends(get_db)):
-    """Получение информации о турнире."""
+    """Get tournament details by ID."""
     return crud.get_tournament_or_404(db, tournament_id)
 
 
 @router.get("/{tournament_id}/matches", response_model=list[schemas.MatchOut])
 def get_tournament_matches(tournament_id: int, db: Session = Depends(get_db)):
-    """Матчи турнира."""
+    """Matches of a tournament."""
     crud.get_tournament_or_404(db, tournament_id)
     return crud.get_matches(db, tournament_id=tournament_id)
 
 
 @router.get("/{tournament_id}/bracket", response_model=schemas.TournamentBracketView)
 def get_tournament_bracket(tournament_id: int, db: Session = Depends(get_db)):
-    """Получение турнирной сетки в структурированном виде (Upper, Lower, Grand final)."""
+    """Get structured tournament bracket (Upper, Lower, Grand final)."""
     return crud.get_tournament_bracket_view(db, tournament_id)
 
 
@@ -39,7 +39,7 @@ def create_tournament(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Создание турнира (только для администраторов)."""
+    """Create a tournament (admin only)."""
     return crud.create_tournament(db, payload)
 
 
@@ -50,7 +50,7 @@ def update_tournament(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Модификация турнира (только для администраторов)."""
+    """Modify tournament details (admin only)."""
     return crud.update_tournament(db, tournament_id, payload)
 
 
@@ -60,7 +60,7 @@ def delete_tournament(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Удаление турнира (только для администраторов)."""
+    """Delete tournament (admin only)."""
     crud.delete_tournament(db, tournament_id)
 
 
@@ -71,7 +71,7 @@ def generate_bracket(
     admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Генерация турнирной сетки выбранного типа (только для администраторов).
-    Поддерживаемые типы: double_elimination, single_elimination, round_robin, swiss.
+    """Generate tournament bracket of chosen type (admin only).
+    Supported types: double_elimination, single_elimination, round_robin, swiss.
     """
     return crud.generate_tournament_bracket(db, tournament_id, payload)

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 def _load_env_file():
-    """Загружает переменные из .env файла, если он существует."""
+    """Loads environment variables from .env file if it exists."""
     possible_paths = [
         Path(".env"),
         Path("backend/.env"),
@@ -30,27 +30,27 @@ _load_env_file()
 
 
 class Settings(BaseModel):
-    """Конфигурация приложения и подключения к БД."""
+    """Application and database configuration settings."""
 
     APP_TITLE: str = "Tournament Tracker API"
     APP_VERSION: str = "0.2.0"
     DEBUG: bool = Field(default_factory=lambda: os.getenv("DEBUG", "False").lower() in ("true", "1", "t"))
 
-    # Параметры подключения к PostgreSQL
+    # PostgreSQL connection parameters
     POSTGRES_USER: str = Field(default_factory=lambda: os.getenv("POSTGRES_USER", "tracker"))
     POSTGRES_PASSWORD: str = Field(default_factory=lambda: os.getenv("POSTGRES_PASSWORD", "tracker"))
     POSTGRES_DB: str = Field(default_factory=lambda: os.getenv("POSTGRES_DB", "tracker"))
     POSTGRES_HOST: str = Field(default_factory=lambda: os.getenv("POSTGRES_HOST", "localhost"))
     POSTGRES_PORT: int = Field(default_factory=lambda: int(os.getenv("POSTGRES_PORT", "5432")))
 
-    # Прямой URL подключения к БД (если задан, приоритетнее отдельных полей)
+    # Direct database connection URL (takes priority if provided)
     DATABASE_URL: str = Field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
 
     def get_database_url(self) -> str:
-        """Возвращает итоговый URL подключения к базе данных.
-        Если переменная DATABASE_URL явно задана — используется она.
-        Если запуск в Docker или драйвер psycopg доступен — формируется PostgreSQL URL.
-        Если запуск локальный и драйвер psycopg не установлен — фоллбэк на SQLite.
+        """Returns the final database connection URL.
+        If DATABASE_URL environment variable is set, it is used directly.
+        If running in Docker or psycopg driver is available, builds PostgreSQL URL.
+        If running locally and psycopg driver is absent, falls back to SQLite.
         """
         if self.DATABASE_URL:
             return self.DATABASE_URL
