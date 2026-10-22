@@ -4,20 +4,18 @@ services:
     container_name: tracker-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: tracker
-      POSTGRES_PASSWORD: tracker
-      POSTGRES_DB: tracker
+      POSTGRES_USER: ${POSTGRES_USER:-tracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tracker}
+      POSTGRES_DB: ${POSTGRES_DB:-tracker}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tracker -d tracker"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tracker} -d ${POSTGRES_DB:-tracker}"]
       interval: 5s
       timeout: 5s
       retries: 10
-    # Наружу порт не публикуем — доступ только изнутри сети.
-    # Если хочешь подключаться psql-ом с хоста, раскомментируй:
-    # ports:
-    #   - "5432:5432"
 
   backend:
     build:
@@ -26,14 +24,12 @@ services:
     container_name: tracker-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+psycopg://tracker:tracker@db:5432/tracker
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD:-tracker}@db:5432/${POSTGRES_DB:-tracker}
     depends_on:
       db:
         condition: service_healthy
-    # Наружу не публикуем — доступ через nginx фронта.
-    # Для отладки можно открыть: "8000:8000"
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
 
   frontend:
     build:
@@ -43,6 +39,8 @@ services:
     restart: unless-stopped
     ports:
       - "5173:80"        # браузер → localhost:5173 → nginx :80
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

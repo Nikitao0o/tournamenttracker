@@ -1,16 +1,17 @@
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-import os
 
-# SQLite файл появится рядом с проектом
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tracker.db")
+from .config import settings
+
+DATABASE_URL = settings.get_database_url()
 
 connect_args = (
     {"check_same_thread": False}
     if make_url(DATABASE_URL).get_backend_name() == "sqlite"
     else {}
 )
+
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -21,8 +22,8 @@ class Base(DeclarativeBase):
 
 
 def get_db():
-    """FastAPI будет вызывать эту функцию для каждого запроса,
-    чтобы получить сессию БД и закрыть её после ответа."""
+    """FastAPI вызывает эту зависимость для каждого запроса,
+    предоставляя сессию БД и автоматически закрывая её после ответа."""
     db = SessionLocal()
     try:
         yield db

@@ -3,30 +3,30 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import settings
 from .database import Base, engine
 from .routers import leaderboards, matches, players, teams, tournaments
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Выполняется один раз при старте приложения
+    """Инициализация при старте приложения: создание таблиц и заполнение данными."""
     Base.metadata.create_all(bind=engine)
-    # Импорт внутри функции, чтобы избежать циклических зависимостей
     from .seed import seed_if_empty
     seed_if_empty()
     yield
-    # Здесь можно закрывать ресурсы при остановке
 
 
 app = FastAPI(
-    title="Tournament Tracker API",
-    version="0.1.0",
+    title=settings.APP_TITLE,
+    version=settings.APP_VERSION,
+    description="REST API для управления киберспортивными турнирами, командами, игроками и матчами.",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # в docker-режиме фронт ходит через nginx-прокси, CORS не нужен
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,6 +39,6 @@ app.include_router(players.router)
 app.include_router(leaderboards.router)
 
 
-@app.get("/api/health", tags=["meta"])
+@app.get("/api/health", tags=["meta"], summary="Проверка доступности сервиса")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": settings.APP_VERSION}
