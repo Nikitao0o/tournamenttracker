@@ -28,8 +28,6 @@ interface TournamentFormDialogProps {
 const BRACKET_OPTIONS: { label: string; value: BracketType }[] = [
   { label: 'Double Elimination', value: 'double_elimination' },
   { label: 'Single Elimination', value: 'single_elimination' },
-  { label: 'Round Robin', value: 'round_robin' },
-  { label: 'Swiss System', value: 'swiss' },
 ]
 
 function TournamentFormContent({

@@ -345,11 +345,16 @@ def update_tournament(db: Session, tournament_id: int, payload: schemas.Tourname
 
 def delete_tournament(db: Session, tournament_id: int) -> None:
     tournament = get_tournament_or_404(db, tournament_id)
-    # Clear self-referential match links first to prevent FK deadlock
+    # 1. Break self-referential links between matches in this tournament
     db.query(models.Match).filter(models.Match.tournament_id == tournament_id).update({
         models.Match.next_match_id: None,
         models.Match.next_loser_match_id: None,
     })
+    # 2. Delete all matches belonging to this tournament
+    db.query(models.Match).filter(models.Match.tournament_id == tournament_id).delete()
+    # 3. Delete all brackets belonging to this tournament
+    db.query(models.Bracket).filter(models.Bracket.tournament_id == tournament_id).delete()
+    # 4. Delete the tournament itself
     db.delete(tournament)
     db.commit()
 

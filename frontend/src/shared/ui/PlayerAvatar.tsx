@@ -6,36 +6,19 @@ import { getKnownPlayerAvatar } from './playerAvatarsData'
 import { resolveImageUrl } from '../utils/image'
 import { storage } from '../api/storage'
 
-// Базовые цветовые палитры для аватарок игроков в зависимости от команды/роли
-const TEAM_COLORS: Record<string, { bg: string; accent: string; text: string }> = {
-  'team-spirit': { bg: '#1c222b', accent: '#69f0ae', text: '#ffffff' },
-  'team-vitality': { bg: '#2b291a', accent: '#ffd700', text: '#ffffff' },
-  'team-furia': { bg: '#231d20', accent: '#f04b3a', text: '#ffffff' },
-  'team-mouz': { bg: '#2b171a', accent: '#e30613', text: '#ffffff' },
-}
-
-// Генерация SVG-аватарки киберспортсмена в наушниках
-function generatePlayerSvg(name: string, teamId?: string): string {
-  const team = teamId ? TEAM_COLORS[teamId] : { bg: '#23272e', accent: '#f04b3a', text: '#ffffff' }
-  const bg = team?.bg || '#23272e'
-  const accent = team?.accent || '#f04b3a'
-  const initial = name.charAt(0).toUpperCase()
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <rect width="100" height="100" rx="50" fill="${encodeURIComponent(bg)}"/>
-    <path d="M22 50 C22 25 78 25 78 50" fill="none" stroke="${encodeURIComponent(accent)}" stroke-width="6" stroke-linecap="round"/>
-    <rect x="16" y="44" width="10" height="18" rx="4" fill="${encodeURIComponent(accent)}"/>
-    <rect x="74" y="44" width="10" height="18" rx="4" fill="${encodeURIComponent(accent)}"/>
-    <circle cx="50" cy="50" r="22" fill="%23ffffff" fill-opacity="0.9"/>
-    <path d="M24 92 C28 72 72 72 76 92 Z" fill="${encodeURIComponent(accent)}"/>
-    <text x="50" y="56" font-family="Arial, sans-serif" font-weight="900" font-size="18" fill="%2317191e" text-anchor="middle">${initial}</text>
-  </svg>`
-
-  return `data:image/svg+xml;utf8,${svg}`
-}
+// Identical default avatar icon for any player without a unique avatar
+export const DEFAULT_PLAYER_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="50" fill="%23242832"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="%233a4150" stroke-width="2"/>
+  <path d="M30 42 C30 24 70 24 70 42" fill="none" stroke="%23f04b3a" stroke-width="4.5" stroke-linecap="round"/>
+  <rect x="25" y="38" width="8" height="16" rx="3" fill="%23f04b3a"/>
+  <rect x="67" y="38" width="8" height="16" rx="3" fill="%23f04b3a"/>
+  <circle cx="50" cy="42" r="16" fill="%238a93a4"/>
+  <path d="M24 86 C26 66 38 60 50 60 C62 60 74 66 76 86 Z" fill="%238a93a4"/>
+</svg>`
 
 interface PlayerAvatarProps {
-  name: string
+  name?: string
   avatarUrl?: string
   teamId?: string
   preferredFormat?: 'png' | 'jpg' | 'svg'
@@ -47,35 +30,66 @@ interface PlayerAvatarProps {
 export function PlayerAvatar({
   name,
   avatarUrl,
-  teamId,
   size = 36,
   sx,
 }: PlayerAvatarProps) {
-  // 0: try custom or stored or avatarUrl or known PNG/JPG, 1: try fallback SVG, 2: monogram initial
-  const [attempt, setAttempt] = useState(0)
+  const [hasError, setHasError] = useState(false)
+
+  // Empty placeholder slot for unassigned player
+  const isEmptySlot = !name || name.trim() === '' || name.toUpperCase() === 'TBD' || name === 'Unassigned' || name === 'Open Slot'
+
+  if (isEmptySlot) {
+    return (
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          position: 'relative',
+          ...sx,
+        }}
+      >
+        <Box
+          sx={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            border: '1.5px dashed #4b5262',
+            bgcolor: 'rgba(255, 255, 255, 0.04)',
+            color: '#7d8696',
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: Math.max(10, Math.round(size * 0.34)),
+            fontWeight: 800,
+            userSelect: 'none',
+          }}
+          title="Empty player slot"
+        >
+          👤
+        </Box>
+      </Box>
+    )
+  }
 
   const storedCustomAvatar = storage.getPlayerAvatar(name)
   const knownPath = getKnownPlayerAvatar(name)
-  const fallbackSvg = generatePlayerSvg(name, teamId)
 
-  const getSource = (): string | undefined => {
-    if (attempt === 0) {
-      if (storedCustomAvatar) return storedCustomAvatar
-      if (avatarUrl) return resolveImageUrl(avatarUrl)
-      if (knownPath) return knownPath
-      return fallbackSvg
+  const getSource = (): string => {
+    if (hasError) return DEFAULT_PLAYER_AVATAR
+    if (storedCustomAvatar) return storedCustomAvatar
+    if (avatarUrl) {
+      const resolved = resolveImageUrl(avatarUrl)
+      if (resolved) return resolved
     }
-    if (attempt === 1) {
-      return fallbackSvg
-    }
-    return undefined
+    if (knownPath) return knownPath
+    return DEFAULT_PLAYER_AVATAR
   }
 
   const effectiveSrc = getSource()
-  const initial = name.charAt(0).toUpperCase()
 
   const handleError = () => {
-    setAttempt((prev) => prev + 1)
+    setHasError(true)
   }
 
   return (
@@ -101,15 +115,17 @@ export function PlayerAvatar({
         sx={{
           width: size,
           height: size,
-          fontSize: Math.max(10, Math.round(size * 0.38)),
-          fontWeight: 800,
-          bgcolor: 'secondary.main',
-          color: '#fff',
+          bgcolor: '#242832',
           border: '2px solid rgba(255,255,255,0.1)',
           boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
         }}
       >
-        {initial}
+        <Box
+          component="img"
+          src={DEFAULT_PLAYER_AVATAR}
+          alt={name}
+          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
       </Avatar>
     </Box>
   )

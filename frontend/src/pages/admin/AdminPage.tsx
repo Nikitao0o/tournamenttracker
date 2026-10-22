@@ -22,6 +22,9 @@ import { useTournaments } from '../../app/providers/useTournaments'
 import { TournamentStatusLabel } from '../../components/StatusChips'
 import { DeleteConfirmDialog } from '../../features/manage-tournaments/ui/DeleteConfirmDialog'
 import { TournamentFormDialog } from '../../features/manage-tournaments/ui/TournamentFormDialog'
+import { CreateTeamDialog } from '../../features/manage-teams/ui/CreateTeamDialog'
+import { CreatePlayerDialog } from '../../features/manage-players/ui/CreatePlayerDialog'
+import { EditPlayerDialog } from '../../features/manage-players/ui/EditPlayerDialog'
 import { MediaUploadDialog } from '../../features/manage-media/ui/MediaUploadDialog'
 import { EmptyState } from '../../shared/ui/EmptyState'
 import { ErrorAlert } from '../../shared/ui/ErrorAlert'
@@ -31,21 +34,39 @@ import { PlayerAvatar } from '../../shared/ui/PlayerAvatar'
 import { formatDate } from '../../utils/formatting'
 import { storage } from '../../shared/api/storage'
 import { MOCK_TEAMS, MOCK_PLAYERS } from '../../mock/data'
-import type { CreateTournamentInput, Tournament, UpdateTournamentInput } from '../../types'
+import type {
+  CreateTournamentInput,
+  Tournament,
+  UpdateTournamentInput,
+  CreateTeamInput,
+  CreatePlayerInput,
+  Team,
+  Player,
+} from '../../types'
 
 export function AdminPage() {
   const { tournaments, isLoading, error, createTournament, updateTournament, deleteTournament, refreshTournaments } =
     useTournaments()
 
-  const [activeTab, setActiveTab] = useState<'tournaments' | 'media'>('tournaments')
+  const [activeTab, setActiveTab] = useState<'tournaments' | 'teams' | 'players'>('tournaments')
   const [search, setSearch] = useState('')
-  const [mediaSearch, setMediaSearch] = useState('')
+  const [teamSearch, setTeamSearch] = useState('')
+  const [playerSearch, setPlayerSearch] = useState('')
 
+  // Teams & Players state with storage persistence
+  const [teams, setTeams] = useState<Team[]>(() => storage.getTeams() || MOCK_TEAMS)
+  const [players, setPlayers] = useState<Player[]>(() => storage.getPlayers() || MOCK_PLAYERS)
+
+  // Dialog states
   const [formOpen, setFormOpen] = useState(false)
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false)
+  const [playerDialogOpen, setPlayerDialogOpen] = useState(false)
+  const [editPlayerDialogOpen, setEditPlayerDialogOpen] = useState(false)
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [deletingTournament, setDeletingTournament] = useState<Tournament | null>(null)
 
-  // Media upload modal state
+  // Media upload modal state (for quick avatar or team logo changes)
   const [mediaModal, setMediaModal] = useState<{
     open: boolean
     type: 'team' | 'player'
@@ -73,14 +94,14 @@ export function AdminPage() {
     try {
       if (editingTournament) {
         await updateTournament(editingTournament.id, data as UpdateTournamentInput)
-        setNotification({ message: `Турнир "${data.title}" успешно обновлен!`, severity: 'success' })
+        setNotification({ message: `Tournament "${data.title}" updated successfully!`, severity: 'success' })
       } else {
         await createTournament(data)
-        setNotification({ message: `Турнир "${data.title}" успешно создан!`, severity: 'success' })
+        setNotification({ message: `Tournament "${data.title}" created successfully!`, severity: 'success' })
       }
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Произошла ошибка при сохранении турнира',
+        message: err instanceof Error ? err.message : 'An error occurred while saving the tournament',
         severity: 'error',
       })
     }
@@ -91,10 +112,10 @@ export function AdminPage() {
     try {
       const title = deletingTournament.title
       await deleteTournament(deletingTournament.id)
-      setNotification({ message: `Турнир "${title}" успешно удален`, severity: 'success' })
+      setNotification({ message: `Tournament "${title}" deleted successfully`, severity: 'success' })
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Ошибка при удалении турнира',
+        message: err instanceof Error ? err.message : 'Error while deleting tournament',
         severity: 'error',
       })
     } finally {
@@ -102,13 +123,75 @@ export function AdminPage() {
     }
   }
 
+  const handleCreateTeam = (input: CreateTeamInput) => {
+    const slug = input.shortName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const newTeam: Team = {
+      id: `team-${slug}-${Date.now()}`,
+      name: input.name,
+      shortName: input.shortName,
+      region: input.region,
+      coach: input.coach,
+      description: input.description,
+      ranking: input.ranking,
+      roster: input.roster || [],
+      logoUrl: input.logoUrl,
+    }
+    if (input.logoUrl) {
+      storage.setTeamLogo(newTeam.name, input.logoUrl)
+    }
+    const updated = [newTeam, ...teams]
+    setTeams(updated)
+    storage.setTeams(updated)
+    setTeamDialogOpen(false)
+    setNotification({ message: `Team "${newTeam.name}" created successfully!`, severity: 'success' })
+  }
+
+  const handleCreatePlayer = (input: CreatePlayerInput) => {
+    const slug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const newPlayer: Player = {
+      id: input.id || `player-${slug}-${Date.now()}`,
+      name: input.name,
+      age: input.age,
+      role: input.role,
+      nationality: input.nationality,
+      teamId: input.teamId,
+      teamName: input.teamName,
+      avatarUrl: input.avatarUrl,
+      stats: input.stats,
+    }
+    if (input.avatarUrl) {
+      storage.setPlayerAvatar(newPlayer.name, input.avatarUrl)
+    }
+    const updated = [newPlayer, ...players]
+    setPlayers(updated)
+    storage.setPlayers(updated)
+    setPlayerDialogOpen(false)
+    setNotification({ message: `Player "${newPlayer.name}" created successfully!`, severity: 'success' })
+  }
+
+  const handleOpenEditPlayer = (p: Player) => {
+    setEditingPlayer(p)
+    setEditPlayerDialogOpen(true)
+  }
+
+  const handleUpdatePlayer = (updatedPlayer: Player) => {
+    if (updatedPlayer.avatarUrl) {
+      storage.setPlayerAvatar(updatedPlayer.name, updatedPlayer.avatarUrl)
+    }
+    const updated = players.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p))
+    setPlayers(updated)
+    storage.setPlayers(updated)
+    setEditPlayerDialogOpen(false)
+    setNotification({ message: `Player "${updatedPlayer.name}" updated successfully!`, severity: 'success' })
+  }
+
   const handleSaveMedia = (dataUrl: string) => {
     if (mediaModal.type === 'team') {
       storage.setTeamLogo(mediaModal.name, dataUrl)
-      setNotification({ message: `Логотип команды "${mediaModal.name}" успешно обновлен!`, severity: 'success' })
+      setNotification({ message: `Team logo for "${mediaModal.name}" updated successfully!`, severity: 'success' })
     } else {
       storage.setPlayerAvatar(mediaModal.name, dataUrl)
-      setNotification({ message: `Аватарка игрока "${mediaModal.name}" успешно обновлена!`, severity: 'success' })
+      setNotification({ message: `Player avatar for "${mediaModal.name}" updated successfully!`, severity: 'success' })
     }
     setMediaVersion((v) => v + 1)
   }
@@ -116,10 +199,10 @@ export function AdminPage() {
   const handleResetMedia = (name: string, type: 'team' | 'player') => {
     if (type === 'team') {
       storage.removeTeamLogo(name)
-      setNotification({ message: `Логотип команды "${name}" сброшен на базовый`, severity: 'success' })
+      setNotification({ message: `Team logo for "${name}" reset to default`, severity: 'success' })
     } else {
       storage.removePlayerAvatar(name)
-      setNotification({ message: `Аватарка игрока "${name}" сброшена на базовую`, severity: 'success' })
+      setNotification({ message: `Player avatar for "${name}" reset to default`, severity: 'success' })
     }
     setMediaVersion((v) => v + 1)
   }
@@ -130,15 +213,19 @@ export function AdminPage() {
       t.location.toLowerCase().includes(search.toLowerCase()),
   )
 
-  const filteredTeams = MOCK_TEAMS.filter((team) =>
-    team.name.toLowerCase().includes(mediaSearch.toLowerCase()) ||
-    team.shortName.toLowerCase().includes(mediaSearch.toLowerCase()),
+  const filteredTeams = teams.filter(
+    (team) =>
+      team.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+      team.shortName.toLowerCase().includes(teamSearch.toLowerCase()) ||
+      team.region.toLowerCase().includes(teamSearch.toLowerCase()),
   )
 
-  const filteredPlayers = MOCK_PLAYERS.filter((player) =>
-    player.name.toLowerCase().includes(mediaSearch.toLowerCase()) ||
-    player.id.toLowerCase().includes(mediaSearch.toLowerCase()) ||
-    player.teamName.toLowerCase().includes(mediaSearch.toLowerCase()),
+  const filteredPlayers = players.filter(
+    (player) =>
+      player.name.toLowerCase().includes(playerSearch.toLowerCase()) ||
+      player.role.toLowerCase().includes(playerSearch.toLowerCase()) ||
+      player.nationality.toLowerCase().includes(playerSearch.toLowerCase()) ||
+      player.teamName.toLowerCase().includes(playerSearch.toLowerCase()),
   )
 
   const countOngoing = tournaments.filter((t) => t.status === 'Ongoing').length
@@ -147,7 +234,7 @@ export function AdminPage() {
 
   return (
     <Stack spacing={2.5}>
-      {/* Шапка админ-панели */}
+      {/* Header bar */}
       <Box
         sx={{
           bgcolor: 'secondary.main',
@@ -155,25 +242,84 @@ export function AdminPage() {
           p: { xs: 2, sm: 3 },
           border: '1px solid #30343b',
           display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
+          flexDirection: { xs: 'column', lg: 'row' },
           justifyContent: 'space-between',
-          alignItems: { xs: 'flex-start', md: 'center' },
+          alignItems: { xs: 'flex-start', lg: 'center' },
           gap: 2,
         }}
       >
         <div>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
             <Typography variant="h1" sx={{ color: '#fff', fontSize: { xs: 18, sm: 22 } }}>
-              ADMIN PANEL: ТУРНИРЫ И МЕДИА
+              ADMIN PANEL
             </Typography>
             <Chip label="Full Access" size="small" sx={{ bgcolor: '#f04b3a', color: '#fff', fontWeight: 800 }} />
           </Stack>
           <Typography sx={{ color: '#9aa7b3', fontSize: 12 }}>
-            Управление турнирами, сетками, а также загрузка логотипов команд и аватарок игроков (.PNG, .JPG)
+            Manage tournaments, brackets, teams, players, and media assets
           </Typography>
         </div>
 
-        {activeTab === 'tournaments' ? (
+        {/* Global Quick Actions */}
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+          <Button
+            component={Link}
+            to="/admin/matches"
+            variant="outlined"
+            sx={{
+              color: '#fff',
+              borderColor: '#454c59',
+              fontWeight: 800,
+              fontSize: 12,
+              '&:hover': { borderColor: '#f04b3a', bgcolor: 'rgba(240, 75, 58, 0.1)' },
+            }}
+          >
+            ⚔️ Match Editor
+          </Button>
+
+          <Button
+            component={Link}
+            to="/admin/bracket"
+            variant="outlined"
+            sx={{
+              color: '#fff',
+              borderColor: '#454c59',
+              fontWeight: 800,
+              fontSize: 12,
+              '&:hover': { borderColor: '#f04b3a', bgcolor: 'rgba(240, 75, 58, 0.1)' },
+            }}
+          >
+            📊 Bracket Editor
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => setTeamDialogOpen(true)}
+            sx={{
+              bgcolor: '#0288d1',
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 12,
+              '&:hover': { bgcolor: '#0277bd' },
+            }}
+          >
+            + Create Team
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => setPlayerDialogOpen(true)}
+            sx={{
+              bgcolor: '#2e7d32',
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 12,
+              '&:hover': { bgcolor: '#1b5e20' },
+            }}
+          >
+            + Create Player
+          </Button>
+
           <Button
             variant="contained"
             onClick={handleOpenCreate}
@@ -181,17 +327,16 @@ export function AdminPage() {
               bgcolor: '#f04b3a',
               color: '#fff',
               fontWeight: 800,
-              px: 2.5,
-              py: 1,
+              fontSize: 12,
               '&:hover': { bgcolor: '#d93b2a' },
             }}
           >
-            + Создать турнир
+            + Create Tournament
           </Button>
-        ) : null}
+        </Stack>
       </Box>
 
-      {/* Переключатель вкладок */}
+      {/* Tabs navigation: Tournaments, Teams, Players */}
       <Paper variant="outlined" sx={{ bgcolor: '#fff' }}>
         <Tabs
           value={activeTab}
@@ -201,24 +346,26 @@ export function AdminPage() {
             '& .Mui-selected': { color: 'primary.main' },
           }}
         >
-          <Tab value="tournaments" label="🏆 Управление турнирами" />
-          <Tab value="media" label="🖼️ Логотипы и Аватарки (PNG / JPG)" />
+          <Tab value="tournaments" label="🏆 Tournaments" />
+          <Tab value="teams" label="🛡️ Teams Management" />
+          <Tab value="players" label="👥 Players Management" />
         </Tabs>
       </Paper>
 
-      {activeTab === 'tournaments' ? (
+      {/* TAB 1: TOURNAMENTS */}
+      {activeTab === 'tournaments' && (
         <>
-          {/* Быстрая статистика */}
+          {/* Quick stats */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Paper variant="outlined" sx={{ p: 2, flex: 1, bgcolor: '#fff' }}>
               <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                Всего турниров
+                Total Tournaments
               </Typography>
               <Typography sx={{ fontSize: 24, fontWeight: 800, mt: 0.5 }}>{tournaments.length}</Typography>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, flex: 1, bgcolor: '#fff' }}>
               <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                Ongoing (Идут)
+                Ongoing
               </Typography>
               <Typography sx={{ fontSize: 24, fontWeight: 800, color: 'error.main', mt: 0.5 }}>
                 {countOngoing}
@@ -226,7 +373,7 @@ export function AdminPage() {
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, flex: 1, bgcolor: '#fff' }}>
               <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                Upcoming (Скоро)
+                Upcoming
               </Typography>
               <Typography sx={{ fontSize: 24, fontWeight: 800, color: 'primary.main', mt: 0.5 }}>
                 {countUpcoming}
@@ -234,7 +381,7 @@ export function AdminPage() {
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, flex: 1, bgcolor: '#fff' }}>
               <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                Completed (Завершены)
+                Completed
               </Typography>
               <Typography sx={{ fontSize: 24, fontWeight: 800, color: 'text.secondary', mt: 0.5 }}>
                 {countCompleted}
@@ -244,10 +391,10 @@ export function AdminPage() {
 
           {error ? <ErrorAlert message={error} onRetry={refreshTournaments} /> : null}
 
-          {/* Поиск и фильтрация таблицы */}
+          {/* Search bar */}
           <Paper variant="outlined" sx={{ p: 2 }}>
             <TextField
-              placeholder="Поиск по турнирам..."
+              placeholder="Search tournaments..."
               size="small"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -260,18 +407,18 @@ export function AdminPage() {
             />
           </Paper>
 
-          {/* Таблица турниров */}
+          {/* Tournaments table */}
           <TableContainer component={Paper} variant="outlined">
             <Table sx={{ minWidth: 650 }}>
               <TableHead sx={{ bgcolor: 'secondary.main' }}>
                 <TableRow>
-                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>НАЗВАНИЕ ТУРНИРА</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>ЛОКАЦИЯ</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>ПРИЗОВОЙ ФОНД</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>ДАТЫ ПРОВЕДЕНИЯ</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>СТАТУС</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>TOURNAMENT NAME</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>LOCATION</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>PRIZE POOL</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>DATES</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>STATUS</TableCell>
                   <TableCell align="right" sx={{ color: '#fff', fontWeight: 800, fontSize: 12 }}>
-                    ДЕЙСТВИЯ
+                    ACTIONS
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -286,9 +433,9 @@ export function AdminPage() {
                   <TableRow>
                     <TableCell colSpan={6} sx={{ p: 0 }}>
                       <EmptyState
-                        title="Турниры не найдены"
-                        description="Нет турниров, соответствующих критериям поиска."
-                        actionLabel="+ Создать турнир"
+                        title="No tournaments found"
+                        description="No tournaments match your current search criteria."
+                        actionLabel="+ Create Tournament"
                         onAction={handleOpenCreate}
                       />
                     </TableCell>
@@ -317,11 +464,6 @@ export function AdminPage() {
                         >
                           {t.title}
                         </Typography>
-                        {t.bracketType ? (
-                          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                            Сетка: {t.bracketType}
-                          </Typography>
-                        ) : null}
                       </TableCell>
                       <TableCell sx={{ fontSize: 13, color: 'text.secondary' }}>{t.location}</TableCell>
                       <TableCell sx={{ fontSize: 13, fontWeight: 700 }}>{t.prizePool}</TableCell>
@@ -334,18 +476,27 @@ export function AdminPage() {
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
                           <Button
+                            component={Link}
+                            to={`/admin/tournaments/${t.id}/bracket`}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontSize: 11, py: 0.4, px: 1, borderColor: '#ffb300', color: '#ffb300' }}
+                          >
+                            Bracket
+                          </Button>
+                          <Button
                             size="small"
                             variant="outlined"
                             onClick={() => handleOpenEdit(t)}
                             sx={{ fontSize: 11, py: 0.4, px: 1 }}
                           >
-                            Изменить
+                            Edit
                           </Button>
                           <IconButton
                             size="small"
                             color="error"
                             onClick={() => setDeletingTournament(t)}
-                            aria-label="Удалить турнир"
+                            aria-label="Delete tournament"
                             sx={{ borderRadius: 0.5 }}
                           >
                             🗑️
@@ -359,15 +510,18 @@ export function AdminPage() {
             </Table>
           </TableContainer>
         </>
-      ) : (
-        /* Вкладка управления медиа (PNG / JPG) */
-        <Stack spacing={3}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
+      )}
+
+      {/* TAB 2: TEAMS MANAGEMENT */}
+      {activeTab === 'teams' && (
+        <Stack spacing={2.5}>
+          {/* Teams search & actions bar */}
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
             <TextField
-              placeholder="Поиск команды или игрока..."
+              placeholder="Search team by name, short tag, or region..."
               size="small"
-              value={mediaSearch}
-              onChange={(e) => setMediaSearch(e.target.value)}
+              value={teamSearch}
+              onChange={(e) => setTeamSearch(e.target.value)}
               fullWidth
               slotProps={{
                 input: {
@@ -375,47 +529,71 @@ export function AdminPage() {
                 },
               }}
             />
+            <Button
+              variant="contained"
+              onClick={() => setTeamDialogOpen(true)}
+              sx={{
+                bgcolor: '#0288d1',
+                color: '#fff',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+                px: 2.5,
+                '&:hover': { bgcolor: '#0277bd' },
+              }}
+            >
+              + Add Team
+            </Button>
           </Paper>
 
-          {/* Секция логотипов команд */}
+          {/* Teams table */}
           <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography variant="h2" sx={{ mb: 2 }}>
-              Логотипы команд (.PNG / .JPG)
-            </Typography>
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h2" sx={{ fontSize: 18 }}>
+                Teams List ({filteredTeams.length})
+              </Typography>
+            </Stack>
 
             <TableContainer>
               <Table size="small">
                 <TableHead sx={{ bgcolor: 'background.default' }}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 800 }}>ЛОГО</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>КОМАНДА</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>ФОРМАТ ФАЙЛА</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 800 }}>ДЕЙСТВИЕ</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>LOGO</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>TEAM NAME</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>TAG</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>REGION</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>COACH</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>WORLD RANK</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800 }}>ACTIONS</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredTeams.map((team) => {
-                    const custom = storage.getTeamLogo(team.name)
-                    const formatLabel = custom ? 'Custom Data URL' : team.logoUrl?.endsWith('.jpg') ? 'JPG' : 'PNG'
-
-                    return (
+                  {filteredTeams.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+                        No teams match your search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTeams.map((team) => (
                       <TableRow key={team.id} hover>
                         <TableCell>
-                          <TeamLogo teamName={team.name} logoUrl={team.logoUrl} size={36} />
+                          <TeamLogo teamName={team.name} logoUrl={team.logoUrl} size={32} />
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>{team.name}</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>
+                          <Typography
+                            component={Link}
+                            to={`/teams/${team.id}`}
+                            sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
+                          >
+                            {team.name}
+                          </Typography>
+                        </TableCell>
                         <TableCell>
-                          <Chip
-                            label={formatLabel}
-                            size="small"
-                            sx={{
-                              fontSize: 10,
-                              fontWeight: 800,
-                              bgcolor: formatLabel === 'JPG' ? '#ffe600' : formatLabel === 'PNG' ? '#69f0ae' : '#f04b3a',
-                              color: '#000',
-                            }}
-                          />
+                          <Chip label={team.shortName} size="small" />
                         </TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{team.region}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{team.coach || '—'}</TableCell>
+                        <TableCell sx={{ fontWeight: 800, color: 'primary.main' }}>#{team.ranking}</TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                             <Button
@@ -424,94 +602,22 @@ export function AdminPage() {
                               onClick={() => setMediaModal({ open: true, type: 'team', name: team.name })}
                               sx={{ fontSize: 11 }}
                             >
-                              📷 Загрузить PNG / JPG
+                              📷 Change Logo
                             </Button>
-                            {custom ? (
-                              <Button
-                                size="small"
-                                color="error"
-                                onClick={() => handleResetMedia(team.name, 'team')}
-                                sx={{ fontSize: 11 }}
-                              >
-                                Сбросить
-                              </Button>
-                            ) : null}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-
-          {/* Секция аватарок игроков */}
-          <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography variant="h2" sx={{ mb: 2 }}>
-              Аватарки игроков (.PNG / .JPG)
-            </Typography>
-
-            <TableContainer>
-              <Table size="small">
-                <TableHead sx={{ bgcolor: 'background.default' }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 800 }}>АВАТАР</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>ИГРОК</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>КОМАНДА</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>ФОРМАТ</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 800 }}>ДЕЙСТВИЕ</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredPlayers.map((player) => {
-                    const custom = storage.getPlayerAvatar(player.name)
-                    const formatLabel = custom ? 'Custom' : player.avatarUrl?.endsWith('.jpg') ? 'JPG' : 'PNG'
-
-                    return (
-                      <TableRow key={player.id} hover>
-                        <TableCell>
-                          <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={36} />
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>{player.name}</TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>{player.teamName}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={formatLabel}
-                            size="small"
-                            sx={{
-                              fontSize: 10,
-                              fontWeight: 800,
-                              bgcolor: formatLabel === 'JPG' ? '#ffe600' : formatLabel === 'PNG' ? '#69f0ae' : '#f04b3a',
-                              color: '#000',
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                             <Button
+                              component={Link}
+                              to={`/teams/${team.id}`}
                               size="small"
                               variant="outlined"
-                              onClick={() => setMediaModal({ open: true, type: 'player', name: player.name })}
                               sx={{ fontSize: 11 }}
                             >
-                              📷 Загрузить PNG / JPG
+                              View Team
                             </Button>
-                            {custom ? (
-                              <Button
-                                size="small"
-                                color="error"
-                                onClick={() => handleResetMedia(player.name, 'player')}
-                                sx={{ fontSize: 11 }}
-                              >
-                                Сбросить
-                              </Button>
-                            ) : null}
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    )
-                  })}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -519,7 +625,128 @@ export function AdminPage() {
         </Stack>
       )}
 
-      {/* Диалог создания / редактирования турнира */}
+      {/* TAB 3: PLAYERS MANAGEMENT (Stats removed from table, Edit Player added) */}
+      {activeTab === 'players' && (
+        <Stack spacing={2.5}>
+          {/* Players search & actions bar */}
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              placeholder="Search player by nickname, team, role, or nationality..."
+              size="small"
+              value={playerSearch}
+              onChange={(e) => setPlayerSearch(e.target.value)}
+              fullWidth
+              slotProps={{
+                input: {
+                  sx: { bgcolor: 'background.default' },
+                },
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={() => setPlayerDialogOpen(true)}
+              sx={{
+                bgcolor: '#2e7d32',
+                color: '#fff',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+                px: 2.5,
+                '&:hover': { bgcolor: '#1b5e20' },
+              }}
+            >
+              + Add Player
+            </Button>
+          </Paper>
+
+          {/* Players table without statistics */}
+          <Paper variant="outlined" sx={{ p: 2.5 }}>
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h2" sx={{ fontSize: 18 }}>
+                Players List ({filteredPlayers.length})
+              </Typography>
+            </Stack>
+
+            <TableContainer>
+              <Table size="small">
+                <TableHead sx={{ bgcolor: 'background.default' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 800 }}>AVATAR</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>PLAYER</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>AGE</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>TEAM</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>ROLE</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>NATIONALITY</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800 }}>ACTIONS</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredPlayers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+                        No players match your search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredPlayers.map((player) => (
+                      <TableRow key={player.id} hover>
+                        <TableCell>
+                          <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={34} />
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>
+                          <Typography
+                            component={Link}
+                            to={`/players/${player.id}`}
+                            sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}
+                          >
+                            {player.name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{player.age}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{player.teamName}</TableCell>
+                        <TableCell>
+                          <Chip label={player.role} size="small" />
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{player.nationality}</TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleOpenEditPlayer(player)}
+                              sx={{ fontSize: 11, borderColor: '#0288d1', color: '#0288d1' }}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setMediaModal({ open: true, type: 'player', name: player.name })}
+                              sx={{ fontSize: 11 }}
+                            >
+                              📷 Avatar
+                            </Button>
+                            <Button
+                              component={Link}
+                              to={`/players/${player.id}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontSize: 11 }}
+                            >
+                              View
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Stack>
+      )}
+
+      {/* Create / Edit Tournament Dialog */}
       <TournamentFormDialog
         open={formOpen}
         tournament={editingTournament}
@@ -527,7 +754,31 @@ export function AdminPage() {
         onSubmit={handleFormSubmit}
       />
 
-      {/* Диалог подтверждения удаления турнира */}
+      {/* Create Team Dialog */}
+      <CreateTeamDialog
+        open={teamDialogOpen}
+        onClose={() => setTeamDialogOpen(false)}
+        onSubmit={handleCreateTeam}
+      />
+
+      {/* Create Player Dialog */}
+      <CreatePlayerDialog
+        open={playerDialogOpen}
+        availableTeams={teams}
+        onClose={() => setPlayerDialogOpen(false)}
+        onSubmit={handleCreatePlayer}
+      />
+
+      {/* Edit Player Dialog */}
+      <EditPlayerDialog
+        open={editPlayerDialogOpen}
+        player={editingPlayer}
+        availableTeams={teams}
+        onClose={() => setEditPlayerDialogOpen(false)}
+        onSubmit={handleUpdatePlayer}
+      />
+
+      {/* Delete Tournament Confirm Dialog */}
       <DeleteConfirmDialog
         open={Boolean(deletingTournament)}
         title={deletingTournament?.title}
@@ -535,10 +786,10 @@ export function AdminPage() {
         onConfirm={handleDeleteConfirm}
       />
 
-      {/* Диалог загрузки медиа (PNG / JPG) */}
+      {/* Media Upload Dialog (PNG / JPG) */}
       <MediaUploadDialog
         open={mediaModal.open}
-        title={`Загрузка ${mediaModal.type === 'team' ? 'логотипа команды' : 'аватарки игрока'} (PNG / JPG)`}
+        title={`Upload ${mediaModal.type === 'team' ? 'team logo' : 'player avatar'} (PNG / JPG)`}
         entityName={mediaModal.name}
         currentValue={
           mediaModal.type === 'team'
@@ -550,7 +801,7 @@ export function AdminPage() {
         onReset={() => handleResetMedia(mediaModal.name, mediaModal.type)}
       />
 
-      {/* Всплывающее уведомление об успехе/ошибке */}
+      {/* Toast Notification */}
       <Snackbar
         open={Boolean(notification)}
         autoHideDuration={4000}

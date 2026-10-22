@@ -5,14 +5,17 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { MOCK_TEAMS } from '../mock/data'
+import { storage } from '../shared/api/storage'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function TeamsPage() {
+  const teams = storage.getTeams() || MOCK_TEAMS
+
   return (
     <Stack spacing={2.5}>
       <Typography variant="h1">Teams</Typography>
 
-      {MOCK_TEAMS.map((team) => (
+      {teams.map((team) => (
         <Paper key={team.id} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>

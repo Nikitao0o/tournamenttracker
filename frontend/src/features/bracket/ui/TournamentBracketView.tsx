@@ -8,8 +8,6 @@ import { CardSkeleton } from '../../../shared/ui/LoadingSkeleton'
 import { EmptyState } from '../../../shared/ui/EmptyState'
 import { DoubleEliminationBracket } from './DoubleEliminationBracket'
 import { SingleEliminationBracket } from './SingleEliminationBracket'
-import { RoundRobinBracket } from './RoundRobinBracket'
-import { SwissBracket } from './SwissBracket'
 
 interface TournamentBracketViewProps {
   bracket: BracketViewType | null
@@ -26,16 +24,6 @@ const BRACKET_FORMAT_LABELS: Record<string, { label: string; badge: string; colo
     label: 'Single Elimination',
     badge: 'Knockout Tree',
     color: '#ffb300',
-  },
-  round_robin: {
-    label: 'Round Robin',
-    badge: 'All-Play-All Group Stage',
-    color: '#00e5ff',
-  },
-  swiss: {
-    label: 'Swiss System',
-    badge: 'Swiss Record Pools (3W / 3L)',
-    color: '#b388ff',
   },
 }
 
@@ -111,13 +99,9 @@ export function TournamentBracketView({ bracket, isLoading }: TournamentBracketV
         />
       </Stack>
 
-      {/* Dynamic bracket format renderer */}
+      {/* Dynamic bracket format renderer (Double or Single Elimination) */}
       {formatKey === 'single_elimination' ? (
         <SingleEliminationBracket bracket={bracket} />
-      ) : formatKey === 'round_robin' ? (
-        <RoundRobinBracket bracket={bracket} />
-      ) : formatKey === 'swiss' ? (
-        <SwissBracket bracket={bracket} />
       ) : (
         <DoubleEliminationBracket bracket={bracket} />
       )}

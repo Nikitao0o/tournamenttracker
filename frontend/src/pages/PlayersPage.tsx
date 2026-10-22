@@ -7,16 +7,19 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { MOCK_PLAYERS } from '../mock/data'
+import { storage } from '../shared/api/storage'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function PlayersPage() {
+  const players = storage.getPlayers() || MOCK_PLAYERS
+
   return (
     <Stack spacing={2.5}>
       <Typography variant="h1">Players</Typography>
 
       <Grid container spacing={2}>
-        {MOCK_PLAYERS.map((player) => (
+        {players.map((player) => (
           <Grid key={player.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Paper variant="outlined" sx={{ p: 2.5, height: '100%' }}>
               <Stack spacing={2}>

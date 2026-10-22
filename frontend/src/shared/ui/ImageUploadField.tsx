@@ -33,7 +33,7 @@ export function ImageUploadField({
 
     const validation = validateImageFile(file)
     if (!validation.valid) {
-      setError(validation.error || 'Ошибка валидации файла')
+      setError(validation.error || 'File validation error')
       return
     }
 
@@ -41,7 +41,7 @@ export function ImageUploadField({
       const dataUrl = await fileToDataUrl(file)
       onChange(dataUrl)
     } catch {
-      setError('Не удалось прочитать файл изображения')
+      setError('Failed to read image file')
     }
   }
 
@@ -62,7 +62,7 @@ export function ImageUploadField({
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-        {/* Превью изображения */}
+        {/* Preview image */}
         {value ? (
           <Box
             sx={{
@@ -88,7 +88,7 @@ export function ImageUploadField({
             <IconButton
               size="small"
               onClick={handleClear}
-              aria-label="Удалить изображение"
+              aria-label="Remove image"
               sx={{
                 position: 'absolute',
                 top: 2,
@@ -104,7 +104,7 @@ export function ImageUploadField({
           </Box>
         ) : null}
 
-        {/* Кнопка выбора файла */}
+        {/* File chooser button */}
         <div>
           <input
             ref={fileInputRef}
@@ -120,7 +120,7 @@ export function ImageUploadField({
               onClick={() => fileInputRef.current?.click()}
               sx={{ fontSize: 12, fontWeight: 700 }}
             >
-              {value ? 'Заменить файл (PNG / JPG)' : 'Выбрать PNG или JPG'}
+              {value ? 'Replace image (PNG / JPG)' : 'Choose PNG or JPG'}
             </Button>
             <Chip label=".PNG" size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
             <Chip label=".JPG" size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
@@ -137,7 +137,7 @@ export function ImageUploadField({
         <FormHelperText sx={{ mt: 0.5 }}>{helperText}</FormHelperText>
       ) : (
         <FormHelperText sx={{ mt: 0.5 }}>
-          Поддерживаются форматы PNG, JPG/JPEG до 5 МБ
+          Supports PNG, JPG/JPEG up to 5 MB
         </FormHelperText>
       )}
     </Box>

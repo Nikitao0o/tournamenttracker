@@ -1,6 +1,8 @@
+export type BracketType = 'double_elimination' | 'single_elimination'
+
 export type MatchStatus = 'LIVE' | 'UPCOMING' | 'FINISHED'
+
 export type TournamentStatus = 'Ongoing' | 'Upcoming' | 'Completed'
-export type BracketType = 'double_elimination' | 'single_elimination' | 'round_robin' | 'swiss'
 
 export type Match = {
   id: string
@@ -13,6 +15,11 @@ export type Match = {
   tournamentName: string
   date: string
   map?: string
+  bracketType?: BracketType | string
+  roundName?: string
+  roundOrder?: number
+  nextMatchId?: string
+  nextLoserMatchId?: string
 }
 
 export type Tournament = {
@@ -24,6 +31,7 @@ export type Tournament = {
   status: TournamentStatus
   location: string
   bracketType?: BracketType | string
+  participatingTeams?: string[]
 }
 
 export type Team = {
@@ -46,12 +54,12 @@ export type Player = {
   nationality: string
   teamId: string
   teamName: string
+  avatarUrl?: string
   stats: {
     kd: string
     impact: number
     maps: number
   }
-  avatarUrl?: string
 }
 
 export type User = {
@@ -78,9 +86,37 @@ export type CreateTournamentInput = {
   status: TournamentStatus
   location: string
   bracketType?: BracketType | string
+  participatingTeams?: string[]
 }
 
 export type UpdateTournamentInput = Partial<CreateTournamentInput>
+
+export type CreateTeamInput = {
+  name: string
+  shortName: string
+  region: string
+  coach: string
+  description: string
+  ranking: number
+  roster?: string[]
+  logoUrl?: string
+}
+
+export type CreatePlayerInput = {
+  id?: string
+  name: string
+  age: number
+  role: string
+  nationality: string
+  teamId: string
+  teamName: string
+  avatarUrl?: string
+  stats: {
+    kd: string
+    impact: number
+    maps: number
+  }
+}
 
 export type BracketMatch = {
   id: number | string
@@ -114,12 +150,26 @@ export type BracketRoundGroup = {
   matches: BracketMatch[]
 }
 
+export type BracketRound = {
+  id: string
+  name: string
+  order: number
+  matches: Match[]
+}
+
+export type BracketStage = {
+  name: string
+  type: 'upper' | 'lower' | 'grand_final' | 'main'
+  rounds: BracketRound[]
+}
+
 export type TournamentBracketView = {
   tournamentId: number | string
-  tournamentTitle: string
+  tournamentTitle?: string
   bracketType: BracketType | string
   upperBracket: BracketRoundGroup[]
   lowerBracket: BracketRoundGroup[]
   grandFinal?: BracketMatch | null
   allRounds: BracketRoundGroup[]
+  stages?: BracketStage[]
 }

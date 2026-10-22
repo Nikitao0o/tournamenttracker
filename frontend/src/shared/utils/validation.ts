@@ -73,3 +73,56 @@ export function validateTournamentForm(values: {
 
   return errors
 }
+
+export function validateTeamForm(values: {
+  name: string
+  shortName: string
+  region: string
+}): Record<string, string> {
+  const errors: Record<string, string> = {}
+
+  if (!values.name.trim()) {
+    errors.name = 'Team name is required'
+  } else if (values.name.trim().length < 2) {
+    errors.name = 'Team name must be at least 2 characters'
+  }
+
+  if (!values.shortName.trim()) {
+    errors.shortName = 'Short tag is required (e.g. SPIRIT)'
+  }
+
+  if (!values.region.trim()) {
+    errors.region = 'Region is required (e.g. Europe, Americas)'
+  }
+
+  return errors
+}
+
+export function validatePlayerForm(values: {
+  name: string
+  role: string
+  nationality: string
+  teamName: string
+}): Record<string, string> {
+  const errors: Record<string, string> = {}
+
+  if (!values.name.trim()) {
+    errors.name = 'Player name is required'
+  } else if (values.name.trim().length < 2) {
+    errors.name = 'Player name must be at least 2 characters'
+  }
+
+  if (!values.role.trim()) {
+    errors.role = 'Role is required (e.g. AWPer, IGL)'
+  }
+
+  if (!values.nationality.trim()) {
+    errors.nationality = 'Nationality is required'
+  }
+
+  if (!values.teamName.trim()) {
+    errors.teamName = 'Team assignment is required'
+  }
+
+  return errors
+}

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas
-from ..auth import get_current_admin, get_current_user
+from ..auth import get_current_admin, get_current_user, is_user_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/api/players", tags=["players"])
@@ -56,7 +56,8 @@ def upload_player_avatar(
     """
     player = crud.get_player_or_404(db, player_id)
     is_owner = current_user.player and current_user.player.id == player_id
-    if not current_user.is_admin and not is_owner:
+    is_admin = is_user_admin(current_user.email, current_user.nickname)
+    if not is_admin and not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only update your own player avatar",

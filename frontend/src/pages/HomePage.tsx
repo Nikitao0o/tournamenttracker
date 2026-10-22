@@ -7,14 +7,16 @@ import { RankingBox } from '../components/RankingBox'
 import { SectionHeader } from '../components/SectionHeader'
 import { TournamentCard } from '../components/TournamentCard'
 import { MOCK_MATCHES } from '../mock/data'
+import { storage } from '../shared/api/storage'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
 export function HomePage() {
   const { tournaments, isLoading } = useTournaments()
 
-  const live = MOCK_MATCHES.filter((match) => match.status === 'LIVE')
-  const upcoming = MOCK_MATCHES.filter((match) => match.status === 'UPCOMING')
-  const results = MOCK_MATCHES.filter((match) => match.status === 'FINISHED')
+  const allMatches = storage.getMatches() || MOCK_MATCHES
+  const live = allMatches.filter((match) => match.status === 'LIVE')
+  const upcoming = allMatches.filter((match) => match.status === 'UPCOMING')
+  const results = allMatches.filter((match) => match.status === 'FINISHED')
 
   return (
     <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>

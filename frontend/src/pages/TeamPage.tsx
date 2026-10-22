@@ -7,6 +7,7 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../app/providers/useAuth'
 import { getPlayersByTeamId, getTeamByReference } from '../mock/data'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
@@ -14,6 +15,7 @@ import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog
 import { storage } from '../shared/api/storage'
 
 export function TeamPage() {
+  const { isAdmin } = useAuth()
   const { teamRef } = useParams<{ teamRef: string }>()
   const team = teamRef ? getTeamByReference(teamRef) : undefined
   const players = team ? getPlayersByTeamId(team.id) : []
@@ -62,14 +64,16 @@ export function TeamPage() {
             </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <Chip label={`#${team.ranking} World Rank`} color="secondary" sx={{ fontWeight: 800 }} />
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setDialogOpen(true)}
-                sx={{ fontSize: 11, fontWeight: 700 }}
-              >
-                📷 Сменить лого (PNG / JPG)
-              </Button>
+              {isAdmin ? (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setDialogOpen(true)}
+                  sx={{ fontSize: 11, fontWeight: 700 }}
+                >
+                  📷 Change Logo (PNG / JPG)
+                </Button>
+              ) : null}
             </Stack>
           </Stack>
 
@@ -111,15 +115,17 @@ export function TeamPage() {
         </Grid>
       </Box>
 
-      <MediaUploadDialog
-        open={dialogOpen}
-        title="Загрузка логотипа команды (PNG / JPG)"
-        entityName={team.name}
-        currentValue={storage.getTeamLogo(team.name) || undefined}
-        onClose={() => setDialogOpen(false)}
-        onSave={handleSaveLogo}
-        onReset={handleResetLogo}
-      />
+      {isAdmin ? (
+        <MediaUploadDialog
+          open={dialogOpen}
+          title="Upload Team Logo (PNG / JPG)"
+          entityName={team.name}
+          currentValue={storage.getTeamLogo(team.name) || undefined}
+          onClose={() => setDialogOpen(false)}
+          onSave={handleSaveLogo}
+          onReset={handleResetLogo}
+        />
+      ) : null}
     </Stack>
   )
 }

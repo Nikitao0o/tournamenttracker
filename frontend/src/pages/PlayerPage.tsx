@@ -6,6 +6,7 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../app/providers/useAuth'
 import { getPlayerById, getTeamById } from '../mock/data'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
@@ -13,6 +14,7 @@ import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog
 import { storage } from '../shared/api/storage'
 
 export function PlayerPage() {
+  const { isAdmin } = useAuth()
   const { id } = useParams<{ id: string }>()
   const player = id ? getPlayerById(id) : undefined
   const team = player ? getTeamById(player.teamId) : undefined
@@ -61,14 +63,16 @@ export function PlayerPage() {
             </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <Chip label={player.role} color="secondary" sx={{ fontWeight: 800 }} />
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setDialogOpen(true)}
-                sx={{ fontSize: 11, fontWeight: 700 }}
-              >
-                📷 Сменить аватар (PNG / JPG)
-              </Button>
+              {isAdmin ? (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setDialogOpen(true)}
+                  sx={{ fontSize: 11, fontWeight: 700 }}
+                >
+                  📷 Change Avatar (PNG / JPG)
+                </Button>
+              ) : null}
             </Stack>
           </Stack>
 
@@ -115,15 +119,17 @@ export function PlayerPage() {
         </Stack>
       </Paper>
 
-      <MediaUploadDialog
-        open={dialogOpen}
-        title="Загрузка аватара игрока (PNG / JPG)"
-        entityName={player.name}
-        currentValue={storage.getPlayerAvatar(player.name) || undefined}
-        onClose={() => setDialogOpen(false)}
-        onSave={handleSaveAvatar}
-        onReset={handleResetAvatar}
-      />
+      {isAdmin ? (
+        <MediaUploadDialog
+          open={dialogOpen}
+          title="Upload Player Avatar (PNG / JPG)"
+          entityName={player.name}
+          currentValue={storage.getPlayerAvatar(player.name) || undefined}
+          onClose={() => setDialogOpen(false)}
+          onSave={handleSaveAvatar}
+          onReset={handleResetAvatar}
+        />
+      ) : null}
     </Stack>
   )
 }

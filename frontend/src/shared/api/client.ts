@@ -325,6 +325,9 @@ export const apiClient = {
       // Fallback
     }
 
+    const custom = storage.getTournamentBracket(tournamentId)
+    if (custom) return custom
+
     const tourneys = getLocalTournaments()
     const found =
       tourneys.find((t) => t.id === tournamentId) ||

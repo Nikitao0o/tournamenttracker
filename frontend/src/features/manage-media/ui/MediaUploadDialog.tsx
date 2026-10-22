@@ -51,14 +51,14 @@ export function MediaUploadDialog({
       <DialogContent sx={{ p: 2.5, pt: 3 }}>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Объект: <strong>{entityName}</strong>
+            Target: <strong>{entityName}</strong>
           </Typography>
 
           <ImageUploadField
-            label="Файл изображения (.PNG или .JPG):"
+            label="Image file (.PNG or .JPG):"
             value={selectedImage}
             onChange={setSelectedImage}
-            helperText="Поддерживаются файлы PNG и JPG/JPEG до 5 МБ"
+            helperText="Supports PNG, JPG/JPEG up to 5 MB"
           />
         </Stack>
       </DialogContent>
@@ -66,11 +66,11 @@ export function MediaUploadDialog({
       <DialogActions sx={{ p: 2, bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider' }}>
         {onReset ? (
           <Button size="small" color="inherit" onClick={handleResetToDefault} sx={{ mr: 'auto', fontSize: 11 }}>
-            Сбросить на дефолт
+            Reset to default
           </Button>
         ) : null}
         <Button size="small" variant="outlined" color="inherit" onClick={onClose}>
-          Отмена
+          Cancel
         </Button>
         <Button
           size="small"
@@ -84,7 +84,7 @@ export function MediaUploadDialog({
             '&:hover': { bgcolor: '#d93b2a' },
           }}
         >
-          Сохранить
+          Save
         </Button>
       </DialogActions>
     </Dialog>

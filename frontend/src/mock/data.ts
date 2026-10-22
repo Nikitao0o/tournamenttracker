@@ -1,5 +1,6 @@
-import type { BracketMatch, BracketRoundGroup, Match, Player, Team, Tournament, TournamentBracketView } from '../types'
-import { TEAM_LOGOS } from '../shared/ui/teamLogosData'
+import type { Match, Player, Team, Tournament, TournamentBracketView } from '../types'
+import { storage } from '../shared/api/storage'
+import { generateDynamicBracket } from '../features/bracket/utils/bracketGenerator'
 
 export const MOCK_TOURNAMENTS: Tournament[] = [
   {
@@ -10,7 +11,8 @@ export const MOCK_TOURNAMENTS: Tournament[] = [
     endDate: '2026-03-31',
     status: 'Completed',
     location: 'Copenhagen, Denmark',
-    bracketType: 'swiss',
+    bracketType: 'single_elimination',
+    participatingTeams: ['Natus Vincere', 'FaZe', 'Spirit', 'Vitality'],
   },
   {
     id: '102',
@@ -21,6 +23,7 @@ export const MOCK_TOURNAMENTS: Tournament[] = [
     status: 'Ongoing',
     location: 'Katowice, Poland',
     bracketType: 'double_elimination',
+    participatingTeams: ['Spirit', 'Vitality', 'FURIA', 'MOUZ', 'Falcons', 'Heroic', 'Astralis', 'G2'],
   },
   {
     id: '103',
@@ -30,7 +33,8 @@ export const MOCK_TOURNAMENTS: Tournament[] = [
     endDate: '2026-11-02',
     status: 'Upcoming',
     location: 'Malta',
-    bracketType: 'round_robin',
+    bracketType: 'double_elimination',
+    participatingTeams: ['Spirit', 'MOUZ', 'G2', 'FaZe'],
   },
   {
     id: '104',
@@ -41,6 +45,7 @@ export const MOCK_TOURNAMENTS: Tournament[] = [
     status: 'Ongoing',
     location: 'Copenhagen, Denmark',
     bracketType: 'single_elimination',
+    participatingTeams: ['The MongolZ', 'Liquid', 'Spirit', 'Vitality'],
   },
 ]
 
@@ -127,11 +132,13 @@ export function getMatchesByTournamentId(tournamentId: string) {
 }
 
 export function getTeamById(id: string) {
-  return MOCK_TEAMS.find((team) => team.id === id)
+  const teams = storage.getTeams() || MOCK_TEAMS
+  return teams.find((team) => team.id === id)
 }
 
 export function getTeamByReference(reference: string) {
-  return MOCK_TEAMS.find(
+  const teams = storage.getTeams() || MOCK_TEAMS
+  return teams.find(
     (team) =>
       team.id === reference ||
       getTeamSlug(team.name) === reference ||
@@ -140,11 +147,13 @@ export function getTeamByReference(reference: string) {
 }
 
 export function getPlayerById(id: string) {
-  return MOCK_PLAYERS.find((player) => player.id === id)
+  const players = storage.getPlayers() || MOCK_PLAYERS
+  return players.find((player) => player.id === id)
 }
 
 export function getPlayersByTeamId(teamId: string) {
-  return MOCK_PLAYERS.filter((player) => player.teamId === teamId)
+  const players = storage.getPlayers() || MOCK_PLAYERS
+  return players.filter((player) => player.teamId === teamId)
 }
 
 export const MOCK_MATCHES: Match[] = [
@@ -272,7 +281,8 @@ export function getTeamSlug(name: string) {
 }
 
 export function getAllTeamNames() {
-  return [...new Set([...MOCK_RANKING, ...MOCK_MATCHES.flatMap(({ teamA, teamB }) => [teamA, teamB])])]
+  const customTeams = (storage.getTeams() || MOCK_TEAMS).map((t) => t.name)
+  return [...new Set([...customTeams, ...MOCK_RANKING, ...MOCK_MATCHES.flatMap(({ teamA, teamB }) => [teamA, teamB])])]
 }
 
 export function getTeamBySlug(slug: string) {
@@ -283,527 +293,15 @@ export function getMatchesByTeam(team: string) {
   return MOCK_MATCHES.filter((match) => match.teamA === team || match.teamB === team)
 }
 
-export function getMockBracketForTournament(tournament: Tournament | { id: string | number; title: string; bracketType?: string }): TournamentBracketView {
-  const bracketType = (tournament.bracketType || 'double_elimination').toLowerCase()
+export function getMockBracketForTournament(
+  tournament: Tournament | { id: string | number; title: string; bracketType?: string; participatingTeams?: string[] },
+): TournamentBracketView {
+  const bracketType = (tournament.bracketType || 'double_elimination').toLowerCase() === 'single_elimination'
+    ? 'single_elimination'
+    : 'double_elimination'
   const tourneyId = tournament.id
   const tourneyTitle = tournament.title
+  const teams = tournament.participatingTeams ?? []
 
-  const spiritLogo = TEAM_LOGOS['team-spirit']?.svg || 'https://cdn.pandascore.co/images/team/image/125863/team_spirit.png'
-  const vitalityLogo = TEAM_LOGOS['team-vitality']?.svg || 'https://cdn.pandascore.co/images/team/image/3216/vitality.png'
-  const furiaLogo = TEAM_LOGOS['team-furia']?.svg || 'https://cdn.pandascore.co/images/team/image/124530/8297.png'
-  const mouzLogo = TEAM_LOGOS['team-mouz']?.svg || 'https://cdn.pandascore.co/images/team/image/3250/mouz.png'
-
-  if (bracketType === 'single_elimination') {
-    const round1: BracketRoundGroup = {
-      roundName: 'Semifinals',
-      roundOrder: 1,
-      matches: [
-        {
-          id: 1001,
-          status: 'FINISHED',
-          scoreA: 2,
-          scoreB: 0,
-          date: '2026-09-26',
-          startTime: '17:00 Saturday',
-          matchFormat: 'BO3',
-          bracketType: 'single',
-          roundName: 'Semifinals',
-          roundOrder: 1,
-          teamAId: 1,
-          teamBId: 3,
-          teamAName: 'Spirit',
-          teamBName: 'FURIA',
-          teamALogoUrl: spiritLogo,
-          teamBLogoUrl: furiaLogo,
-          winnerId: 1,
-          winnerName: 'Spirit',
-          tournamentId: tourneyId,
-          tournamentName: tourneyTitle,
-        },
-        {
-          id: 1002,
-          status: 'FINISHED',
-          scoreA: 2,
-          scoreB: 1,
-          date: '2026-09-26',
-          startTime: '20:00 Saturday',
-          matchFormat: 'BO3',
-          bracketType: 'single',
-          roundName: 'Semifinals',
-          roundOrder: 1,
-          teamAId: 2,
-          teamBId: 4,
-          teamAName: 'Vitality',
-          teamBName: 'MOUZ',
-          teamALogoUrl: vitalityLogo,
-          teamBLogoUrl: mouzLogo,
-          winnerId: 2,
-          winnerName: 'Vitality',
-          tournamentId: tourneyId,
-          tournamentName: tourneyTitle,
-        },
-      ],
-    }
-
-    const grandFinal: BracketMatch = {
-      id: 1003,
-      status: 'FINISHED',
-      scoreA: 1,
-      scoreB: 2,
-      date: '2026-09-28',
-      startTime: '20:00 Sunday',
-      matchFormat: 'BO3',
-      bracketType: 'grand_final',
-      roundName: 'Grand final',
-      roundOrder: 2,
-      teamAId: 1,
-      teamBId: 2,
-      teamAName: 'Spirit',
-      teamBName: 'Vitality',
-      teamALogoUrl: spiritLogo,
-      teamBLogoUrl: vitalityLogo,
-      winnerId: 2,
-      winnerName: 'Vitality',
-      tournamentId: tourneyId,
-      tournamentName: tourneyTitle,
-    }
-
-    return {
-      tournamentId: tourneyId,
-      tournamentTitle: tourneyTitle,
-      bracketType: 'single_elimination',
-      upperBracket: [round1],
-      lowerBracket: [],
-      grandFinal,
-      allRounds: [round1],
-    }
-  }
-
-  if (bracketType === 'round_robin') {
-    const rounds: BracketRoundGroup[] = [
-      {
-        roundName: 'Round 1',
-        roundOrder: 1,
-        matches: [
-          {
-            id: 2001,
-            status: 'FINISHED',
-            scoreA: 2,
-            scoreB: 0,
-            date: '2026-10-14',
-            startTime: '15:00 Wednesday',
-            matchFormat: 'BO3',
-            bracketType: 'round_robin',
-            roundName: 'Round 1',
-            roundOrder: 1,
-            teamAId: 1,
-            teamBId: 3,
-            teamAName: 'Spirit',
-            teamBName: 'FURIA',
-            teamALogoUrl: spiritLogo,
-            teamBLogoUrl: furiaLogo,
-            winnerId: 1,
-            winnerName: 'Spirit',
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-          {
-            id: 2002,
-            status: 'FINISHED',
-            scoreA: 2,
-            scoreB: 1,
-            date: '2026-10-14',
-            startTime: '18:30 Wednesday',
-            matchFormat: 'BO3',
-            bracketType: 'round_robin',
-            roundName: 'Round 1',
-            roundOrder: 1,
-            teamAId: 2,
-            teamBId: 4,
-            teamAName: 'Vitality',
-            teamBName: 'MOUZ',
-            teamALogoUrl: vitalityLogo,
-            teamBLogoUrl: mouzLogo,
-            winnerId: 2,
-            winnerName: 'Vitality',
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-        ],
-      },
-      {
-        roundName: 'Round 2',
-        roundOrder: 2,
-        matches: [
-          {
-            id: 2003,
-            status: 'FINISHED',
-            scoreA: 2,
-            scoreB: 1,
-            date: '2026-10-16',
-            startTime: '16:00 Friday',
-            matchFormat: 'BO3',
-            bracketType: 'round_robin',
-            roundName: 'Round 2',
-            roundOrder: 2,
-            teamAId: 1,
-            teamBId: 2,
-            teamAName: 'Spirit',
-            teamBName: 'Vitality',
-            teamALogoUrl: spiritLogo,
-            teamBLogoUrl: vitalityLogo,
-            winnerId: 1,
-            winnerName: 'Spirit',
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-          {
-            id: 2004,
-            status: 'FINISHED',
-            scoreA: 0,
-            scoreB: 2,
-            date: '2026-10-16',
-            startTime: '19:30 Friday',
-            matchFormat: 'BO3',
-            bracketType: 'round_robin',
-            roundName: 'Round 2',
-            roundOrder: 2,
-            teamAId: 3,
-            teamBId: 4,
-            teamAName: 'FURIA',
-            teamBName: 'MOUZ',
-            teamALogoUrl: furiaLogo,
-            teamBLogoUrl: mouzLogo,
-            winnerId: 4,
-            winnerName: 'MOUZ',
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-        ],
-      },
-      {
-        roundName: 'Round 3',
-        roundOrder: 3,
-        matches: [
-          {
-            id: 2005,
-            status: 'UPCOMING',
-            scoreA: null,
-            scoreB: null,
-            date: '2026-10-18',
-            startTime: '16:00 Sunday',
-            matchFormat: 'BO3',
-            bracketType: 'round_robin',
-            roundName: 'Round 3',
-            roundOrder: 3,
-            teamAId: 1,
-            teamBId: 4,
-            teamAName: 'Spirit',
-            teamBName: 'MOUZ',
-            teamALogoUrl: spiritLogo,
-            teamBLogoUrl: mouzLogo,
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-          {
-            id: 2006,
-            status: 'UPCOMING',
-            scoreA: null,
-            scoreB: null,
-            date: '2026-10-18',
-            startTime: '19:30 Sunday',
-            matchFormat: 'BO3',
-            bracketType: 'round_robin',
-            roundName: 'Round 3',
-            roundOrder: 3,
-            teamAId: 2,
-            teamBId: 3,
-            teamAName: 'Vitality',
-            teamBName: 'FURIA',
-            teamALogoUrl: vitalityLogo,
-            teamBLogoUrl: furiaLogo,
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-        ],
-      },
-    ]
-
-    return {
-      tournamentId: tourneyId,
-      tournamentTitle: tourneyTitle,
-      bracketType: 'round_robin',
-      upperBracket: [],
-      lowerBracket: [],
-      grandFinal: null,
-      allRounds: rounds,
-    }
-  }
-
-  if (bracketType === 'swiss') {
-    const rounds: BracketRoundGroup[] = [
-      {
-        roundName: 'Swiss Round 1 (0-0 Record)',
-        roundOrder: 1,
-        matches: [
-          {
-            id: 3001,
-            status: 'FINISHED',
-            scoreA: 13,
-            scoreB: 9,
-            date: '2026-03-18',
-            startTime: '13:00 Wednesday',
-            matchFormat: 'BO1',
-            bracketType: 'swiss',
-            roundName: 'Swiss Round 1',
-            roundOrder: 1,
-            teamAId: 1,
-            teamBId: 4,
-            teamAName: 'Spirit',
-            teamBName: 'MOUZ',
-            teamALogoUrl: spiritLogo,
-            teamBLogoUrl: mouzLogo,
-            winnerId: 1,
-            winnerName: 'Spirit',
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-          {
-            id: 3002,
-            status: 'FINISHED',
-            scoreA: 13,
-            scoreB: 8,
-            date: '2026-03-18',
-            startTime: '14:30 Wednesday',
-            matchFormat: 'BO1',
-            bracketType: 'swiss',
-            roundName: 'Swiss Round 1',
-            roundOrder: 1,
-            teamAId: 2,
-            teamBId: 3,
-            teamAName: 'Vitality',
-            teamBName: 'FURIA',
-            teamALogoUrl: vitalityLogo,
-            teamBLogoUrl: furiaLogo,
-            winnerId: 2,
-            winnerName: 'Vitality',
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-        ],
-      },
-      {
-        roundName: 'Swiss Round 2 (1-0 & 0-1 Pools)',
-        roundOrder: 2,
-        matches: [
-          {
-            id: 3003,
-            status: 'LIVE',
-            scoreA: 11,
-            scoreB: 10,
-            date: '2026-03-19',
-            startTime: '17:00 Thursday (1-0 Pool)',
-            matchFormat: 'BO3',
-            bracketType: 'swiss',
-            roundName: 'Swiss Round 2 (High Pool)',
-            roundOrder: 2,
-            teamAId: 1,
-            teamBId: 2,
-            teamAName: 'Spirit',
-            teamBName: 'Vitality',
-            teamALogoUrl: spiritLogo,
-            teamBLogoUrl: vitalityLogo,
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-          {
-            id: 3004,
-            status: 'UPCOMING',
-            scoreA: null,
-            scoreB: null,
-            date: '2026-03-19',
-            startTime: '20:30 Thursday (0-1 Pool)',
-            matchFormat: 'BO3',
-            bracketType: 'swiss',
-            roundName: 'Swiss Round 2 (Low Pool)',
-            roundOrder: 2,
-            teamAId: 3,
-            teamBId: 4,
-            teamAName: 'FURIA',
-            teamBName: 'MOUZ',
-            teamALogoUrl: furiaLogo,
-            teamBLogoUrl: mouzLogo,
-            tournamentId: tourneyId,
-            tournamentName: tourneyTitle,
-          },
-        ],
-      },
-    ]
-
-    return {
-      tournamentId: tourneyId,
-      tournamentTitle: tourneyTitle,
-      bracketType: 'swiss',
-      upperBracket: [],
-      lowerBracket: [],
-      grandFinal: null,
-      allRounds: rounds,
-    }
-  }
-
-  // Default: DOUBLE ELIMINATION (IEM Katowice style)
-  const openingRound: BracketRoundGroup = {
-    roundName: 'Opening round',
-    roundOrder: 1,
-    matches: [
-      {
-        id: 4001,
-        status: 'FINISHED',
-        scoreA: 2,
-        scoreB: 0,
-        date: '2026-10-02',
-        startTime: '21:00 Friday',
-        matchFormat: 'BO3',
-        bracketType: 'upper',
-        roundName: 'Opening round',
-        roundOrder: 1,
-        teamAId: 1,
-        teamBId: 4,
-        teamAName: 'Spirit',
-        teamBName: 'MOUZ',
-        teamALogoUrl: spiritLogo,
-        teamBLogoUrl: mouzLogo,
-        winnerId: 1,
-        winnerName: 'Spirit',
-        tournamentId: tourneyId,
-        tournamentName: tourneyTitle,
-      },
-      {
-        id: 4002,
-        status: 'FINISHED',
-        scoreA: 2,
-        scoreB: 1,
-        date: '2026-10-02',
-        startTime: '00:00 Saturday',
-        matchFormat: 'BO3',
-        bracketType: 'upper',
-        roundName: 'Opening round',
-        roundOrder: 1,
-        teamAId: 2,
-        teamBId: 3,
-        teamAName: 'Vitality',
-        teamBName: 'FURIA',
-        teamALogoUrl: vitalityLogo,
-        teamBLogoUrl: furiaLogo,
-        winnerId: 2,
-        winnerName: 'Vitality',
-        tournamentId: tourneyId,
-        tournamentName: tourneyTitle,
-      },
-    ],
-  }
-
-  const upperFinal: BracketRoundGroup = {
-    roundName: 'Upper final',
-    roundOrder: 2,
-    matches: [
-      {
-        id: 4003,
-        status: 'UPCOMING',
-        scoreA: null,
-        scoreB: null,
-        date: '2026-10-03',
-        startTime: '00:00 Sunday',
-        matchFormat: 'BO3',
-        bracketType: 'upper',
-        roundName: 'Upper final',
-        roundOrder: 2,
-        teamAId: 1,
-        teamBId: 2,
-        teamAName: 'Spirit',
-        teamBName: 'Vitality',
-        teamALogoUrl: spiritLogo,
-        teamBLogoUrl: vitalityLogo,
-        tournamentId: tourneyId,
-        tournamentName: tourneyTitle,
-      },
-    ],
-  }
-
-  const lowerFinal: BracketRoundGroup = {
-    roundName: 'Lower final',
-    roundOrder: 2,
-    matches: [
-      {
-        id: 4004,
-        status: 'LIVE',
-        scoreA: 1,
-        scoreB: 1,
-        date: '2026-10-02',
-        startTime: '21:00 Saturday',
-        matchFormat: 'BO3',
-        bracketType: 'lower',
-        roundName: 'Lower final',
-        roundOrder: 2,
-        teamAId: 4,
-        teamBId: 3,
-        teamAName: 'MOUZ',
-        teamBName: 'FURIA',
-        teamALogoUrl: mouzLogo,
-        teamBLogoUrl: furiaLogo,
-        tournamentId: tourneyId,
-        tournamentName: tourneyTitle,
-      },
-    ],
-  }
-
-  const consolidationFinal: BracketRoundGroup = {
-    roundName: 'Consolidation final',
-    roundOrder: 3,
-    matches: [
-      {
-        id: 4005,
-        status: 'UPCOMING',
-        scoreA: null,
-        scoreB: null,
-        date: '2026-10-03',
-        startTime: '22:00 Sunday',
-        matchFormat: 'BO3',
-        bracketType: 'lower',
-        roundName: 'Consolidation final',
-        roundOrder: 3,
-        teamAName: 'Loser of Upper Final',
-        teamBName: 'Winner of Lower Final',
-        tournamentId: tourneyId,
-        tournamentName: tourneyTitle,
-      },
-    ],
-  }
-
-  const grandFinal: BracketMatch = {
-    id: 4006,
-    status: 'UPCOMING',
-    scoreA: null,
-    scoreB: null,
-    date: '2026-10-04',
-    startTime: '01:00 Monday',
-    matchFormat: 'BO3',
-    bracketType: 'grand_final',
-    roundName: 'Grand final',
-    roundOrder: 4,
-    teamAName: 'Upper Bracket Winner',
-    teamBName: 'Consolidation Winner',
-    tournamentId: tourneyId,
-    tournamentName: tourneyTitle,
-  }
-
-  return {
-    tournamentId: tourneyId,
-    tournamentTitle: tourneyTitle,
-    bracketType: 'double_elimination',
-    upperBracket: [openingRound, upperFinal],
-    lowerBracket: [lowerFinal, consolidationFinal],
-    grandFinal,
-    allRounds: [openingRound, upperFinal, lowerFinal, consolidationFinal],
-  }
+  return generateDynamicBracket(tourneyId, tourneyTitle, bracketType, teams)
 }

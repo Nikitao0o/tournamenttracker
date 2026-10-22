@@ -20,14 +20,14 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   if (!isMimeValid && !isExtValid) {
     return {
       valid: false,
-      error: 'Неподдерживаемый формат изображения. Допустимы файлы: .PNG, .JPG, .JPEG, .SVG, .WEBP',
+      error: 'Unsupported image format. Allowed formats: .PNG, .JPG, .JPEG, .SVG, .WEBP',
     }
   }
 
   if (file.size > MAX_IMAGE_SIZE_BYTES) {
     return {
       valid: false,
-      error: 'Размер файла превышает допустимый лимит (максимум 5 МБ)',
+      error: 'File size exceeds allowed limit (maximum 5 MB)',
     }
   }
 
@@ -41,7 +41,7 @@ export function fileToDataUrl(file: File): Promise<string> {
       if (typeof reader.result === 'string') {
         resolve(reader.result)
       } else {
-        reject(new Error('Не удалось прочитать файл изображения'))
+        reject(new Error('Failed to read image file'))
       }
     }
     reader.onerror = () => reject(reader.error)
