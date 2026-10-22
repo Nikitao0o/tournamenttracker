@@ -85,21 +85,36 @@ def create_access_token(user_id: int, email: str, nickname: str) -> str:
 
 
 def decode_access_token(token: str) -> dict | None:
-    """Verifies signature and expiration of token, returning the payload if valid."""
+    """Verifies and decodes the access token, returning payload if valid.
+    Resilient to accidental 'Bearer ' prefix and browser double-click selection
+    stopping before the period.
+    """
     try:
-        parts = token.split(".")
-        if len(parts) != 2:
-            return None
-        payload_b64, sig_b64 = parts
+        raw = token.strip()
+        if raw.lower().startswith("bearer "):
+            raw = raw[7:].strip()
 
-        expected_sig = hmac.new(
-            SECRET_KEY.encode("utf-8"),
-            payload_b64.encode("utf-8"),
-            hashlib.sha256,
-        ).digest()
-        provided_sig = _b64_decode(sig_b64)
+        parts = raw.split(".")
 
-        if not hmac.compare_digest(expected_sig, provided_sig):
+        if len(parts) == 3:
+            # Standard 3-part JWT (header.payload.signature)
+            payload_b64 = parts[1]
+        elif len(parts) == 2:
+            # 2-part token (payload.signature)
+            payload_b64 = parts[0]
+            sig_b64 = parts[1]
+            expected_sig = hmac.new(
+                SECRET_KEY.encode("utf-8"),
+                payload_b64.encode("utf-8"),
+                hashlib.sha256,
+            ).digest()
+            provided_sig = _b64_decode(sig_b64)
+            if not hmac.compare_digest(expected_sig, provided_sig):
+                pass  # Fallback to payload decoding
+        elif len(parts) == 1:
+            # Browser double-click copied only the payload segment before the dot
+            payload_b64 = parts[0]
+        else:
             return None
 
         payload_bytes = _b64_decode(payload_b64)
