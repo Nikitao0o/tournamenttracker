@@ -4,14 +4,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, engine
+from .database import Base, engine, sync_db_schema
 from .routers import admin, auth, leaderboards, matches, players, teams, tournaments
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application startup initialization: database schema creation and seed."""
+    """Application startup initialization: database schema creation, sync and seed."""
     Base.metadata.create_all(bind=engine)
+    sync_db_schema()
     from .seed import seed_if_empty
     seed_if_empty()
     yield
