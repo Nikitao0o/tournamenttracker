@@ -81,3 +81,45 @@ export type CreateTournamentInput = {
 }
 
 export type UpdateTournamentInput = Partial<CreateTournamentInput>
+
+export type BracketMatch = {
+  id: number | string
+  status: MatchStatus | string
+  scoreA?: number | null
+  scoreB?: number | null
+  date: string
+  startTime?: string | null
+  mapName?: string | null
+  matchFormat?: string
+  bracketType?: string | null
+  roundName?: string | null
+  roundOrder?: number | null
+  teamAId?: number | null
+  teamBId?: number | null
+  teamAName: string
+  teamBName: string
+  teamALogoUrl?: string | null
+  teamBLogoUrl?: string | null
+  winnerId?: number | null
+  winnerName?: string | null
+  tournamentId: number | string
+  tournamentName?: string | null
+  nextMatchId?: number | null
+  nextLoserMatchId?: number | null
+}
+
+export type BracketRoundGroup = {
+  roundName: string
+  roundOrder: number
+  matches: BracketMatch[]
+}
+
+export type TournamentBracketView = {
+  tournamentId: number | string
+  tournamentTitle: string
+  bracketType: BracketType | string
+  upperBracket: BracketRoundGroup[]
+  lowerBracket: BracketRoundGroup[]
+  grandFinal?: BracketMatch | null
+  allRounds: BracketRoundGroup[]
+}

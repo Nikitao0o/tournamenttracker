@@ -1,5 +1,13 @@
-import type { CreateTournamentInput, Tournament, UpdateTournamentInput, User } from '../../types'
-import { MOCK_TOURNAMENTS } from '../../mock/data'
+import type {
+  BracketMatch,
+  BracketRoundGroup,
+  CreateTournamentInput,
+  Tournament,
+  TournamentBracketView,
+  UpdateTournamentInput,
+  User,
+} from '../../types'
+import { getMockBracketForTournament, MOCK_TOURNAMENTS } from '../../mock/data'
 import { storage } from './storage'
 
 const API_BASE = '/api'
@@ -305,4 +313,72 @@ export const apiClient = {
     const list = getLocalTournaments().filter((t) => t.id !== id)
     storage.setTournaments(list)
   },
+
+  async getTournamentBracket(tournamentId: string): Promise<TournamentBracketView> {
+    try {
+      const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/bracket`)
+      if (response.ok) {
+        const data = await response.json()
+        return mapBracketView(data)
+      }
+    } catch {
+      // Fallback
+    }
+
+    const tourneys = getLocalTournaments()
+    const found =
+      tourneys.find((t) => t.id === tournamentId) ||
+      MOCK_TOURNAMENTS.find((t) => t.id === tournamentId)
+    return getMockBracketForTournament(
+      found || { id: tournamentId, title: 'Tournament Bracket', bracketType: 'double_elimination' }
+    )
+  },
+}
+
+function mapBracketMatch(raw: any): BracketMatch {
+  return {
+    id: raw.id,
+    status: raw.status,
+    scoreA: raw.score_a !== undefined ? raw.score_a : raw.scoreA,
+    scoreB: raw.score_b !== undefined ? raw.score_b : raw.scoreB,
+    date: raw.date,
+    startTime: raw.start_time || raw.startTime,
+    mapName: raw.map_name || raw.mapName,
+    matchFormat: raw.match_format || raw.matchFormat || 'BO3',
+    bracketType: raw.bracket_type || raw.bracketType,
+    roundName: raw.round_name || raw.roundName,
+    roundOrder: raw.round_order !== undefined ? raw.round_order : raw.roundOrder,
+    teamAId: raw.team_a_id !== undefined ? raw.team_a_id : raw.teamAId,
+    teamBId: raw.team_b_id !== undefined ? raw.team_b_id : raw.teamBId,
+    teamAName: raw.team_a_name || raw.teamAName || 'TBD',
+    teamBName: raw.team_b_name || raw.teamBName || 'TBD',
+    teamALogoUrl: raw.team_a_logo_url || raw.teamALogoUrl,
+    teamBLogoUrl: raw.team_b_logo_url || raw.teamBLogoUrl,
+    winnerId: raw.winner_id !== undefined ? raw.winner_id : raw.winnerId,
+    winnerName: raw.winner_name || raw.winnerName,
+    tournamentId: raw.tournament_id !== undefined ? raw.tournament_id : raw.tournamentId,
+    tournamentName: raw.tournament_name || raw.tournamentName,
+    nextMatchId: raw.next_match_id !== undefined ? raw.next_match_id : raw.nextMatchId,
+    nextLoserMatchId: raw.next_loser_match_id !== undefined ? raw.next_loser_match_id : raw.nextLoserMatchId,
+  }
+}
+
+function mapBracketRound(raw: any): BracketRoundGroup {
+  return {
+    roundName: raw.round_name || raw.roundName || 'General',
+    roundOrder: raw.round_order !== undefined ? raw.round_order : (raw.roundOrder || 1),
+    matches: (raw.matches || []).map(mapBracketMatch),
+  }
+}
+
+function mapBracketView(raw: any): TournamentBracketView {
+  return {
+    tournamentId: raw.tournament_id !== undefined ? raw.tournament_id : raw.tournamentId,
+    tournamentTitle: raw.tournament_title || raw.tournamentTitle || 'Tournament Bracket',
+    bracketType: raw.bracket_type || raw.bracketType || 'double_elimination',
+    upperBracket: (raw.upper_bracket || raw.upperBracket || []).map(mapBracketRound),
+    lowerBracket: (raw.lower_bracket || raw.lowerBracket || []).map(mapBracketRound),
+    grandFinal: (raw.grand_final || raw.grandFinal) ? mapBracketMatch(raw.grand_final || raw.grandFinal) : null,
+    allRounds: (raw.all_rounds || raw.allRounds || []).map(mapBracketRound),
+  }
 }
