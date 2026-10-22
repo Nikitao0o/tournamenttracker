@@ -1,8 +1,11 @@
 import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
 import { getTeamSlug, MOCK_PLAYER_RANKINGS } from '../mock/data'
+import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function PlayerLeaderboardPage() {
   return (
@@ -11,7 +14,7 @@ export function PlayerLeaderboardPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: '36px minmax(0, 1fr) minmax(0, 1fr) 72px',
+          gridTemplateColumns: '36px minmax(0, 1.2fr) minmax(0, 1fr) 72px',
           gap: 1,
           px: 1.5,
           py: 0.75,
@@ -32,7 +35,7 @@ export function PlayerLeaderboardPage() {
           key={player.name}
           sx={{
             display: 'grid',
-            gridTemplateColumns: '36px minmax(0, 1fr) minmax(0, 1fr) 72px',
+            gridTemplateColumns: '36px minmax(0, 1.2fr) minmax(0, 1fr) 72px',
             gap: 1,
             alignItems: 'center',
             px: 1.5,
@@ -44,22 +47,32 @@ export function PlayerLeaderboardPage() {
           <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
             {index + 1}
           </Typography>
-          <Typography sx={{ fontWeight: 700 }}>{player.name}</Typography>
-          <Typography
-            component={Link}
-            to={`/teams/${getTeamSlug(player.team)}`}
-            sx={{
-              color: 'text.primary',
-              textDecoration: 'none',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              '&:hover': { color: 'primary.main' },
-            }}
-          >
-            {player.team}
-          </Typography>
-          <Typography sx={{ fontVariantNumeric: 'tabular-nums' }}>{player.rating.toFixed(2)}</Typography>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+            <PlayerAvatar name={player.name} size={24} />
+            <Typography sx={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {player.name}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+            <TeamLogo teamName={player.team} size={18} />
+            <Typography
+              component={Link}
+              to={`/teams/${getTeamSlug(player.team)}`}
+              sx={{
+                color: 'text.primary',
+                textDecoration: 'none',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: 13,
+                fontWeight: 600,
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              {player.team}
+            </Typography>
+          </Stack>
+          <Typography sx={{ fontWeight: 800, color: 'text.primary' }}>{player.rating}</Typography>
         </Box>
       ))}
     </Box>

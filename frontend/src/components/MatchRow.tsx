@@ -1,10 +1,12 @@
 import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import type { Match } from '../types'
 import { getTeamSlug } from '../mock/data'
 import { MatchStatusLabel, ScorePair } from './StatusChips'
 import { formatDateShort } from '../utils/formatting'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 type MatchRowProps = {
   match: Match
@@ -73,23 +75,27 @@ export function MatchRow({ match }: MatchRowProps) {
           gridColumn: { xs: '2 / -1', sm: 'auto' },
         }}
       >
-        <Typography
-          component={Link}
-          to={`/teams/${getTeamSlug(match.teamA)}`}
-          sx={{
-            fontSize: 13,
-            fontWeight: decided && aWon ? 800 : 600,
-            textAlign: 'right',
-            color: decided && !aWon ? 'text.secondary' : 'text.primary',
-            textDecoration: 'none',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          {match.teamA}
-        </Typography>
+        <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
+          <Typography
+            component={Link}
+            to={`/teams/${getTeamSlug(match.teamA)}`}
+            sx={{
+              fontSize: 13,
+              fontWeight: decided && aWon ? 800 : 600,
+              textAlign: 'right',
+              color: decided && !aWon ? 'text.secondary' : 'text.primary',
+              textDecoration: 'none',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              '&:hover': { color: 'primary.main' },
+            }}
+          >
+            {match.teamA}
+          </Typography>
+          <TeamLogo teamName={match.teamA} size={18} />
+        </Stack>
+
         <Box
           component={Link}
           to={`/matches/${match.id}`}
@@ -97,22 +103,26 @@ export function MatchRow({ match }: MatchRowProps) {
         >
           <ScorePair scoreA={match.scoreA} scoreB={match.scoreB} live={match.status === 'LIVE'} />
         </Box>
-        <Typography
-          component={Link}
-          to={`/teams/${getTeamSlug(match.teamB)}`}
-          sx={{
-            fontSize: 13,
-            fontWeight: decided && bWon ? 800 : 600,
-            color: decided && !bWon ? 'text.secondary' : 'text.primary',
-            textDecoration: 'none',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          {match.teamB}
-        </Typography>
+
+        <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center', minWidth: 0 }}>
+          <TeamLogo teamName={match.teamB} size={18} />
+          <Typography
+            component={Link}
+            to={`/teams/${getTeamSlug(match.teamB)}`}
+            sx={{
+              fontSize: 13,
+              fontWeight: decided && bWon ? 800 : 600,
+              color: decided && !bWon ? 'text.secondary' : 'text.primary',
+              textDecoration: 'none',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              '&:hover': { color: 'primary.main' },
+            }}
+          >
+            {match.teamB}
+          </Typography>
+        </Stack>
       </Box>
     </Box>
   )

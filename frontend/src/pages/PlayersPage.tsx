@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Grid from '@mui/material/Grid'
@@ -6,6 +7,8 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { MOCK_PLAYERS } from '../mock/data'
+import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function PlayersPage() {
   return (
@@ -16,19 +19,28 @@ export function PlayersPage() {
         {MOCK_PLAYERS.map((player) => (
           <Grid key={player.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Paper variant="outlined" sx={{ p: 2.5, height: '100%' }}>
-              <Stack spacing={1.5}>
-                <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h3" sx={{ fontSize: 24 }}>
-                    {player.name}
-                  </Typography>
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                  <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={48} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="h3" sx={{ fontSize: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {player.name}
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ fontSize: 11 }}>
+                      {player.age} • {player.nationality}
+                    </Typography>
+                  </Box>
                   <Chip label={player.role} size="small" />
                 </Stack>
 
-                <Typography color="text.secondary">
-                  {player.age} • {player.nationality}
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <TeamLogo teamName={player.teamName} size={20} />
+                  <Typography sx={{ fontWeight: 700, fontSize: 13 }}>{player.teamName}</Typography>
+                </Stack>
+
+                <Typography color="text.secondary" sx={{ fontSize: 12 }}>
+                  K/D: <strong>{player.stats.kd}</strong> • Impact: <strong>{player.stats.impact}</strong>
                 </Typography>
-                <Typography sx={{ fontWeight: 700 }}>{player.teamName}</Typography>
-                <Typography color="text.secondary">K/D {player.stats.kd}</Typography>
 
                 <Button component={Link} to={`/players/${player.id}`} variant="contained" sx={{ mt: 'auto' }}>
                   View profile

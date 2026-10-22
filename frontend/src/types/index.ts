@@ -35,6 +35,7 @@ export type Team = {
   description: string
   ranking: number
   roster: string[]
+  logoUrl?: string
 }
 
 export type Player = {
@@ -50,6 +51,7 @@ export type Player = {
     impact: number
     maps: number
   }
+  avatarUrl?: string
 }
 
 export type User = {

@@ -1,4 +1,5 @@
 import type { Match, Player, Team, Tournament } from '../types'
+import { TEAM_LOGOS } from '../shared/ui/teamLogosData'
 
 export const MOCK_TOURNAMENTS: Tournament[] = [
   {
@@ -49,6 +50,7 @@ export const MOCK_TEAMS: Team[] = [
     description: 'A disciplined counter-strike roster with elite map control and exceptional mid-round composure.',
     ranking: 1,
     roster: ['donk', 'chopper', 'zont1x', 'magixx', 'sh1ro'],
+    logoUrl: TEAM_LOGOS['team-spirit'].svg,
   },
   {
     id: 'team-vitality',
@@ -59,6 +61,7 @@ export const MOCK_TEAMS: Team[] = [
     description: 'Known for explosive opening duels and a deep tactical pool that thrives in late-round scenarios.',
     ranking: 2,
     roster: ['apEX', 'ZywOo', 'magisk', 'mezii', 'ropz'],
+    logoUrl: TEAM_LOGOS['team-vitality'].svg,
   },
   {
     id: 'team-furia',
@@ -69,6 +72,7 @@ export const MOCK_TEAMS: Team[] = [
     description: 'Aggressive pressure game with a strong late-round economy and confident post-plant execution.',
     ranking: 3,
     roster: ['yuurih', 'KSCERATO', 'FalleN', 'saffee', 'arT'],
+    logoUrl: TEAM_LOGOS['team-furia'].svg,
   },
   {
     id: 'team-mouz',
@@ -79,6 +83,7 @@ export const MOCK_TEAMS: Team[] = [
     description: 'A structured and efficient squad built around utility timing and consistent map momentum.',
     ranking: 4,
     roster: ['s1mple', 'xertioN', 'Jimpphat', 'torzsi', 'Brollan'],
+    logoUrl: TEAM_LOGOS['team-mouz'].svg,
   },
 ]
 

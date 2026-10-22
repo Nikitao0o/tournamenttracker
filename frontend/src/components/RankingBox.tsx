@@ -2,6 +2,7 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { getTeamSlug, MOCK_RANKING } from '../mock/data'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 import { SectionHeader } from './SectionHeader'
 
 export function RankingBox() {
@@ -13,6 +14,7 @@ export function RankingBox() {
           key={team}
           sx={{
             display: 'flex',
+            alignItems: 'center',
             gap: 1.25,
             px: 1.25,
             py: 0.7,
@@ -24,6 +26,7 @@ export function RankingBox() {
           <Typography sx={{ width: 18, color: 'text.secondary', fontWeight: 700 }}>
             {index + 1}.
           </Typography>
+          <TeamLogo teamName={team} size={20} />
           <Typography
             component={Link}
             to={`/teams/${getTeamSlug(team)}`}

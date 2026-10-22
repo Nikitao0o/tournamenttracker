@@ -1,8 +1,10 @@
 import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
 import { getTeamSlug, MOCK_RANKING } from '../mock/data'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function TeamLeaderboardPage() {
   return (
@@ -25,13 +27,16 @@ export function TeamLeaderboardPage() {
           <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
             {index + 1}
           </Typography>
-          <Typography
-            component={Link}
-            to={`/teams/${getTeamSlug(team)}`}
-            sx={{ color: 'text.primary', fontWeight: 700, textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
-          >
-            {team}
-          </Typography>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <TeamLogo teamName={team} size={24} />
+            <Typography
+              component={Link}
+              to={`/teams/${getTeamSlug(team)}`}
+              sx={{ color: 'text.primary', fontWeight: 700, textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+            >
+              {team}
+            </Typography>
+          </Stack>
         </Box>
       ))}
     </Box>

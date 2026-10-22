@@ -5,6 +5,7 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { MOCK_TEAMS } from '../mock/data'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function TeamsPage() {
   return (
@@ -14,15 +15,18 @@ export function TeamsPage() {
       {MOCK_TEAMS.map((team) => (
         <Paper key={team.id} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
           <Stack spacing={2}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>
-              <div>
-                <Typography variant="h2" sx={{ fontSize: { xs: 24, sm: 30 } }}>
-                  {team.name}
-                </Typography>
-                <Typography color="text.secondary">
-                  {team.region} • #{team.ranking}
-                </Typography>
-              </div>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                <TeamLogo teamName={team.name} logoUrl={team.logoUrl} size={48} />
+                <div>
+                  <Typography variant="h2" sx={{ fontSize: { xs: 22, sm: 28 } }}>
+                    {team.name}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {team.region} • #{team.ranking}
+                  </Typography>
+                </div>
+              </Stack>
               <Chip label={team.shortName} color="secondary" sx={{ alignSelf: 'flex-start' }} />
             </Stack>
 

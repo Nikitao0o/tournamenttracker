@@ -6,6 +6,8 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
 import { getPlayerById, getTeamById } from '../mock/data'
+import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function PlayerPage() {
   const { id } = useParams<{ id: string }>()
@@ -31,19 +33,26 @@ export function PlayerPage() {
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Stack spacing={2.5}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between' }}>
-            <div>
-              <Typography variant="h1">{player.name}</Typography>
-              <Typography color="text.secondary">
-                {player.age} years old • {player.nationality}
-              </Typography>
-            </div>
-            <Chip label={player.role} color="secondary" sx={{ alignSelf: 'flex-start' }} />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+            <Stack direction="row" spacing={2.5} sx={{ alignItems: 'center' }}>
+              <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={72} />
+              <div>
+                <Typography variant="h1" sx={{ fontSize: { xs: 22, sm: 28 } }}>{player.name}</Typography>
+                <Typography color="text.secondary">
+                  {player.age} years old • {player.nationality}
+                </Typography>
+              </div>
+            </Stack>
+            <Chip label={player.role} color="secondary" sx={{ alignSelf: 'flex-start', fontWeight: 800 }} />
           </Stack>
 
-          <Typography color="text.secondary">
-            Team: <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>{player.teamName}</Box>
-          </Typography>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Typography color="text.secondary">Team:</Typography>
+            <TeamLogo teamName={player.teamName} size={22} />
+            <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              {player.teamName}
+            </Box>
+          </Stack>
 
           {team ? (
             <Button component={Link} to={`/teams/${team.id}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>

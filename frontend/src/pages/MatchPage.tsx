@@ -6,6 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import { MatchStatusLabel, ScorePair } from '../components/StatusChips'
 import { formatDate } from '../utils/formatting'
 import { getMatchById, getTeamSlug } from '../mock/data'
+import { TeamLogo } from '../shared/ui/TeamLogo'
 
 export function MatchPage() {
   const { id } = useParams<{ id: string }>()
@@ -62,53 +63,70 @@ export function MatchPage() {
             bgcolor: '#fff',
           }}
         >
-          <Typography
-            component={Link}
-            to={`/teams/${getTeamSlug(match.teamA)}`}
-            sx={{
-              fontSize: { xs: 22, sm: 28 },
-              fontWeight: 800,
-              textAlign: { sm: 'right' },
-              color: 'inherit',
-              textDecoration: 'none',
-              '&:hover': { color: 'primary.main' },
-            }}
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-end' } }}
           >
-            {match.teamA}
-          </Typography>
+            <Typography
+              component={Link}
+              to={`/teams/${getTeamSlug(match.teamA)}`}
+              sx={{
+                fontSize: { xs: 20, sm: 26 },
+                fontWeight: 800,
+                textAlign: { sm: 'right' },
+                color: 'inherit',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              {match.teamA}
+            </Typography>
+            <TeamLogo teamName={match.teamA} size={48} />
+          </Stack>
+
           <Box sx={{ justifySelf: 'center', transform: 'scale(1.6)', transformOrigin: 'center' }}>
             <ScorePair scoreA={match.scoreA} scoreB={match.scoreB} live={match.status === 'LIVE'} />
           </Box>
-          <Typography
-            component={Link}
-            to={`/teams/${getTeamSlug(match.teamB)}`}
-            sx={{
-              fontSize: { xs: 22, sm: 28 },
-              fontWeight: 800,
-              color: 'inherit',
-              textDecoration: 'none',
-              '&:hover': { color: 'primary.main' },
-            }}
+
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' } }}
           >
-            {match.teamB}
-          </Typography>
+            <TeamLogo teamName={match.teamB} size={48} />
+            <Typography
+              component={Link}
+              to={`/teams/${getTeamSlug(match.teamB)}`}
+              sx={{
+                fontSize: { xs: 20, sm: 26 },
+                fontWeight: 800,
+                color: 'inherit',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              {match.teamB}
+            </Typography>
+          </Stack>
         </Box>
 
         <Box
           sx={{
             px: 2,
             py: 1,
-            bgcolor: '#f3f5f7',
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            color: 'text.secondary',
+            bgcolor: 'background.default',
             borderTop: '1px solid',
             borderColor: 'divider',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: 12,
+            color: 'text.secondary',
           }}
         >
-          <span>{match.map ?? 'Map TBA'}</span>
-          <span>{formatDate(match.date)}</span>
+          <Box>Date: {formatDate(match.date)}</Box>
+          {match.map ? <Box>Map: {match.map}</Box> : null}
         </Box>
       </Box>
     </Stack>
