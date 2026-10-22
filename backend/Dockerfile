@@ -1,17 +1,18 @@
 FROM python:3.12-slim
 
-# Не создавать .pyc и не буферизовать stdout (важно для логов docker)
+# Prevent generating .pyc and unbuffer stdout (useful for docker logs)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Сначала копируем только requirements — слой закэшируется
+# Copy requirements first for layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Потом код
+# Copy application source code and admin configuration
 COPY app ./app
+COPY admins.txt* ./
 
 EXPOSE 8000
 

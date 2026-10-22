@@ -134,12 +134,14 @@ def decode_access_token(token: str) -> dict | None:
 
 def get_admin_identifiers() -> set[str]:
     """Reads the set of administrator identifiers from admins.txt.
-    Checks backend/admins.txt, admins.txt, and parent directories.
+    Checks /app/admins.txt, admins.txt, backend/admins.txt, and parent directories.
     Evaluated dynamically so file edits take effect immediately without restart.
     """
     possible_paths = [
+        Path("/app/admins.txt"),
         Path("admins.txt"),
         Path("backend/admins.txt"),
+        Path(__file__).resolve().parent / "admins.txt",
         Path(__file__).resolve().parent.parent / "admins.txt",
         Path(__file__).resolve().parent.parent.parent / "admins.txt",
     ]
@@ -155,7 +157,8 @@ def get_admin_identifiers() -> set[str]:
                         admins.add(line.lower())
             except Exception:
                 pass
-            break
+            if admins:
+                break
     return admins
 
 
