@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas
+from ..auth import get_current_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
@@ -14,6 +15,7 @@ def list_matches(
     team_id: int | None = None,
     db: Session = Depends(get_db),
 ):
+    """Публичный список матчей с фильтрацией."""
     return crud.get_matches(
         db,
         status_filter=status,
@@ -24,12 +26,18 @@ def list_matches(
 
 @router.get("/{match_id}", response_model=schemas.MatchOut)
 def get_match(match_id: int, db: Session = Depends(get_db)):
+    """Получение детальной информации о матче."""
     m = crud.get_match_or_404(db, match_id)
     return crud.enrich_match(m)
 
 
 @router.post("", response_model=schemas.MatchOut, status_code=status.HTTP_201_CREATED)
-def create_match(payload: schemas.MatchCreate, db: Session = Depends(get_db)):
+def create_match(
+    payload: schemas.MatchCreate,
+    admin = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Создание матча (только для администраторов)."""
     return crud.create_match(db, payload)
 
 
@@ -37,11 +45,20 @@ def create_match(payload: schemas.MatchCreate, db: Session = Depends(get_db)):
 def update_match(
     match_id: int,
     payload: schemas.MatchUpdate,
+    admin = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
+    """Обновление счета/статуса матча (только для администраторов).
+    При переходе в статус FINISHED автоматически продвигает участников по турнирной сетке.
+    """
     return crud.update_match(db, match_id, payload)
 
 
 @router.delete("/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_match(match_id: int, db: Session = Depends(get_db)):
+def delete_match(
+    match_id: int,
+    admin = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Удаление матча (только для администраторов)."""
     crud.delete_match(db, match_id)

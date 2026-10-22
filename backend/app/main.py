@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import Base, engine
-from .routers import leaderboards, matches, players, teams, tournaments
+from .routers import admin, auth, leaderboards, matches, players, teams, tournaments
 
 
 @asynccontextmanager
@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_TITLE,
     version=settings.APP_VERSION,
-    description="REST API для управления киберспортивными турнирами, командами, игроками и матчами.",
+    description="REST API для управления киберспортивными турнирами, сетками (Double/Single Elimination, Round Robin, Swiss), командами, матчами и учетными записями.",
     lifespan=lifespan,
 )
 
@@ -32,6 +32,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Регистрация маршрутов
+app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(tournaments.router)
 app.include_router(matches.router)
 app.include_router(teams.router)

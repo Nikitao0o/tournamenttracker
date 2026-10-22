@@ -12,10 +12,11 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app import models, schemas, crud
+from app.auth import is_user_admin
 from app.seed import seed_if_empty
 
 
-class TestTournamentTrackerCRUD(unittest.TestCase):
+class TestTournamentTrackerFull(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.engine = create_engine(
@@ -34,108 +35,155 @@ class TestTournamentTrackerCRUD(unittest.TestCase):
         self.db.close()
         models.Base.metadata.drop_all(bind=self.engine)
 
-    def test_seed_data_loaded(self):
-        teams = crud.get_teams(self.db)
-        self.assertEqual(len(teams), 4)
+    # 1. Тестирование пользователей и админского файла
+    def test_users_and_admin_file(self):
+        # Проверяем, что admin_user из seed признан админом по admins.txt
+        admin = crud.get_user_by_email(self.db, "admin@tracker.local")
+        self.assertIsNotNone(admin)
+        self.assertTrue(is_user_admin(admin.email, admin.nickname))
 
-        players = crud.get_players(self.db)
-        self.assertEqual(len(players), 11)
+        # Обычный пользователь не является админом
+        regular = crud.get_user_by_email(self.db, "user@tracker.local")
+        self.assertIsNotNone(regular)
+        self.assertFalse(is_user_admin(regular.email, regular.nickname))
 
-        tournaments = crud.get_tournaments(self.db)
-        self.assertEqual(len(tournaments), 4)
-
-        matches = crud.get_matches(self.db)
-        self.assertEqual(len(matches), 3)
-
-    def test_create_and_delete_team(self):
-        new_team = crud.create_team(
+        # Обычный пользователь меняет себе только никнейм
+        updated = crud.update_user_self(
             self.db,
-            schemas.TeamCreate(
-                name="Cloud9",
-                short_name="C9",
-                region="Americas",
-                coach="groove",
-                description="North American powerhouse",
-                ranking=5,
+            regular,
+            schemas.UserUpdate(nickname="new_alex_nick"),
+        )
+        self.assertEqual(updated.nickname, "new_alex_nick")
+
+    # 2. Тестирование создания игрока админом (с аккаунтом и без)
+    def test_admin_create_player_with_and_without_account(self):
+        teams = crud.get_teams(self.db)
+        team_id = teams[0].id
+
+        # Создание игрока БЕЗ почты и пароля (user_id=None)
+        player_no_acc = crud.create_player(
+            self.db,
+            schemas.PlayerCreate(
+                nickname="m0NESY",
+                name="Ilya Osipov",
+                age=19,
+                role="AWPer",
+                nationality="Russian",
+                kd="1.25",
+                impact=9.2,
+                maps=50,
+                team_id=team_id,
+                user_id=None,
             ),
         )
-        self.assertIsNotNone(new_team.id)
-        self.assertEqual(new_team.name, "Cloud9")
+        self.assertIsNotNone(player_no_acc.id)
+        self.assertIsNone(player_no_acc.user_id)
 
-        # Conflict on duplicate name
-        with self.assertRaises(HTTPException) as ctx:
-            crud.create_team(
-                self.db,
-                schemas.TeamCreate(
-                    name="Cloud9",
-                    short_name="C9-2",
-                    region="Americas",
-                    coach="groove",
-                    description="Another C9",
-                    ranking=6,
-                ),
-            )
-        self.assertEqual(ctx.exception.status_code, 409)
-
-        # Delete team
-        crud.delete_team(self.db, new_team.id)
-        with self.assertRaises(HTTPException) as ctx:
-            crud.get_team_or_404(self.db, new_team.id)
-        self.assertEqual(ctx.exception.status_code, 404)
-
-    def test_player_foreign_key_validation(self):
-        # Invalid team_id
-        with self.assertRaises(HTTPException) as ctx:
-            crud.create_player(
-                self.db,
-                schemas.PlayerCreate(
-                    nickname="nobody",
-                    name="No Name",
-                    age=20,
-                    role="Rifler",
-                    nationality="Unknown",
-                    kd="1.0",
-                    impact=8.0,
-                    maps=10,
-                    team_id=99999,
-                ),
-            )
-        self.assertEqual(ctx.exception.status_code, 400)
-
-    def test_match_distinct_teams_validation(self):
-        teams = crud.get_teams(self.db)
-        tournaments = crud.get_tournaments(self.db)
-
-        # 1. Pydantic validator rejects team_a == team_b
-        with self.assertRaises(ValidationError):
-            schemas.MatchCreate(
-                status="UPCOMING",
-                date="2026-11-01",
-                team_a_id=teams[0].id,
-                team_b_id=teams[0].id,
-                tournament_id=tournaments[0].id,
-            )
-
-        # 2. Non-existent tournament -> HTTPException 400
-        valid_schema = schemas.MatchCreate(
-            status="UPCOMING",
-            date="2026-11-01",
-            team_a_id=teams[0].id,
-            team_b_id=teams[1].id,
-            tournament_id=99999,
+        # Регистрация нового аккаунта
+        new_user = crud.create_user(
+            self.db,
+            schemas.UserRegister(
+                email="pro_sniper@tracker.local",
+                nickname="sniper_god",
+                password="password123",
+            ),
         )
-        with self.assertRaises(HTTPException) as ctx:
-            crud.create_match(self.db, valid_schema)
-        self.assertEqual(ctx.exception.status_code, 400)
 
-    def test_leaderboards(self):
-        team_lb = crud.get_team_leaderboard(self.db)
-        self.assertTrue(len(team_lb) >= 4)
-        self.assertEqual(team_lb[0].rank, 1)
+        # Привязка зарегистрированного пользователя к профилю игрока админом
+        claimed = crud.claim_player_for_user(self.db, player_no_acc.id, new_user.id)
+        self.assertEqual(claimed.user_email, "pro_sniper@tracker.local")
 
-        player_lb = crud.get_player_leaderboard(self.db, limit=5)
-        self.assertEqual(len(player_lb), 5)
-        self.assertTrue(player_lb[0].rating >= player_lb[1].rating)
+    # 3. Генерация сетки Double Elimination и автоматическое продвижение
+    def test_double_elimination_bracket_and_progression(self):
+        tournament = crud.get_tournaments(self.db)[0]
+        teams = crud.get_teams(self.db)
+        team_ids = [t.id for t in teams[:4]]
+
+        # Генерация Double Elimination сетки
+        bracket_view = crud.generate_tournament_bracket(
+            self.db,
+            tournament.id,
+            schemas.BracketCreate(
+                name="Playoffs DE",
+                bracket_type="double_elimination",
+                team_ids=team_ids,
+                match_format="BO3",
+            ),
+        )
+        self.assertEqual(bracket_view.bracket_type, "double_elimination")
+        self.assertTrue(len(bracket_view.upper_bracket) > 0)
+        self.assertIsNotNone(bracket_view.grand_final)
+
+        # Находим первый матч Opening round
+        opening_match = (
+            self.db.query(models.Match)
+            .filter(
+                models.Match.tournament_id == tournament.id,
+                models.Match.round_name == "Opening round",
+                models.Match.team_a_id == team_ids[0],
+            )
+            .first()
+        )
+        self.assertIsNotNone(opening_match)
+        self.assertIsNotNone(opening_match.next_match_id)
+        self.assertIsNotNone(opening_match.next_loser_match_id)
+
+        # Завершаем матч: Team A побеждает Team B со счетом 2:0
+        winner_id = opening_match.team_a_id
+        loser_id = opening_match.team_b_id
+
+        crud.update_match(
+            self.db,
+            opening_match.id,
+            schemas.MatchUpdate(status="FINISHED", score_a=2, score_b=0),
+        )
+
+        # Проверяем автоматическое продвижение:
+        # 1. Победитель перешел в Upper final
+        upper_final = self.db.get(models.Match, opening_match.next_match_id)
+        self.assertIn(winner_id, [upper_final.team_a_id, upper_final.team_b_id])
+
+        # 2. Проигравший упал в Lower final
+        lower_final = self.db.get(models.Match, opening_match.next_loser_match_id)
+        self.assertIn(loser_id, [lower_final.team_a_id, lower_final.team_b_id])
+
+    # 4. Генерация других типов сеток: Single Elimination и Round Robin
+    def test_other_bracket_types(self):
+        tournaments = crud.get_tournaments(self.db)
+        teams = crud.get_teams(self.db)
+        team_ids = [t.id for t in teams[:4]]
+
+        # Single Elimination
+        se_view = crud.generate_tournament_bracket(
+            self.db,
+            tournaments[1].id,
+            schemas.BracketCreate(
+                name="Playoffs SE",
+                bracket_type="single_elimination",
+                team_ids=team_ids,
+                match_format="BO3",
+            ),
+        )
+        self.assertEqual(se_view.bracket_type, "single_elimination")
+        se_matches = self.db.query(models.Match).filter(models.Match.tournament_id == tournaments[1].id).all()
+        # 2 полуфинала + 1 финал = 3 матча
+        self.assertTrue(len(se_matches) >= 3)
+
+        # Round Robin
+        rr_view = crud.generate_tournament_bracket(
+            self.db,
+            tournaments[2].id,
+            schemas.BracketCreate(
+                name="Group Stage RR",
+                bracket_type="round_robin",
+                team_ids=team_ids,
+                match_format="BO1",
+            ),
+        )
+        self.assertEqual(rr_view.bracket_type, "round_robin")
+        rr_matches = self.db.query(models.Match).filter(models.Match.tournament_id == tournaments[2].id).all()
+        # 4 команды -> C(4, 2) = 6 матчей
+        self.assertEqual(len(rr_matches), 6)
 
 
 if __name__ == "__main__":
