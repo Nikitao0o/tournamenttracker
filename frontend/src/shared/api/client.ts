@@ -4,7 +4,7 @@ import { storage } from './storage'
 
 const API_BASE = '/api'
 
-// Демо-аккаунты для автономной работы без бэкенда (из admins.txt и README)
+// Demo accounts for standalone offline fallback (from admins.txt and README)
 const SEED_USERS: User[] = [
   {
     id: 1,
@@ -91,7 +91,7 @@ export const apiClient = {
 
       if (response.status === 401 || response.status === 400) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || 'Неверный email или пароль')
+        throw new Error(errorData.detail || 'Invalid email or password')
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.message !== 'Failed to fetch' && !err.message.includes('NetworkError')) {
@@ -99,13 +99,13 @@ export const apiClient = {
       }
     }
 
-    // Фоллбэк на локальную авторизацию при недоступности API бэкенда
+    // Fallback to local authentication when backend API is unavailable
     const normalizedEmail = email.trim().toLowerCase()
     const foundUser = SEED_USERS.find((u) => u.email.toLowerCase() === normalizedEmail)
 
     if (foundUser) {
       if (password.length < 6) {
-        throw new Error('Пароль должен содержать не менее 6 символов')
+        throw new Error('Password must contain at least 6 characters')
       }
       return {
         token: `mock-token-${foundUser.id}-${Date.now()}`,
@@ -113,7 +113,7 @@ export const apiClient = {
       }
     }
 
-    // Проверяем зарегистрированных в localStorage пользователей
+    // Check localStorage registered users
     const registeredUsers = storage.getUser()
     if (registeredUsers && registeredUsers.email.toLowerCase() === normalizedEmail) {
       return {
@@ -122,7 +122,7 @@ export const apiClient = {
       }
     }
 
-    throw new Error('Пользователь с таким email не найден. Проверьте данные или создайте аккаунт через Sign Up.')
+    throw new Error('User with this email not found. Check credentials or register via Sign Up.')
   },
 
   async register(payload: { email: string; nickname: string; password: string }): Promise<{ token: string; user: User }> {
@@ -135,7 +135,7 @@ export const apiClient = {
 
       if (response.ok) {
         const user = await response.json()
-        // Автоматически логинимся после регистрации
+        // Automatically login after registration
         const loginRes = await this.login(payload.email, payload.password)
         return {
           token: loginRes.token,
@@ -145,7 +145,7 @@ export const apiClient = {
 
       if (response.status >= 400) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || 'Ошибка регистрации')
+        throw new Error(errorData.detail || 'Registration error')
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.message !== 'Failed to fetch' && !err.message.includes('NetworkError')) {
@@ -153,7 +153,7 @@ export const apiClient = {
       }
     }
 
-    // Фоллбэк создания пустого аккаунта (player_id: null, без профиля игрока)
+    // Fallback creating empty account (player_id: null, no player profile)
     const isAdmin = payload.email.toLowerCase().includes('admin') || payload.email.toLowerCase().includes('organizer')
     const newUser: User = {
       id: Date.now(),
@@ -187,7 +187,7 @@ export const apiClient = {
         }
       }
     } catch {
-      // Игнорируем ошибку сети и переходим к локальным данным
+      // Ignore network error and fall back to local data
     }
 
     return getLocalTournaments()
@@ -222,7 +222,7 @@ export const apiClient = {
         return newTournament
       }
     } catch {
-      // Фоллбэк
+      // Fallback
     }
 
     const current = getLocalTournaments()
@@ -270,13 +270,13 @@ export const apiClient = {
         return updated
       }
     } catch {
-      // Фоллбэк
+      // Fallback
     }
 
     const list = getLocalTournaments()
     const index = list.findIndex((t) => t.id === id)
     if (index === -1) {
-      throw new Error('Турнир не найден')
+      throw new Error('Tournament not found')
     }
 
     const updated: Tournament = {
@@ -299,7 +299,7 @@ export const apiClient = {
         headers,
       })
     } catch {
-      // Фоллбэк
+      // Fallback
     }
 
     const list = getLocalTournaments().filter((t) => t.id !== id)

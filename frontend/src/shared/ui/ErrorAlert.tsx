@@ -13,7 +13,7 @@ export function ErrorAlert({ message, onRetry }: ErrorAlertProps) {
       action={
         onRetry ? (
           <Button color="inherit" size="small" onClick={onRetry}>
-            Повторить
+            Retry
           </Button>
         ) : undefined
       }

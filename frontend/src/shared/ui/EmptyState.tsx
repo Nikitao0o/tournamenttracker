@@ -11,8 +11,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  title = 'Данные не найдены',
-  description = 'По вашему запросу ничего не найдено или список пока пуст.',
+  title = 'No data found',
+  description = 'Nothing matched your search or the list is currently empty.',
   actionLabel,
   onAction,
 }: EmptyStateProps) {

@@ -165,6 +165,11 @@ def update_team(db: Session, team_id: int, payload: schemas.TeamUpdate) -> model
 
 def delete_team(db: Session, team_id: int) -> None:
     team = get_team_or_404(db, team_id)
+    # Clear matches referencing this team to prevent FK deadlocks
+    db.query(models.Match).filter(models.Match.team_a_id == team_id).update({models.Match.team_a_id: None})
+    db.query(models.Match).filter(models.Match.team_b_id == team_id).update({models.Match.team_b_id: None})
+    db.query(models.Match).filter(models.Match.winner_id == team_id).update({models.Match.winner_id: None})
+    db.query(models.Match).filter(models.Match.loser_id == team_id).update({models.Match.loser_id: None})
     db.delete(team)
     db.commit()
 
@@ -236,23 +241,24 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
                 detail=f"Associated team with id={update_data['team_id']} not found",
             )
 
-    if "user_id" in update_data and update_data["user_id"] is not None:
-        user = db.get(models.User, update_data["user_id"])
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User account with id={update_data['user_id']} not found",
+    if "user_id" in update_data:
+        if update_data["user_id"] is not None:
+            user = db.get(models.User, update_data["user_id"])
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User account with id={update_data['user_id']} not found",
+                )
+            existing_profile = (
+                db.query(models.Player)
+                .filter(models.Player.user_id == update_data["user_id"], models.Player.id != player.id)
+                .first()
             )
-        existing_profile = (
-            db.query(models.Player)
-            .filter(models.Player.user_id == update_data["user_id"], models.Player.id != player.id)
-            .first()
-        )
-        if existing_profile:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="This account is already linked to another player",
-            )
+            if existing_profile:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This account is already linked to another player",
+                )
 
     for key, value in update_data.items():
         setattr(player, key, value)
@@ -330,6 +336,11 @@ def update_tournament(db: Session, tournament_id: int, payload: schemas.Tourname
 
 def delete_tournament(db: Session, tournament_id: int) -> None:
     tournament = get_tournament_or_404(db, tournament_id)
+    # Clear self-referential match links first to prevent FK deadlock
+    db.query(models.Match).filter(models.Match.tournament_id == tournament_id).update({
+        models.Match.next_match_id: None,
+        models.Match.next_loser_match_id: None,
+    })
     db.delete(tournament)
     db.commit()
 
@@ -375,13 +386,43 @@ def get_match_or_404(db: Session, match_id: int) -> models.Match:
     return match
 
 
-def advance_bracket_progression(db: Session, match: models.Match) -> None:
+def advance_bracket_progression(
+    db: Session,
+    match: models.Match,
+    old_winner_id: int | None = None,
+    old_loser_id: int | None = None,
+) -> None:
     """Automatically advances match winner and loser to their next bracket positions."""
-    if match.status != "FINISHED" or match.score_a is None or match.score_b is None:
-        return
-    if match.team_a_id is None or match.team_b_id is None:
-        return
-    if match.score_a == match.score_b:
+    if old_winner_id is None:
+        old_winner_id = match.winner_id
+    if old_loser_id is None:
+        old_loser_id = match.loser_id
+
+    # If match is not finished or scores are missing/tied, clear downstream slots
+    if (
+        match.status != "FINISHED"
+        or match.score_a is None
+        or match.score_b is None
+        or match.score_a == match.score_b
+        or match.team_a_id is None
+        or match.team_b_id is None
+    ):
+        if old_winner_id is not None and match.next_match_id:
+            next_m = db.get(models.Match, match.next_match_id)
+            if next_m:
+                if next_m.team_a_id == old_winner_id:
+                    next_m.team_a_id = None
+                elif next_m.team_b_id == old_winner_id:
+                    next_m.team_b_id = None
+        if old_loser_id is not None and match.next_loser_match_id:
+            loser_m = db.get(models.Match, match.next_loser_match_id)
+            if loser_m:
+                if loser_m.team_a_id == old_loser_id:
+                    loser_m.team_a_id = None
+                elif loser_m.team_b_id == old_loser_id:
+                    loser_m.team_b_id = None
+        match.winner_id = None
+        match.loser_id = None
         return
 
     winner_id = match.team_a_id if match.score_a > match.score_b else match.team_b_id
@@ -394,7 +435,11 @@ def advance_bracket_progression(db: Session, match: models.Match) -> None:
     if match.next_match_id:
         next_m = db.get(models.Match, match.next_match_id)
         if next_m:
-            if next_m.team_a_id is None:
+            if old_winner_id is not None and next_m.team_a_id == old_winner_id:
+                next_m.team_a_id = winner_id
+            elif old_winner_id is not None and next_m.team_b_id == old_winner_id:
+                next_m.team_b_id = winner_id
+            elif next_m.team_a_id is None:
                 next_m.team_a_id = winner_id
             elif next_m.team_b_id is None and next_m.team_a_id != winner_id:
                 next_m.team_b_id = winner_id
@@ -403,7 +448,11 @@ def advance_bracket_progression(db: Session, match: models.Match) -> None:
     if match.next_loser_match_id:
         loser_m = db.get(models.Match, match.next_loser_match_id)
         if loser_m:
-            if loser_m.team_a_id is None:
+            if old_loser_id is not None and loser_m.team_a_id == old_loser_id:
+                loser_m.team_a_id = loser_id
+            elif old_loser_id is not None and loser_m.team_b_id == old_loser_id:
+                loser_m.team_b_id = loser_id
+            elif loser_m.team_a_id is None:
                 loser_m.team_a_id = loser_id
             elif loser_m.team_b_id is None and loser_m.team_a_id != loser_id:
                 loser_m.team_b_id = loser_id
@@ -430,6 +479,21 @@ def create_match(db: Session, payload: schemas.MatchCreate) -> schemas.MatchOut:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Tournament with id={payload.tournament_id} not found",
+        )
+    if payload.bracket_id and not db.get(models.Bracket, payload.bracket_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bracket stage with id={payload.bracket_id} not found",
+        )
+    if payload.next_match_id and not db.get(models.Match, payload.next_match_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Next match with id={payload.next_match_id} not found",
+        )
+    if payload.next_loser_match_id and not db.get(models.Match, payload.next_loser_match_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Next loser match with id={payload.next_loser_match_id} not found",
         )
 
     match = models.Match(**payload.model_dump())
@@ -465,11 +529,34 @@ def update_match(db: Session, match_id: int, payload: schemas.MatchUpdate) -> sc
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Team B with id={update_data['team_b_id']} not found",
         )
+    if "winner_id" in update_data and update_data["winner_id"] and not db.get(models.Team, update_data["winner_id"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Winner team with id={update_data['winner_id']} not found",
+        )
+    if "loser_id" in update_data and update_data["loser_id"] and not db.get(models.Team, update_data["loser_id"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Loser team with id={update_data['loser_id']} not found",
+        )
+    if "next_match_id" in update_data and update_data["next_match_id"] and not db.get(models.Match, update_data["next_match_id"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Next match with id={update_data['next_match_id']} not found",
+        )
+    if "next_loser_match_id" in update_data and update_data["next_loser_match_id"] and not db.get(models.Match, update_data["next_loser_match_id"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Next loser match with id={update_data['next_loser_match_id']} not found",
+        )
+
+    old_winner_id = match.winner_id
+    old_loser_id = match.loser_id
 
     for key, value in update_data.items():
         setattr(match, key, value)
 
-    advance_bracket_progression(db, match)
+    advance_bracket_progression(db, match, old_winner_id=old_winner_id, old_loser_id=old_loser_id)
 
     db.commit()
     db.refresh(match)
@@ -478,6 +565,9 @@ def update_match(db: Session, match_id: int, payload: schemas.MatchUpdate) -> sc
 
 def delete_match(db: Session, match_id: int) -> None:
     match = get_match_or_404(db, match_id)
+    # Clear references from other matches to this match
+    db.query(models.Match).filter(models.Match.next_match_id == match_id).update({models.Match.next_match_id: None})
+    db.query(models.Match).filter(models.Match.next_loser_match_id == match_id).update({models.Match.next_loser_match_id: None})
     db.delete(match)
     db.commit()
 
@@ -499,6 +589,12 @@ def generate_tournament_bracket(
     (double_elimination, single_elimination, round_robin, swiss).
     """
     tournament = get_tournament_or_404(db, tournament_id)
+
+    if len(payload.team_ids) != len(set(payload.team_ids)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Participant team IDs must be unique without duplicates",
+        )
 
     teams = [db.get(models.Team, tid) for tid in payload.team_ids]
     if any(t is None for t in teams):
@@ -644,7 +740,7 @@ def generate_tournament_bracket(
         final_match = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
-            bracket_type="single",
+            bracket_type="grand_final",
             round_name="Grand final",
             round_order=2,
             status="UPCOMING",

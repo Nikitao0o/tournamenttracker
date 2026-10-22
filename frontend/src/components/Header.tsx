@@ -15,7 +15,7 @@ export default function Header() {
     { label: 'ABOUT', href: '/about' },
   ]
 
-  // Добавляем вкладку ADMIN только если пользователь зашел под аккаунтом администратора
+  // Append ADMIN tab only if logged in as an administrator
   if (isAdmin) {
     navItems.push({ label: 'ADMIN', href: '/admin', end: false })
   }
@@ -45,7 +45,7 @@ export default function Header() {
           py: 0.5,
         }}
       >
-        {/* Логотип */}
+        {/* Logo */}
         <Box
           component={Link}
           to="/"
@@ -88,7 +88,7 @@ export default function Header() {
           </Box>
         </Box>
 
-        {/* Навигация */}
+        {/* Navigation */}
         <Box
           component="nav"
           aria-label="Main navigation"
@@ -135,7 +135,7 @@ export default function Header() {
           })}
         </Box>
 
-        {/* Блок авторизации / профиля пользователя */}
+        {/* User profile / auth popover */}
         <Box sx={{ flexShrink: 0, ml: 'auto' }}>
           {isAuthenticated ? <UserBadge /> : <AuthPopover />}
         </Box>

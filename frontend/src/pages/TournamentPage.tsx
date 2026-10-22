@@ -13,7 +13,7 @@ export function TournamentPage() {
   const { id } = useParams<{ id: string }>()
   const { getTournament } = useTournaments()
 
-  // Ищем сначала в динамическом провайдере (включает созданные в админке), затем в моках
+  // Look first in dynamic provider (includes tournaments created in admin), then in mocks
   const tournament = id ? (getTournament(id) || getTournamentById(id)) : undefined
   const matches = id ? getMatchesByTournamentId(id) : []
 
@@ -49,7 +49,7 @@ export function TournamentPage() {
           </Typography>
           {tournament.bracketType ? (
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
-              Формат турнирной сетки: {tournament.bracketType}
+              Bracket Format: {tournament.bracketType}
             </Typography>
           ) : null}
         </Stack>

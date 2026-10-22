@@ -95,14 +95,14 @@ function TournamentFormContent({
     <Box component="form" onSubmit={handleSubmit} noValidate>
       <DialogTitle sx={{ bgcolor: 'secondary.main', color: '#fff', py: 2 }}>
         <Typography variant="h2" sx={{ color: '#fff', fontSize: 16 }}>
-          {isEdit ? 'Редактирование турнира' : 'Создание нового турнира'}
+          {isEdit ? 'Edit Tournament' : 'Create New Tournament'}
         </Typography>
       </DialogTitle>
 
       <DialogContent sx={{ p: 3, pt: 3 }}>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
           <TextField
-            label="Название турнира"
+            label="Tournament Title"
             placeholder="e.g. BLAST Premier World Final 2026"
             value={title}
             onChange={(e) => {
@@ -118,7 +118,7 @@ function TournamentFormContent({
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
-                label="Призовой фонд"
+                label="Prize Pool"
                 placeholder="$1,000,000"
                 value={prizePool}
                 onChange={(e) => {
@@ -133,7 +133,7 @@ function TournamentFormContent({
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
-                label="Локация / Город"
+                label="Location / City"
                 placeholder="e.g. Katowice, Poland"
                 value={location}
                 onChange={(e) => {
@@ -151,7 +151,7 @@ function TournamentFormContent({
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
-                label="Дата начала"
+                label="Start Date"
                 type="date"
                 value={startDate}
                 onChange={(e) => {
@@ -169,7 +169,7 @@ function TournamentFormContent({
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
-                label="Дата окончания"
+                label="End Date"
                 type="date"
                 value={endDate}
                 onChange={(e) => {
@@ -188,26 +188,26 @@ function TournamentFormContent({
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
-                <InputLabel id="status-select-label">Статус турнира</InputLabel>
+                <InputLabel id="status-select-label">Tournament Status</InputLabel>
                 <Select
                   labelId="status-select-label"
                   value={status}
-                  label="Статус турнира"
+                  label="Tournament Status"
                   onChange={(e) => setStatus(e.target.value as TournamentStatus)}
                 >
-                  <MenuItem value="Upcoming">Upcoming (Предстоящий)</MenuItem>
-                  <MenuItem value="Ongoing">Ongoing (Текущий)</MenuItem>
-                  <MenuItem value="Completed">Completed (Завершен)</MenuItem>
+                  <MenuItem value="Upcoming">Upcoming</MenuItem>
+                  <MenuItem value="Ongoing">Ongoing</MenuItem>
+                  <MenuItem value="Completed">Completed</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
-                <InputLabel id="bracket-select-label">Формат сетки</InputLabel>
+                <InputLabel id="bracket-select-label">Bracket Type</InputLabel>
                 <Select
                   labelId="bracket-select-label"
                   value={bracketType}
-                  label="Формат сетки"
+                  label="Bracket Type"
                   onChange={(e) => setBracketType(e.target.value as BracketType)}
                 >
                   {BRACKET_OPTIONS.map((opt) => (
@@ -224,7 +224,7 @@ function TournamentFormContent({
 
       <DialogActions sx={{ p: 2.5, bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider' }}>
         <Button onClick={onClose} disabled={isSubmitting} variant="outlined" color="inherit">
-          Отмена
+          Cancel
         </Button>
         <Button
           type="submit"
@@ -238,7 +238,7 @@ function TournamentFormContent({
             '&:hover': { bgcolor: '#d93b2a' },
           }}
         >
-          {isSubmitting ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : isEdit ? 'Сохранить' : 'Создать'}
+          {isSubmitting ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : isEdit ? 'Save' : 'Create'}
         </Button>
       </DialogActions>
     </Box>

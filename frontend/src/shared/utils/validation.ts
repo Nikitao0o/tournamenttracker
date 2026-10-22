@@ -5,15 +5,15 @@ export function isValidEmail(email: string): boolean {
 export function validateLoginForm(email: string, password: string): { email?: string; password?: string } {
   const errors: { email?: string; password?: string } = {}
   if (!email.trim()) {
-    errors.email = 'Email обязателен для ввода'
+    errors.email = 'Email is required'
   } else if (!isValidEmail(email)) {
-    errors.email = 'Некорректный формат email адреса'
+    errors.email = 'Invalid email address format'
   }
 
   if (!password) {
-    errors.password = 'Пароль обязателен для ввода'
+    errors.password = 'Password is required'
   } else if (password.length < 6) {
-    errors.password = 'Пароль должен содержать не менее 6 символов'
+    errors.password = 'Password must be at least 6 characters'
   }
 
   return errors
@@ -28,9 +28,9 @@ export function validateRegisterForm(
   const fullErrors: { email?: string; nickname?: string; password?: string } = { ...errors }
 
   if (!nickname.trim()) {
-    fullErrors.nickname = 'Никнейм обязателен'
+    fullErrors.nickname = 'Nickname is required'
   } else if (nickname.trim().length < 2) {
-    fullErrors.nickname = 'Никнейм должен содержать не менее 2 символов'
+    fullErrors.nickname = 'Nickname must be at least 2 characters'
   }
 
   return fullErrors
@@ -46,29 +46,29 @@ export function validateTournamentForm(values: {
   const errors: Record<string, string> = {}
 
   if (!values.title.trim()) {
-    errors.title = 'Название турнира обязательно'
+    errors.title = 'Tournament title is required'
   } else if (values.title.trim().length < 3) {
-    errors.title = 'Название должно быть не менее 3 символов'
+    errors.title = 'Title must be at least 3 characters'
   }
 
   if (!values.location.trim()) {
-    errors.location = 'Локация обязательна'
+    errors.location = 'Location is required'
   }
 
   if (!values.prizePool.trim()) {
-    errors.prizePool = 'Укажите призовой фонд (например, $1,000,000)'
+    errors.prizePool = 'Prize pool is required (e.g. $1,000,000)'
   }
 
   if (!values.startDate) {
-    errors.startDate = 'Дата начала обязательна'
+    errors.startDate = 'Start date is required'
   }
 
   if (!values.endDate) {
-    errors.endDate = 'Дата окончания обязательна'
+    errors.endDate = 'End date is required'
   }
 
   if (values.startDate && values.endDate && values.endDate < values.startDate) {
-    errors.endDate = 'Дата окончания не может быть раньше даты начала'
+    errors.endDate = 'End date cannot be earlier than start date'
   }
 
   return errors

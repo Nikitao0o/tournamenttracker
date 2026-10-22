@@ -15,18 +15,18 @@ interface DeleteConfirmDialogProps {
 export function DeleteConfirmDialog({ open, title, onClose, onConfirm }: DeleteConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Удаление турнира</DialogTitle>
+      <DialogTitle>Delete Tournament</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Вы уверены, что хотите удалить турнир <strong>{title}</strong>? Это действие нельзя отменить.
+          Are you sure you want to delete tournament <strong>{title}</strong>? This action cannot be undone.
         </DialogContentText>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={onClose} variant="outlined" color="inherit">
-          Отмена
+          Cancel
         </Button>
         <Button onClick={onConfirm} color="error" variant="contained">
-          Удалить
+          Delete
         </Button>
       </DialogActions>
     </Dialog>

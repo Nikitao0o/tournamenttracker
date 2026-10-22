@@ -33,7 +33,7 @@ export function TournamentsPage() {
   return (
     <Stack spacing={2}>
       <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-        <SectionHeader title="Турниры и события" />
+        <SectionHeader title="Tournaments & Events" />
 
         <TournamentFilters
           search={search}
@@ -57,9 +57,9 @@ export function TournamentsPage() {
           </Box>
         ) : filteredTournaments.length === 0 ? (
           <EmptyState
-            title="Турниры не найдены"
-            description="Попробуйте изменить поисковый запрос или фильтр по статусу."
-            actionLabel="Сбросить фильтры"
+            title="No tournaments found"
+            description="Try modifying your search query or status filter."
+            actionLabel="Reset filters"
             onAction={handleResetFilters}
           />
         ) : (
