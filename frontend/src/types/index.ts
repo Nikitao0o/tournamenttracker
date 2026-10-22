@@ -1,5 +1,6 @@
 export type MatchStatus = 'LIVE' | 'UPCOMING' | 'FINISHED'
 export type TournamentStatus = 'Ongoing' | 'Upcoming' | 'Completed'
+export type BracketType = 'double_elimination' | 'single_elimination' | 'round_robin' | 'swiss'
 
 export type Match = {
   id: string
@@ -22,6 +23,7 @@ export type Tournament = {
   endDate: string
   status: TournamentStatus
   location: string
+  bracketType?: BracketType | string
 }
 
 export type Team = {
@@ -49,3 +51,31 @@ export type Player = {
     maps: number
   }
 }
+
+export type User = {
+  id: number | string
+  email: string
+  nickname: string
+  is_active: boolean
+  created_at: string
+  is_admin: boolean
+  player_id?: number | string | null
+}
+
+export type AuthToken = {
+  access_token: string
+  token_type: string
+  user: User
+}
+
+export type CreateTournamentInput = {
+  title: string
+  prizePool: string
+  startDate: string
+  endDate: string
+  status: TournamentStatus
+  location: string
+  bracketType?: BracketType | string
+}
+
+export type UpdateTournamentInput = Partial<CreateTournamentInput>

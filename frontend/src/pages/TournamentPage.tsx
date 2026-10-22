@@ -3,14 +3,18 @@ import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link, useParams } from 'react-router-dom'
+import { useTournaments } from '../app/providers/useTournaments'
 import { MatchList } from '../components/MatchList'
 import { TournamentStatusLabel } from '../components/StatusChips'
-import { formatDate } from '../utils/formatting'
 import { getMatchesByTournamentId, getTournamentById } from '../mock/data'
+import { formatDate } from '../utils/formatting'
 
 export function TournamentPage() {
   const { id } = useParams<{ id: string }>()
-  const tournament = id ? getTournamentById(id) : undefined
+  const { getTournament } = useTournaments()
+
+  // Ищем сначала в динамическом провайдере (включает созданные в админке), затем в моках
+  const tournament = id ? (getTournament(id) || getTournamentById(id)) : undefined
   const matches = id ? getMatchesByTournamentId(id) : []
 
   if (!tournament) {
@@ -43,6 +47,11 @@ export function TournamentPage() {
           <Typography color="text.secondary">
             {formatDate(tournament.startDate)} — {formatDate(tournament.endDate)}
           </Typography>
+          {tournament.bracketType ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+              Формат турнирной сетки: {tournament.bracketType}
+            </Typography>
+          ) : null}
         </Stack>
       </Paper>
 

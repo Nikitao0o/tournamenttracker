@@ -1,32 +1,151 @@
-# React + TypeScript + Vite
+# Tournament Tracker — Frontend (Лабораторная работа №3)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Веб-клиент приложения **Tournament Tracker** для отслеживания киберспортивных турниров, сеток соревнований, команд и матчей. Разработан на основе современной модульной архитектуры, реактивного интерфейса и ролевого доступа.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠 Стек технологий
 
-## React Compiler
+- **Фреймворк**: [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
+- **Сборщик**: [Vite 8](https://vitejs.dev/) (с чанкованием вендоров и оптимизацией сборки)
+- **UI-библиотека**: [Material UI (MUI v9)](https://mui.com/), `@emotion/react`, `@emotion/styled`
+- **Маршрутизация**: [React Router v7](https://reactrouter.com/) (с поддержкой защищенных маршрутов `ProtectedAdminRoute`)
+- **Линтер**: [Oxlint](https://oxc.rs/)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🏗 Архитектура проекта (Feature-Sliced Design)
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Структура исходного кода в `frontend/src` организована в соответствии с упрощённой методологией **FSD (Feature-Sliced Design)**:
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```text
+frontend/src/
+├── app/                              # Слой конфигурации и глобальной логики
+│   ├── providers/
+│   │   ├── AuthContext.ts            # Интерфейс и контекст аутентификации
+│   │   ├── AuthProvider.tsx          # Провайдер управления сессией пользователя
+│   │   ├── useAuth.ts                # Хук доступа к данным авторизации
+│   │   ├── TournamentContext.ts      # Контекст турниров
+│   │   ├── TournamentProvider.tsx    # Реактивный провайдер турниров
+│   │   └── useTournaments.ts         # Хук доступа к операциям над турнирами
+│   ├── router/
+│   │   ├── ProtectedRoute.tsx        # Защитник админ-маршрута (Role-Based Access)
+│   │   └── router.tsx                # Центральная таблица маршрутизации SPA
+│   ├── theme.ts                      # Конфигурация темы и палитры Material UI
+│   ├── App.tsx                       # Корневой компонент с обертками провайдеров
+│   └── main.tsx                      # Точка монтирования в DOM
+│
+├── pages/                            # Экраны и страницы приложения
+│   ├── admin/                        # Панель администратора (/admin)
+│   ├── tournaments/                  # Список турниров с фильтрацией (/tournaments)
+│   ├── tournament/                   # Детальная страница турнира (/tournaments/:id)
+│   ├── home/                         # Главная страница с матчами и событиями (/)
+│   ├── teams/ & team/                # Команды и состав ростеров (/teams, /teams/:id)
+│   ├── players/ & player/            # Игроки и статистика (/players, /players/:id)
+│   ├── leaderboards/                 # Таблицы лидеров команд и игроков
+│   ├── match/                        # Экран отдельного матча (/matches/:id)
+│   ├── about/                        # О проекте (/about)
+│   └── not-found/                    # Страница 404
+│
+├── features/                         # Пользовательские действия и интерактивные сценарии
+│   ├── auth/
+│   │   └── ui/
+│   │       ├── AuthPopover.tsx       # Выпадающее окно Sign In / Sign Up с анимацией
+│   │       └── UserBadge.tsx         # Плашка профиля и кнопка выхода (Log Out)
+│   ├── manage-tournaments/
+│   │   └── ui/
+│   │       ├── TournamentFormDialog.tsx  # Форма создания и редактирования турниров
+│   │       └── DeleteConfirmDialog.tsx   # Диалог подтверждения удаления
+│   └── filter-tournaments/
+│       └── ui/
+│           └── TournamentFilters.tsx # Живой поиск, чипсы статусов и счетчик
+│
+├── shared/                           # Переиспользуемый код, утилиты и базовый UI
+│   ├── api/
+│   │   ├── client.ts                 # API-клиент с бесшовным фоллбэком на Mock/LocalStorage
+│   │   └── storage.ts                # Обертка для работы с Web Storage (сессия, кеш)
+│   ├── ui/
+│   │   ├── LoadingSkeleton.tsx       # Скелетоны для карточек и таблиц
+│   │   ├── EmptyState.tsx            # Информативное пустое состояние (Empty state)
+│   │   └── ErrorAlert.tsx            # Сообщения об ошибках с кнопкой повтора
+│   ├── utils/
+│   │   ├── formatting.ts             # Форматирование дат и счета матчей
+│   │   └── validation.ts             # Валидаторы форм (email, password, dates)
+│   └── mock/
+│       └── data.ts                   # Исходные демонстрационные данные
+│
+└── types/
+    └── index.ts                      # Строгая TypeScript-типизация моделей и DTO
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 🔑 Авторизация и создание пустого аккаунта
+
+В шапку приложения встроен компонент `AuthPopover`:
+1. **Кнопка "Sign In"**: размещена в правой части навигации. При клике открывает выпадающее модальное окно прямо под кнопкой.
+2. **Режим входа (Sign In)**:
+   - Ввод `Email` и `Password`.
+   - Кнопка действия **"Sign In"**.
+   - Клиентская валидация (корректный email, длина пароля от 6 символов).
+3. **Режим регистрации (Sign Up)**:
+   - При клике на переключатель *"Sign Up"* с плавной анимацией (`Collapse`) появляется поле **`Nickname`**.
+   - Кнопка действия меняется на **"Sign Up"**.
+   - Не требуется отдельная страница — регистрация происходит прямо в компактном поповере.
+   - Создает **пустой аккаунт** (`player_id = null`, без профиля игрока), что строго соответствует контракту API `POST /api/auth/register`.
+4. **Быстрое тестирование**:
+   - В поповер добавлены кликабельные чипсы для моментального тестирования:
+     - `Admin` (`admin@tracker.local` / `password123`) — учетная запись администратора;
+     - `User` (`user@tracker.local` / `password123`) — обычный пользователь.
+5. **После авторизации**:
+   - Отображается аватар, никнейм, бейдж роли (`ADMIN` / `USER`) и кнопка **"Log Out"**.
+   - Сессия сохраняется в `localStorage`.
+
+---
+
+## 🛡 Админ-панель и ролевой доступ
+
+1. **Динамическая кнопка `ADMIN` в шапке**:
+   - Появляется в навигации **только** для пользователей с правами администратора (`is_admin: true`).
+   - Для обычных пользователей и гостей кнопка скрыта.
+2. **Защита маршрута (`ProtectedAdminRoute`)**:
+   - Прямой переход по ссылке `/admin` проверяет авторизацию и права.
+   - Гости получают экран с предложением войти через Sign In.
+   - Пользователи без роли администратора получают сообщение об отказе в доступе (403 Forbidden).
+3. **Возможности админ-панели (`/admin`)**:
+   - Сводные карточки статистики: общее число турниров, Ongoing, Upcoming, Completed.
+   - **Создание турнира**: модальное окно с полями (название, призовой фонд, город/локация, даты начала и завершения, статус, тип турнирной сетки).
+   - **Редактирование турнира**: предзаполнение формы текущими данными, валидация и сохранение изменений.
+   - **Удаление турнира**: диалог подтверждения перед безвозвратным удалением.
+   - **Валидация**: проверка корректности диапазонов дат (дата окончания не может быть раньше даты начала), непустых полей и форматов.
+   - **Уведомления**: всплывающие плашки (Snackbar) с информацией об успешных операциях и ошибках.
+
+---
+
+## ⚡ Состояния данных и анимации
+
+- **Loading (Загрузка)**: реализованы скелетоны (`Skeleton`) для карточек турниров на главной странице, каталоге турниров и строк таблицы в админке.
+- **Empty (Пустое состояние)**: информативные заглушки с иконками при отсутствии данных или при поиске без результатов с возможностью сброса фильтров.
+- **Error (Ошибки)**: интерактивные плашки `ErrorAlert` с кнопкой «Повторить».
+- **Анимации**:
+  - Плавное раскрытие поля никнейма при смене режима входа/регистрации (`Collapse`).
+  - Плавное появление диалоговых окон (`Fade`).
+  - Микроанимации при наведении на карточки турниров, кнопки и строки таблиц.
+
+---
+
+## 🚀 Запуск и сборка
+
+```bash
+# Установка зависимостей (из директории frontend)
+npm install
+
+# Запуск dev-сервера с HMR
+npm run dev
+
+# Проверка типов и сборка в dist
+npm run build
+
+# Проверка линтером oxlint
+npm run lint
+```

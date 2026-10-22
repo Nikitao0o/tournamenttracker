@@ -1,13 +1,17 @@
+import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Stack from '@mui/material/Stack'
+import { useTournaments } from '../app/providers/useTournaments'
 import { MatchList } from '../components/MatchList'
 import { RankingBox } from '../components/RankingBox'
-import { TournamentCard } from '../components/TournamentCard'
 import { SectionHeader } from '../components/SectionHeader'
-import Box from '@mui/material/Box'
-import { MOCK_MATCHES, MOCK_TOURNAMENTS } from '../mock/data'
+import { TournamentCard } from '../components/TournamentCard'
+import { MOCK_MATCHES } from '../mock/data'
+import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
 export function HomePage() {
+  const { tournaments, isLoading } = useTournaments()
+
   const live = MOCK_MATCHES.filter((match) => match.status === 'LIVE')
   const upcoming = MOCK_MATCHES.filter((match) => match.status === 'UPCOMING')
   const results = MOCK_MATCHES.filter((match) => match.status === 'FINISHED')
@@ -26,9 +30,15 @@ export function HomePage() {
           <RankingBox />
           <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
             <SectionHeader title="Events" />
-            {MOCK_TOURNAMENTS.map((tournament) => (
-              <TournamentCard key={tournament.id} tournament={tournament} />
-            ))}
+            {isLoading ? (
+              <Box sx={{ p: 1.5 }}>
+                <CardSkeleton count={3} />
+              </Box>
+            ) : (
+              tournaments
+                .slice(0, 6)
+                .map((tournament) => <TournamentCard key={tournament.id} tournament={tournament} />)
+            )}
           </Box>
         </Stack>
       </Grid>

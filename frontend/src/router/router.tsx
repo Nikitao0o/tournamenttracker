@@ -12,6 +12,8 @@ import { TeamLeaderboardPage } from '../pages/TeamLeaderboardPage'
 import { TeamsPage } from '../pages/TeamsPage'
 import { TournamentPage } from '../pages/TournamentPage'
 import { TournamentsPage } from '../pages/TournamentsPage'
+import { AdminPage } from '../pages/admin/AdminPage'
+import { ProtectedAdminRoute } from '../app/router/ProtectedRoute'
 
 export const router = createBrowserRouter([
   {
@@ -29,6 +31,10 @@ export const router = createBrowserRouter([
       { path: 'teams', element: <TeamsPage /> },
       { path: 'players', element: <PlayersPage /> },
       { path: 'players/:id', element: <PlayerPage /> },
+      {
+        element: <ProtectedAdminRoute />,
+        children: [{ path: 'admin', element: <AdminPage /> }],
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
