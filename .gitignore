@@ -64,3 +64,4 @@ yarn-error.log*
 
 # Project specific
 repomix*
+.DS_Store
