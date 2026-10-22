@@ -3,10 +3,13 @@ import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
 import type { SxProps, Theme } from '@mui/material/styles'
 import { getTeamLogoData } from './teamLogosData'
+import { resolveImageUrl } from '../utils/image'
+import { storage } from '../api/storage'
 
 interface TeamLogoProps {
   teamName: string
   logoUrl?: string
+  preferredFormat?: 'png' | 'jpg' | 'svg'
   size?: number
   variant?: 'circular' | 'rounded' | 'square'
   sx?: SxProps<Theme>
@@ -15,17 +18,42 @@ interface TeamLogoProps {
 export function TeamLogo({
   teamName,
   logoUrl,
+  preferredFormat,
   size = 28,
   variant = 'rounded',
   sx,
 }: TeamLogoProps) {
-  const [imgError, setImgError] = useState(false)
+  // 0: try custom or stored or logoUrl, 1: try PNG/JPG, 2: try SVG, 3: fallback to monogram
+  const [attempt, setAttempt] = useState(0)
   const known = getTeamLogoData(teamName)
+  const storedCustomLogo = storage.getTeamLogo(teamName) || (known?.short ? storage.getTeamLogo(known.short) : null)
 
-  const effectiveSrc = !imgError ? (logoUrl || known?.svg) : undefined
+  const getSource = (): string | undefined => {
+    if (attempt === 0) {
+      if (storedCustomLogo) return storedCustomLogo
+      if (logoUrl) return resolveImageUrl(logoUrl)
+      if (preferredFormat === 'png' && known?.png) return known.png
+      if (preferredFormat === 'jpg' && known?.jpg) return known.jpg
+      if (preferredFormat === 'svg' && known?.svg) return known.svg
+      return known?.primaryImg || known?.svg
+    }
+    if (attempt === 1) {
+      return known?.primaryImg || known?.svg
+    }
+    if (attempt === 2) {
+      return known?.svg
+    }
+    return undefined
+  }
+
+  const effectiveSrc = getSource()
   const initial = known?.short || teamName.slice(0, 3).toUpperCase()
   const bgColor = known?.bg || '#2d3e50'
   const textColor = known?.color || '#ffffff'
+
+  const handleError = () => {
+    setAttempt((prev) => prev + 1)
+  }
 
   return (
     <Box
@@ -43,7 +71,7 @@ export function TeamLogo({
         variant={variant}
         slotProps={{
           img: {
-            onError: () => setImgError(true),
+            onError: handleError,
             style: { objectFit: 'cover' },
           },
         }}

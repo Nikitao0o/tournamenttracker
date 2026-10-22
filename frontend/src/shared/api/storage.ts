@@ -65,4 +65,49 @@ export const storage = {
       // ignore
     }
   },
+
+  getTeamLogo(teamId: string): string | null {
+    try {
+      return localStorage.getItem(`tt_team_logo_${teamId.toLowerCase()}`)
+    } catch {
+      return null
+    }
+  },
+  setTeamLogo(teamId: string, dataUrl: string): void {
+    try {
+      localStorage.setItem(`tt_team_logo_${teamId.toLowerCase()}`, dataUrl)
+    } catch {
+      // ignore
+    }
+  },
+  removeTeamLogo(teamId: string): void {
+    try {
+      localStorage.removeItem(`tt_team_logo_${teamId.toLowerCase()}`)
+    } catch {
+      // ignore
+    }
+  },
+
+  getPlayerAvatar(playerId: string): string | null {
+    try {
+      return localStorage.getItem(`tt_player_avatar_${playerId.toLowerCase()}`)
+    } catch {
+      return null
+    }
+  },
+  setPlayerAvatar(playerId: string, dataUrl: string): void {
+    try {
+      localStorage.setItem(`tt_player_avatar_${playerId.toLowerCase()}`, dataUrl)
+    } catch {
+      // ignore
+    }
+  },
+  removePlayerAvatar(playerId: string): void {
+    try {
+      localStorage.removeItem(`tt_player_avatar_${playerId.toLowerCase()}`)
+    } catch {
+      // ignore
+    }
+  },
 }
+

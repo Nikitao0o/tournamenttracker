@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
@@ -9,11 +10,16 @@ import { Link, useParams } from 'react-router-dom'
 import { getPlayersByTeamId, getTeamByReference } from '../mock/data'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
+import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
+import { storage } from '../shared/api/storage'
 
 export function TeamPage() {
   const { teamRef } = useParams<{ teamRef: string }>()
   const team = teamRef ? getTeamByReference(teamRef) : undefined
   const players = team ? getPlayersByTeamId(team.id) : []
+
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [, setVersion] = useState(0)
 
   if (!team) {
     return (
@@ -24,6 +30,16 @@ export function TeamPage() {
         </Button>
       </Stack>
     )
+  }
+
+  const handleSaveLogo = (dataUrl: string) => {
+    storage.setTeamLogo(team.name, dataUrl)
+    setVersion((v) => v + 1)
+  }
+
+  const handleResetLogo = () => {
+    storage.removeTeamLogo(team.name)
+    setVersion((v) => v + 1)
   }
 
   return (
@@ -44,7 +60,17 @@ export function TeamPage() {
                 </Typography>
               </div>
             </Stack>
-            <Chip label={`#${team.ranking} World Rank`} color="secondary" sx={{ alignSelf: 'flex-start', fontWeight: 800 }} />
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Chip label={`#${team.ranking} World Rank`} color="secondary" sx={{ fontWeight: 800 }} />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setDialogOpen(true)}
+                sx={{ fontSize: 11, fontWeight: 700 }}
+              >
+                📷 Сменить лого (PNG / JPG)
+              </Button>
+            </Stack>
           </Stack>
 
           <Typography color="text.secondary">{team.description}</Typography>
@@ -84,6 +110,16 @@ export function TeamPage() {
           ))}
         </Grid>
       </Box>
+
+      <MediaUploadDialog
+        open={dialogOpen}
+        title="Загрузка логотипа команды (PNG / JPG)"
+        entityName={team.name}
+        currentValue={storage.getTeamLogo(team.name) || undefined}
+        onClose={() => setDialogOpen(false)}
+        onSave={handleSaveLogo}
+        onReset={handleResetLogo}
+      />
     </Stack>
   )
 }

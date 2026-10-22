@@ -134,19 +134,22 @@ frontend/src/
 
 ---
 
-## 🎨 Поддержка аватарок игроков и логотипов команд
+## 🎨 Поддержка форматов PNG и JPG для аватарок и логотипов
 
-В интерфейс интегрированы специализированные компоненты для отображения медиа-данных сущностей:
-1. **`TeamLogo` (`src/shared/ui/TeamLogo.tsx`)**:
-   - Отображение логотипов команд на экранах списка команд (`/teams`), профиля команды (`/teams/:id`), таблице лидеров (`/leaderboards/teams`), виджете рейтингов (`RankingBox`), строках матчей (`MatchRow`) и карточке матча (`/matches/:id`);
-   - Поддерживает произвольные `logoUrl` из API;
-   - Включает встроенные векторные SVG-логотипы команд (Team Spirit, Team Vitality, FURIA, MOUZ), работающие полностью автономно без внешних сетевых запросов;
-   - Автоматический fallback на монограмму команды при ошибке загрузки изображения.
-2. **`PlayerAvatar` (`src/shared/ui/PlayerAvatar.tsx`)**:
-   - Отображение аватарок игроков на странице каталога игроков (`/players`), персональном профиле игрока (`/players/:id`), ростерах команд (`TeamPage`) и таблице лидеров игроков (`/leaderboards/players`);
-   - Поддерживает внешние `avatarUrl`;
-   - Генератор стилизованных SVG-аватарок киберспортсменов (силуэт в игровых наушниках с джерси в фирменных цветах команды и инициалом никнейма);
-   - Устойчивость к сбоям сети и автоматический fallback.
+В приложение интегрирована полноценная поддержка растровых форматов **PNG** и **JPG/JPEG** (вместе с SVG и WebP):
+1. **Реальные графические ассеты**:
+   - В директории `frontend/public/images/teams/` размещены оригинальные логотипы команд в форматах `.png` (*Team Spirit*, *FURIA*) и `.jpg` (*Team Vitality*, *MOUZ*).
+   - В директории `frontend/public/images/players/` размещены аватарки всех 20 игроков, чередуя форматы `.png` (*donk.png, s1mple.png, zywoo.png, zont1x.png...*) и `.jpg` (*chopper.jpg, apex.jpg, fallen.jpg, magisk.jpg...*).
+2. **Компоненты отображения**:
+   - **`TeamLogo` (`src/shared/ui/TeamLogo.tsx`)**: отображает логотипы в PNG и JPG, разрешает пути, поддерживает кастомные загруженные изображения и цепочку фоллбэков: `кастомное изображение -> локальный PNG/JPG -> векторный SVG -> монограмма`.
+   - **`PlayerAvatar` (`src/shared/ui/PlayerAvatar.tsx`)**: отображает аватарки игроков в форматах PNG и JPG с аналогичной многоуровневой защитой от ошибок сети.
+3. **Интерактивная загрузка файлов (PNG / JPG)**:
+   - Создан компонент **`ImageUploadField` (`src/shared/ui/ImageUploadField.tsx`)** с предпросмотром, валидацией MIME-типа (`image/png`, `image/jpeg`), расширений (`.png`, `.jpg`, `.jpeg`) и ограничения размера (до 5 МБ).
+   - Диалог **`MediaUploadDialog`** доступен:
+     - На странице игрока ([`PlayerPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/PlayerPage.tsx)) по кнопке *«📷 Сменить аватар (PNG / JPG)»*;
+     - На странице команды ([`TeamPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/TeamPage.tsx)) по кнопке *«📷 Сменить лого (PNG / JPG)»*;
+     - В Админ-панели ([`AdminPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/admin/AdminPage.tsx)) во вкладке *«🖼️ Логотипы и Аватарки (PNG / JPG)»*, где можно обновить изображение любого клуба или игрока, а также сбросить его на дефолт.
+   - Загруженные через интерфейс PNG/JPG изображения кодируются в Base64 Data URL, сохраняются в `localStorage` и моментально обновляются по всему приложению.
 
 ---
 

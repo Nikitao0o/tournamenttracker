@@ -31,7 +31,6 @@ export function TournamentPage() {
     let active = true
     if (!id) return
 
-    setIsBracketLoading(true)
     apiClient
       .getTournamentBracket(id)
       .then((data) => {

@@ -2,8 +2,11 @@ import { useState } from 'react'
 import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
 import type { SxProps, Theme } from '@mui/material/styles'
+import { getKnownPlayerAvatar } from './playerAvatarsData'
+import { resolveImageUrl } from '../utils/image'
+import { storage } from '../api/storage'
 
-// Basic color palettes for player avatars based on team/role
+// Базовые цветовые палитры для аватарок игроков в зависимости от команды/роли
 const TEAM_COLORS: Record<string, { bg: string; accent: string; text: string }> = {
   'team-spirit': { bg: '#1c222b', accent: '#69f0ae', text: '#ffffff' },
   'team-vitality': { bg: '#2b291a', accent: '#ffd700', text: '#ffffff' },
@@ -11,7 +14,7 @@ const TEAM_COLORS: Record<string, { bg: string; accent: string; text: string }> 
   'team-mouz': { bg: '#2b171a', accent: '#e30613', text: '#ffffff' },
 }
 
-// Generate SVG player avatar wearing esports headset
+// Генерация SVG-аватарки киберспортсмена в наушниках
 function generatePlayerSvg(name: string, teamId?: string): string {
   const team = teamId ? TEAM_COLORS[teamId] : { bg: '#23272e', accent: '#f04b3a', text: '#ffffff' }
   const bg = team?.bg || '#23272e'
@@ -20,16 +23,11 @@ function generatePlayerSvg(name: string, teamId?: string): string {
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
     <rect width="100" height="100" rx="50" fill="${encodeURIComponent(bg)}"/>
-    <!-- Headset headband -->
     <path d="M22 50 C22 25 78 25 78 50" fill="none" stroke="${encodeURIComponent(accent)}" stroke-width="6" stroke-linecap="round"/>
-    <!-- Headset earcups -->
     <rect x="16" y="44" width="10" height="18" rx="4" fill="${encodeURIComponent(accent)}"/>
     <rect x="74" y="44" width="10" height="18" rx="4" fill="${encodeURIComponent(accent)}"/>
-    <!-- Head silhouette -->
     <circle cx="50" cy="50" r="22" fill="%23ffffff" fill-opacity="0.9"/>
-    <!-- Jersey shoulders -->
     <path d="M24 92 C28 72 72 72 76 92 Z" fill="${encodeURIComponent(accent)}"/>
-    <!-- Initial letter -->
     <text x="50" y="56" font-family="Arial, sans-serif" font-weight="900" font-size="18" fill="%2317191e" text-anchor="middle">${initial}</text>
   </svg>`
 
@@ -40,6 +38,7 @@ interface PlayerAvatarProps {
   name: string
   avatarUrl?: string
   teamId?: string
+  preferredFormat?: 'png' | 'jpg' | 'svg'
   size?: number
   role?: string
   sx?: SxProps<Theme>
@@ -52,11 +51,32 @@ export function PlayerAvatar({
   size = 36,
   sx,
 }: PlayerAvatarProps) {
-  const [imgError, setImgError] = useState(false)
+  // 0: try custom or stored or avatarUrl or known PNG/JPG, 1: try fallback SVG, 2: monogram initial
+  const [attempt, setAttempt] = useState(0)
 
+  const storedCustomAvatar = storage.getPlayerAvatar(name)
+  const knownPath = getKnownPlayerAvatar(name)
   const fallbackSvg = generatePlayerSvg(name, teamId)
-  const effectiveSrc = !imgError ? (avatarUrl || fallbackSvg) : fallbackSvg
+
+  const getSource = (): string | undefined => {
+    if (attempt === 0) {
+      if (storedCustomAvatar) return storedCustomAvatar
+      if (avatarUrl) return resolveImageUrl(avatarUrl)
+      if (knownPath) return knownPath
+      return fallbackSvg
+    }
+    if (attempt === 1) {
+      return fallbackSvg
+    }
+    return undefined
+  }
+
+  const effectiveSrc = getSource()
   const initial = name.charAt(0).toUpperCase()
+
+  const handleError = () => {
+    setAttempt((prev) => prev + 1)
+  }
 
   return (
     <Box
@@ -74,7 +94,8 @@ export function PlayerAvatar({
         alt={name}
         slotProps={{
           img: {
-            onError: () => setImgError(true),
+            onError: handleError,
+            style: { objectFit: 'cover' },
           },
         }}
         sx={{

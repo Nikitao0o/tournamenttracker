@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
@@ -8,11 +9,16 @@ import { Link, useParams } from 'react-router-dom'
 import { getPlayerById, getTeamById } from '../mock/data'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
+import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
+import { storage } from '../shared/api/storage'
 
 export function PlayerPage() {
   const { id } = useParams<{ id: string }>()
   const player = id ? getPlayerById(id) : undefined
   const team = player ? getTeamById(player.teamId) : undefined
+
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [, setVersion] = useState(0)
 
   if (!player) {
     return (
@@ -23,6 +29,16 @@ export function PlayerPage() {
         </Button>
       </Stack>
     )
+  }
+
+  const handleSaveAvatar = (dataUrl: string) => {
+    storage.setPlayerAvatar(player.name, dataUrl)
+    setVersion((v) => v + 1)
+  }
+
+  const handleResetAvatar = () => {
+    storage.removePlayerAvatar(player.name)
+    setVersion((v) => v + 1)
   }
 
   return (
@@ -43,7 +59,17 @@ export function PlayerPage() {
                 </Typography>
               </div>
             </Stack>
-            <Chip label={player.role} color="secondary" sx={{ alignSelf: 'flex-start', fontWeight: 800 }} />
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Chip label={player.role} color="secondary" sx={{ fontWeight: 800 }} />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setDialogOpen(true)}
+                sx={{ fontSize: 11, fontWeight: 700 }}
+              >
+                📷 Сменить аватар (PNG / JPG)
+              </Button>
+            </Stack>
           </Stack>
 
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -88,6 +114,16 @@ export function PlayerPage() {
           </Box>
         </Stack>
       </Paper>
+
+      <MediaUploadDialog
+        open={dialogOpen}
+        title="Загрузка аватара игрока (PNG / JPG)"
+        entityName={player.name}
+        currentValue={storage.getPlayerAvatar(player.name) || undefined}
+        onClose={() => setDialogOpen(false)}
+        onSave={handleSaveAvatar}
+        onReset={handleResetAvatar}
+      />
     </Stack>
   )
 }
