@@ -27,10 +27,17 @@ def sync_db_schema():
         backend_name = engine.dialect.name
         if backend_name == "postgresql":
             with engine.begin() as conn:
+                # Users table migrations
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);")
+
+                # Teams table migrations
+                conn.exec_driver_sql("ALTER TABLE teams ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);")
+
                 # Players table migrations
                 conn.exec_driver_sql(
                     "ALTER TABLE players ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;"
                 )
+                conn.exec_driver_sql("ALTER TABLE players ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);")
 
                 # Tournaments table migrations
                 conn.exec_driver_sql(

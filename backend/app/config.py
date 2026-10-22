@@ -46,6 +46,11 @@ class Settings(BaseModel):
     # Direct database connection URL (takes priority if provided)
     DATABASE_URL: str = Field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
 
+    # Static uploads directory for logos and avatars
+    UPLOAD_DIR: Path = Field(
+        default_factory=lambda: Path(os.getenv("UPLOAD_DIR", "uploads")).resolve()
+    )
+
     def get_database_url(self) -> str:
         """Returns the final database connection URL.
         If DATABASE_URL environment variable is set, it is used directly.

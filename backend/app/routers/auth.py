@@ -47,5 +47,21 @@ def update_me(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Standard user can update ONLY their email, nickname, and password."""
+    """Standard user can update ONLY their email, nickname, password, and avatar."""
     return crud.update_user_self(db, current_user, payload)
+
+
+@router.post("/me/avatar", response_model=schemas.UserOut)
+def upload_my_avatar(
+    payload: schemas.ImageUploadPayload,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload avatar for current user account and any linked player profile."""
+    url = crud.save_uploaded_image("players", current_user.id, payload)
+    current_user.avatar_url = url
+    if current_user.player:
+        current_user.player.avatar_url = url
+    db.commit()
+    db.refresh(current_user)
+    return crud.enrich_user(current_user)

@@ -15,6 +15,7 @@ class User(Base):
     salt: Mapped[str] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[str] = mapped_column(String(30))
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Relationship to optional player profile (1:1)
     player: Mapped["Player | None"] = relationship(back_populates="user", uselist=False)
@@ -78,6 +79,7 @@ class Team(Base):
     coach: Mapped[str] = mapped_column(String(120))
     description: Mapped[str] = mapped_column(String(500))
     ranking: Mapped[int] = mapped_column(Integer, index=True)
+    logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     players: Mapped[list["Player"]] = relationship(
         back_populates="team",
@@ -99,6 +101,7 @@ class Player(Base):
     kd: Mapped[str] = mapped_column(String(10))          # "1.28"
     impact: Mapped[float] = mapped_column(Float)
     maps: Mapped[int] = mapped_column(Integer)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
     team: Mapped["Team"] = relationship(back_populates="players")

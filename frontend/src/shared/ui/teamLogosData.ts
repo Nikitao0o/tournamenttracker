@@ -1,4 +1,4 @@
-// Векторные SVG-логотипы команд (всегда доступны, не зависят от сети)
+// Vector SVG team logos (always available, network independent)
 export const TEAM_LOGOS: Record<string, { svg: string; bg: string; color: string; short: string }> = {
   'team-spirit': {
     bg: '#000000',

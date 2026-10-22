@@ -325,6 +325,83 @@ class TestAllRoutesAndEdgeCases(unittest.TestCase):
         for m in upcoming_matches:
             self.assertEqual(m.status, "UPCOMING")
 
+    def test_team_logos_and_player_avatars(self):
+        # 1. Verify seed data has logos and avatars populated
+        teams = crud.get_teams(self.db)
+        self.assertTrue(len(teams) >= 4)
+        for t in teams:
+            self.assertIsNotNone(t.logo_url)
+            self.assertTrue(t.logo_url.startswith("http"))
+
+        players = crud.get_players(self.db)
+        self.assertTrue(len(players) >= 4)
+        for p in players:
+            self.assertIsNotNone(p.avatar_url)
+            self.assertTrue(p.avatar_url.startswith("http"))
+
+        # 2. Check MatchOut enriched with team logos
+        tourneys = crud.get_tournaments(self.db)
+        matches = crud.get_matches(self.db, tournament_id=tourneys[0].id)
+        opening_match = next((m for m in matches if m.team_a_id and m.team_b_id), None)
+        self.assertIsNotNone(opening_match)
+        self.assertIsNotNone(opening_match.team_a_logo_url)
+        self.assertIsNotNone(opening_match.team_b_logo_url)
+
+        # 3. Check leaderboards include logo_url and avatar_url
+        team_lb = crud.get_team_leaderboard(self.db)
+        self.assertIsNotNone(team_lb[0].logo_url)
+
+        player_lb = crud.get_player_leaderboard(self.db, limit=5)
+        self.assertIsNotNone(player_lb[0].avatar_url)
+
+        # 4. Set team logo via direct URL
+        updated_team = crud.set_team_logo(
+            self.db,
+            teams[0].id,
+            schemas.ImageUploadPayload(image_url="https://example.com/new_logo.png"),
+        )
+        self.assertEqual(updated_team.logo_url, "https://example.com/new_logo.png")
+
+        # 5. Set team logo via base64 encoded image
+        dummy_base64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        uploaded_team = crud.set_team_logo(
+            self.db,
+            teams[0].id,
+            schemas.ImageUploadPayload(image_base64=dummy_base64),
+        )
+        self.assertTrue(uploaded_team.logo_url.startswith("/uploads/teams/"))
+
+        # 6. Set player avatar via direct URL and base64
+        updated_player = crud.set_player_avatar(
+            self.db,
+            players[0].id,
+            schemas.ImageUploadPayload(image_url="https://example.com/new_avatar.png"),
+        )
+        self.assertEqual(updated_player.avatar_url, "https://example.com/new_avatar.png")
+
+        uploaded_player = crud.set_player_avatar(
+            self.db,
+            players[0].id,
+            schemas.ImageUploadPayload(image_base64=dummy_base64),
+        )
+        self.assertTrue(uploaded_player.avatar_url.startswith("/uploads/players/"))
+
+        # 7. User profile reflects linked player avatar and can be updated
+        linked_player = next((p for p in players if p.user_id is not None), None)
+        self.assertIsNotNone(linked_player)
+        user = self.db.get(models.User, linked_player.user_id)
+        user_out = crud.enrich_user(user)
+        self.assertEqual(user_out.avatar_url, user.player.avatar_url)
+
+        # Update avatar via update_user_self
+        crud.update_user_self(
+            self.db,
+            user,
+            schemas.UserUpdate(avatar_url="https://example.com/user_avatar.png"),
+        )
+        self.assertEqual(user.avatar_url, "https://example.com/user_avatar.png")
+        self.assertEqual(user.player.avatar_url, "https://example.com/user_avatar.png")
+
 
 if __name__ == "__main__":
     unittest.main()

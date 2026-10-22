@@ -48,6 +48,19 @@ def update_team(
     return crud.update_team(db, team_id, payload)
 
 
+@router.post("/{team_id}/logo", response_model=schemas.TeamOut)
+def upload_team_logo(
+    team_id: int,
+    payload: schemas.ImageUploadPayload,
+    admin = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Upload or update team logo (admin only).
+    Accepts base64 encoded image string or direct image URL.
+    """
+    return crud.set_team_logo(db, team_id, payload)
+
+
 @router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_team(
     team_id: int,

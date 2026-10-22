@@ -17,10 +17,11 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Standard user can update ONLY email, nickname, and password."""
+    """Standard user can update ONLY email, nickname, password, and avatar."""
     email: str | None = Field(default=None, min_length=3, max_length=120)
     nickname: str | None = Field(default=None, min_length=2, max_length=60)
     password: str | None = Field(default=None, min_length=6, max_length=100)
+    avatar_url: str | None = Field(default=None, max_length=500)
 
 
 class UserOut(BaseModel):
@@ -32,6 +33,7 @@ class UserOut(BaseModel):
     created_at: str
     is_admin: bool = False
     player_id: int | None = None
+    avatar_url: str | None = None
 
 
 class TokenOut(BaseModel):
@@ -51,6 +53,7 @@ class TeamBase(BaseModel):
     coach: str = Field(..., min_length=1, max_length=120, description="Head coach")
     description: str = Field(..., max_length=500, description="Team description")
     ranking: int = Field(..., ge=1, description="World ranking position")
+    logo_url: str | None = Field(default=None, max_length=500, description="Team logo URL")
 
 
 class TeamCreate(TeamBase):
@@ -64,6 +67,7 @@ class TeamUpdate(BaseModel):
     coach: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
     ranking: int | None = Field(default=None, ge=1)
+    logo_url: str | None = Field(default=None, max_length=500)
 
 
 class TeamOut(TeamBase):
@@ -86,6 +90,7 @@ class PlayerBase(BaseModel):
     maps: int = Field(..., ge=0, description="Number of played maps")
     team_id: int = Field(..., ge=1, description="Team ID")
     user_id: int | None = Field(default=None, description="Linked user account ID (if any)")
+    avatar_url: str | None = Field(default=None, max_length=500, description="Player avatar URL")
 
 
 class PlayerCreate(PlayerBase):
@@ -103,6 +108,7 @@ class PlayerUpdate(BaseModel):
     maps: int | None = Field(default=None, ge=0)
     team_id: int | None = Field(default=None, ge=1)
     user_id: int | None = Field(default=None)
+    avatar_url: str | None = Field(default=None, max_length=500)
 
 
 class PlayerOut(PlayerBase):
@@ -223,6 +229,8 @@ class MatchOut(MatchBase):
     id: int
     team_a_name: str | None = None
     team_b_name: str | None = None
+    team_a_logo_url: str | None = None
+    team_b_logo_url: str | None = None
     winner_id: int | None = None
     loser_id: int | None = None
     winner_name: str | None = None
@@ -277,6 +285,7 @@ class TeamLeaderboardEntry(BaseModel):
     rank: int
     team_id: int
     name: str
+    logo_url: str | None = None
 
 
 class PlayerLeaderboardEntry(BaseModel):
@@ -284,4 +293,15 @@ class PlayerLeaderboardEntry(BaseModel):
     player_id: int
     nickname: str
     team_name: str
+    avatar_url: str | None = None
     rating: float
+
+
+# ==========================================
+# Image upload
+# ==========================================
+
+class ImageUploadPayload(BaseModel):
+    image_base64: str | None = Field(default=None, description="Base64 encoded image data string")
+    image_url: str | None = Field(default=None, max_length=500, description="Direct image URL")
+    filename: str | None = Field(default=None, max_length=120, description="Original image filename")

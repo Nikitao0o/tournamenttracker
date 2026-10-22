@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import Base, engine, sync_db_schema
@@ -11,6 +12,10 @@ from .routers import admin, auth, leaderboards, matches, players, teams, tournam
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup initialization: database schema creation, sync and seed."""
+    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    (settings.UPLOAD_DIR / "teams").mkdir(parents=True, exist_ok=True)
+    (settings.UPLOAD_DIR / "players").mkdir(parents=True, exist_ok=True)
+
     Base.metadata.create_all(bind=engine)
     sync_db_schema()
     from .seed import seed_if_empty
@@ -32,6 +37,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static uploads route
+settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(settings.UPLOAD_DIR)), name="uploads")
 
 # Router registrations
 app.include_router(auth.router)

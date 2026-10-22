@@ -1,10 +1,13 @@
+import base64
 import datetime
+import time
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from . import models, schemas
 from .auth import hash_password, is_user_admin
+from .config import settings
 
 
 # ==========================================
@@ -23,6 +26,7 @@ def enrich_user(user: models.User) -> schemas.UserOut:
     out = schemas.UserOut.model_validate(user)
     out.is_admin = is_user_admin(user.email, user.nickname)
     out.player_id = user.player.id if user.player else None
+    out.avatar_url = user.player.avatar_url if (user.player and user.player.avatar_url) else user.avatar_url
     return out
 
 
@@ -86,6 +90,11 @@ def update_user_self(db: Session, user: models.User, payload: schemas.UserUpdate
         hashed_pw, salt = hash_password(payload.password)
         user.hashed_password = hashed_pw
         user.salt = salt
+
+    if payload.avatar_url is not None:
+        user.avatar_url = payload.avatar_url
+        if user.player:
+            user.player.avatar_url = payload.avatar_url
 
     db.commit()
     db.refresh(user)
@@ -353,6 +362,8 @@ def enrich_match(match: models.Match) -> schemas.MatchOut:
     out = schemas.MatchOut.model_validate(match)
     out.team_a_name = match.team_a.name if match.team_a else "TBD"
     out.team_b_name = match.team_b.name if match.team_b else "TBD"
+    out.team_a_logo_url = match.team_a.logo_url if match.team_a else None
+    out.team_b_logo_url = match.team_b.logo_url if match.team_b else None
     out.winner_name = match.winner.name if match.winner else None
     out.tournament_name = match.tournament.title if match.tournament else None
     return out
@@ -899,7 +910,7 @@ def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.Tour
 def get_team_leaderboard(db: Session) -> list[schemas.TeamLeaderboardEntry]:
     teams = db.query(models.Team).order_by(models.Team.ranking).all()
     return [
-        schemas.TeamLeaderboardEntry(rank=i + 1, team_id=t.id, name=t.name)
+        schemas.TeamLeaderboardEntry(rank=i + 1, team_id=t.id, name=t.name, logo_url=t.logo_url)
         for i, t in enumerate(teams)
     ]
 
@@ -917,7 +928,81 @@ def get_player_leaderboard(db: Session, limit: int = 10) -> list[schemas.PlayerL
             player_id=p.id,
             nickname=p.nickname,
             team_name=p.team.name if p.team else "",
+            avatar_url=p.avatar_url,
             rating=round(p.impact / 10 + 1, 2),
         )
         for i, p in enumerate(players)
     ]
+
+
+# ==========================================
+# Image Uploads (Logos & Avatars)
+# ==========================================
+
+def save_uploaded_image(target_subfolder: str, entity_id: int, payload: schemas.ImageUploadPayload) -> str:
+    """Decodes base64 image data to file on disk or returns direct URL."""
+    if payload.image_url:
+        return payload.image_url.strip()
+
+    if not payload.image_base64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either image_base64 or image_url must be provided",
+        )
+
+    data = payload.image_base64
+    ext = "png"
+    if "," in data:
+        header, data = data.split(",", 1)
+        if "image/jpeg" in header or "image/jpg" in header:
+            ext = "jpg"
+        elif "image/webp" in header:
+            ext = "webp"
+        elif "image/svg" in header:
+            ext = "svg"
+
+    try:
+        binary_data = base64.b64decode(data)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid base64 image data",
+        )
+
+    if len(binary_data) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image size exceeds maximum limit of 5MB",
+        )
+
+    upload_dir = settings.UPLOAD_DIR / target_subfolder
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = int(time.time() * 1000)
+    filename = f"{target_subfolder}_{entity_id}_{timestamp}.{ext}"
+    filepath = upload_dir / filename
+
+    with open(filepath, "wb") as f:
+        f.write(binary_data)
+
+    return f"/uploads/{target_subfolder}/{filename}"
+
+
+def set_team_logo(db: Session, team_id: int, payload: schemas.ImageUploadPayload) -> schemas.TeamOut:
+    team = get_team_or_404(db, team_id)
+    url = save_uploaded_image("teams", team.id, payload)
+    team.logo_url = url
+    db.commit()
+    db.refresh(team)
+    return schemas.TeamOut.model_validate(team)
+
+
+def set_player_avatar(db: Session, player_id: int, payload: schemas.ImageUploadPayload) -> schemas.PlayerOut:
+    player = get_player_or_404(db, player_id)
+    url = save_uploaded_image("players", player.id, payload)
+    player.avatar_url = url
+    if player.user:
+        player.user.avatar_url = url
+    db.commit()
+    db.refresh(player)
+    return enrich_player(player)
