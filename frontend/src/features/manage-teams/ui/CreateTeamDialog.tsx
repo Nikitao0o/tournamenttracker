@@ -25,7 +25,7 @@ export function CreateTeamDialog({ open, onClose, onSubmit }: CreateTeamDialogPr
   const [region, setRegion] = useState('Europe')
   const [coach, setCoach] = useState('')
   const [description, setDescription] = useState('')
-  const [ranking, setRanking] = useState(5)
+  const [rosterText, setRosterText] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -38,13 +38,18 @@ export function CreateTeamDialog({ open, onClose, onSubmit }: CreateTeamDialogPr
       return
     }
 
+    const roster = rosterText
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
     onSubmit({
       name: name.trim(),
       shortName: shortName.trim().toUpperCase(),
       region: region.trim(),
       coach: coach.trim(),
       description: description.trim(),
-      ranking: Number(ranking) || 10,
+      roster,
       logoUrl: logoUrl || undefined,
     })
 
@@ -54,7 +59,7 @@ export function CreateTeamDialog({ open, onClose, onSubmit }: CreateTeamDialogPr
     setRegion('Europe')
     setCoach('')
     setDescription('')
-    setRanking(5)
+    setRosterText('')
     setLogoUrl('')
     setErrors({})
     onClose()
@@ -132,21 +137,21 @@ export function CreateTeamDialog({ open, onClose, onSubmit }: CreateTeamDialogPr
             </Grid>
 
             <TextField
+              label="Roster (comma-separated player nicknames)"
+              placeholder="e.g. s1mple, b1t, jL, Aleksib, iM"
+              value={rosterText}
+              onChange={(e) => setRosterText(e.target.value)}
+              helperText="Separate player names with commas"
+              fullWidth
+            />
+
+            <TextField
               label="Description"
               placeholder="Team profile details..."
               multiline
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              fullWidth
-            />
-
-            <TextField
-              label="World Ranking"
-              type="number"
-              value={ranking}
-              onChange={(e) => setRanking(Number(e.target.value))}
-              slotProps={{ htmlInput: { min: 1, max: 100 } }}
               fullWidth
             />
 

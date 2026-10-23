@@ -129,7 +129,7 @@ export default function Header() {
                   },
                 }}
               >
-                {isAdminItem ? `⚡ ${item.label}` : item.label}
+                {item.label}
               </Box>
             )
           })}

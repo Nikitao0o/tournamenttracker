@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
@@ -75,7 +74,6 @@ export function TournamentBracketView({ bracket, isLoading }: TournamentBracketV
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Box sx={{ fontSize: 20 }}>📊</Box>
           <div>
             <Typography variant="h2" sx={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: 0.5 }}>
               TOURNAMENT BRACKET & PROGRESSION

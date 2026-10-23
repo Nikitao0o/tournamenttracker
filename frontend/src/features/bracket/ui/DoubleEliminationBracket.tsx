@@ -90,12 +90,9 @@ export function DoubleEliminationBracket({ bracket }: DoubleEliminationBracketPr
           }}
         >
           <Stack spacing={2} sx={{ alignItems: 'center', textAlign: 'center' }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Box sx={{ fontSize: 22 }}>🏆</Box>
-              <Typography variant="h2" sx={{ fontSize: 18, fontWeight: 900, color: '#ffb300', letterSpacing: 1 }}>
-                GRAND FINAL CHAMPIONSHIP
-              </Typography>
-            </Stack>
+            <Typography variant="h2" sx={{ fontSize: 18, fontWeight: 900, color: '#ffb300', letterSpacing: 1 }}>
+              GRAND FINAL CHAMPIONSHIP
+            </Typography>
 
             <Typography sx={{ color: '#8b929e', fontSize: 12, maxWidth: 500 }}>
               The winner of the Upper Bracket faces the winner of the Lower Bracket Consolidation Final for the tournament trophy.

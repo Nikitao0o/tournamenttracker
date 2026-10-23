@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
+import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { Link, useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useAuth } from '../app/providers/useAuth'
 import { getPlayerById, getTeamById } from '../mock/data'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
@@ -25,8 +27,29 @@ export function PlayerPage() {
   if (!player) {
     return (
       <Stack spacing={2}>
+        <Breadcrumbs
+          separator="/"
+          aria-label="breadcrumb"
+          sx={{
+            fontSize: 14,
+            '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+          }}
+        >
+          <MuiLink
+            component={RouterLink}
+            to="/players"
+            underline="hover"
+            color="text.secondary"
+            sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+          >
+            Players
+          </MuiLink>
+          <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+            Not Found
+          </Typography>
+        </Breadcrumbs>
         <Typography variant="h1">Player not found</Typography>
-        <Button component={Link} to="/players" variant="outlined">
+        <Button component={RouterLink} to="/players" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
           Back to players
         </Button>
       </Stack>
@@ -45,9 +68,27 @@ export function PlayerPage() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/players" sx={{ alignSelf: 'flex-start' }}>
-        ← Players
-      </Button>
+      <Breadcrumbs
+        separator="/"
+        aria-label="breadcrumb"
+        sx={{
+          fontSize: 14,
+          '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+        }}
+      >
+        <MuiLink
+          component={RouterLink}
+          to="/players"
+          underline="hover"
+          color="text.secondary"
+          sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+        >
+          Players
+        </MuiLink>
+        <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+          {player.name}
+        </Typography>
+      </Breadcrumbs>
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Stack spacing={2.5}>
@@ -70,7 +111,7 @@ export function PlayerPage() {
                   onClick={() => setDialogOpen(true)}
                   sx={{ fontSize: 11, fontWeight: 700 }}
                 >
-                  📷 Change Avatar (PNG / JPG)
+                  Change Avatar (PNG / JPG)
                 </Button>
               ) : null}
             </Stack>
@@ -85,7 +126,7 @@ export function PlayerPage() {
           </Stack>
 
           {team ? (
-            <Button component={Link} to={`/teams/${team.id}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>
+            <Button component={RouterLink} to={`/teams/${team.id}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>
               View team roster
             </Button>
           ) : null}

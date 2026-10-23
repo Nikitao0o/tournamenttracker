@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import FormControl from '@mui/material/FormControl'
@@ -8,12 +9,13 @@ import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
+import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
 import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { Link, useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom'
 import type { BracketType, TournamentBracketView, BracketMatch, Tournament } from '../../types'
 import { MOCK_TOURNAMENTS, MOCK_TEAMS, getMockBracketForTournament } from '../../mock/data'
 import { generateDynamicBracket } from '../../features/bracket/utils/bracketGenerator'
@@ -205,21 +207,40 @@ export function AdminBracketEditorPage() {
         }}
       >
         <div>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-            <Button component={Link} to="/admin" sx={{ color: '#f04b3a', p: 0, minWidth: 'auto', fontWeight: 800 }}>
-              ← Admin Dashboard
-            </Button>
-            <Typography variant="h1" sx={{ color: '#fff', fontSize: { xs: 18, sm: 22 } }}>
-              / BRACKET SEEDING & EDITOR
+          <Breadcrumbs
+            separator="/"
+            aria-label="breadcrumb"
+            sx={{
+              color: '#fff',
+              mb: 0.5,
+              '& .MuiBreadcrumbs-separator': { color: '#9aa7b3' },
+            }}
+          >
+            <MuiLink
+              component={RouterLink}
+              to="/admin"
+              underline="hover"
+              sx={{
+                color: '#f04b3a',
+                fontWeight: 800,
+                fontSize: { xs: 18, sm: 22 },
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              Admin
+            </MuiLink>
+            <Typography variant="h1" sx={{ color: '#fff', fontSize: { xs: 18, sm: 22 }, fontWeight: 800 }}>
+              Bracket Editor
             </Typography>
-          </Stack>
+          </Breadcrumbs>
           <Typography sx={{ color: '#9aa7b3', fontSize: 12 }}>
             Manage participating teams, seed brackets with drag and drop, and preview dynamic tournament elimination
           </Typography>
         </div>
 
         <Stack direction="row" spacing={1.5}>
-          <Button component={Link} to={`/tournaments/${selectedTournamentId}`} variant="outlined" sx={{ color: '#fff', borderColor: '#4a5260' }}>
+          <Button component={RouterLink} to={`/tournaments/${selectedTournamentId}`} variant="outlined" sx={{ color: '#fff', borderColor: '#4a5260' }}>
             View Public Bracket
           </Button>
           <Button
@@ -368,7 +389,7 @@ export function AdminBracketEditorPage() {
             }}
           >
             <Typography variant="h2" sx={{ fontSize: 14, color: '#fff', mb: 1 }}>
-              🎯 AVAILABLE TEAMS
+              AVAILABLE TEAMS
             </Typography>
             <Typography variant="caption" sx={{ color: '#8b929e', display: 'block', mb: 2 }}>
               Drag any team below and drop into a match slot on the right:
@@ -404,7 +425,16 @@ export function AdminBracketEditorPage() {
                       '&:active': { cursor: 'grabbing' },
                     }}
                   >
-                    <Box sx={{ color: '#687282', fontSize: 12, userSelect: 'none' }}>⠿</Box>
+                    <Box sx={{ color: '#687282', display: 'flex', alignItems: 'center', userSelect: 'none' }}>
+                      <svg width="10" height="14" viewBox="0 0 10 14" fill="#687282">
+                        <circle cx="2" cy="2" r="1.5" />
+                        <circle cx="2" cy="7" r="1.5" />
+                        <circle cx="2" cy="12" r="1.5" />
+                        <circle cx="8" cy="2" r="1.5" />
+                        <circle cx="8" cy="7" r="1.5" />
+                        <circle cx="8" cy="12" r="1.5" />
+                      </svg>
+                    </Box>
                     <TeamLogo teamName={team.name} logoUrl={team.logoUrl} size={28} />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{team.name}</Typography>
@@ -441,7 +471,7 @@ export function AdminBracketEditorPage() {
                   '&:hover': { borderColor: '#f04b3a', color: '#fff' },
                 }}
               >
-                ⠿ Drag "TBD" (Clear slot)
+                Drag &quot;TBD&quot; (Clear slot)
               </Box>
             </Box>
           </Paper>
@@ -520,7 +550,10 @@ export function AdminBracketEditorPage() {
                             sx={{ p: 0.3, fontSize: 11 }}
                             title="Clear slot"
                           >
-                            ✕
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
                           </IconButton>
                         ) : (
                           <Typography variant="caption" sx={{ color: '#8b929e', fontSize: 11 }}>
@@ -571,7 +604,10 @@ export function AdminBracketEditorPage() {
                             sx={{ p: 0.3, fontSize: 11 }}
                             title="Clear slot"
                           >
-                            ✕
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
                           </IconButton>
                         ) : (
                           <Typography variant="caption" sx={{ color: '#8b929e', fontSize: 11 }}>

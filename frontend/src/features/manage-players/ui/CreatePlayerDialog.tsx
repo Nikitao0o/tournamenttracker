@@ -24,17 +24,26 @@ interface CreatePlayerDialogProps {
   onSubmit: (player: CreatePlayerInput) => void
 }
 
-const ROLES = ['Entry Fragger', 'AWPer', 'IGL', 'Support', 'Lurker']
+const ROLES = ['Entry Fragger', 'AWPer', 'IGL', 'Support', 'Lurker', 'Rifler']
+
+function getAgeFromBirthDate(birthDateStr: string): number {
+  if (!birthDateStr) return 20
+  const birth = new Date(birthDateStr)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age > 0 ? age : 20
+}
 
 export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: CreatePlayerDialogProps) {
   const [name, setName] = useState('')
-  const [age, setAge] = useState(20)
+  const [birthDate, setBirthDate] = useState('2004-05-15')
   const [role, setRole] = useState('Entry Fragger')
   const [nationality, setNationality] = useState('European')
   const [selectedTeamId, setSelectedTeamId] = useState(availableTeams[0]?.id || 'team-spirit')
-  const [kd, setKd] = useState('1.15')
-  const [impact, setImpact] = useState(8.5)
-  const [maps, setMaps] = useState(45)
   const [avatarUrl, setAvatarUrl] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -57,31 +66,30 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
     }
 
     const playerId = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
+    const calculatedAge = getAgeFromBirthDate(birthDate)
 
     onSubmit({
       id: playerId,
       name: name.trim(),
-      age: Number(age) || 20,
+      birthDate,
+      age: calculatedAge,
       role,
       nationality: nationality.trim(),
       teamId: selectedTeamId,
       teamName: selectedTeam?.name || 'Free Agent',
       avatarUrl: avatarUrl || undefined,
       stats: {
-        kd: kd.trim() || '1.00',
-        impact: Number(impact) || 8.0,
-        maps: Number(maps) || 30,
+        kd: '0.00',
+        impact: 0.0,
+        maps: 0,
       },
     })
 
     // Reset
     setName('')
-    setAge(20)
+    setBirthDate('2004-05-15')
     setRole('Entry Fragger')
     setNationality('European')
-    setKd('1.15')
-    setImpact(8.5)
-    setMaps(45)
     setAvatarUrl('')
     setErrors({})
     onClose()
@@ -99,7 +107,7 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
         <DialogContent sx={{ p: 3 }}>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 8 }}>
+              <Grid size={{ xs: 12, sm: 7 }}>
                 <TextField
                   label="Player Nickname / Full Name"
                   placeholder="e.g. m0NESY (Ilya Osipov)"
@@ -114,14 +122,15 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
                   required
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 5 }}>
                 <TextField
-                  label="Age"
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(Number(e.target.value))}
-                  slotProps={{ htmlInput: { min: 14, max: 45 } }}
+                  label="Date of Birth"
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
                   fullWidth
+                  required
                 />
               </Grid>
             </Grid>
@@ -176,36 +185,6 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
                 ))}
               </Select>
             </FormControl>
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="K/D Ratio"
-                  value={kd}
-                  onChange={(e) => setKd(e.target.value)}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Impact Rating"
-                  type="number"
-                  value={impact}
-                  onChange={(e) => setImpact(Number(e.target.value))}
-                  slotProps={{ htmlInput: { step: 0.1, min: 0, max: 15 } }}
-                  fullWidth
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Maps Played"
-                  type="number"
-                  value={maps}
-                  onChange={(e) => setMaps(Number(e.target.value))}
-                  fullWidth
-                />
-              </Grid>
-            </Grid>
 
             <ImageUploadField
               label="Player Avatar (.PNG or .JPG):"

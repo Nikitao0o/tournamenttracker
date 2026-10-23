@@ -22,7 +22,6 @@ export function ProtectedAdminRoute() {
     return (
       <Paper variant="outlined" sx={{ p: 4, my: 4, textAlign: 'center' }}>
         <Stack spacing={2} sx={{ alignItems: 'center', maxWidth: 460, mx: 'auto' }}>
-          <Box sx={{ fontSize: 40 }}>🔒</Box>
           <Typography variant="h1">Administrator Authorization Required</Typography>
           <Typography color="text.secondary">
             Access to the tournament management panel is restricted to administrator accounts. Please sign in via the
@@ -43,7 +42,6 @@ export function ProtectedAdminRoute() {
     return (
       <Paper variant="outlined" sx={{ p: 4, my: 4, textAlign: 'center' }}>
         <Stack spacing={2} sx={{ alignItems: 'center', maxWidth: 460, mx: 'auto' }}>
-          <Box sx={{ fontSize: 40 }}>⛔</Box>
           <Typography variant="h1">Access Denied (403)</Typography>
           <Typography color="text.secondary">
             You are signed in as a regular user. This section is restricted to tournament administrators and organizers.

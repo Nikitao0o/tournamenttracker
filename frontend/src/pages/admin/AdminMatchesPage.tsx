@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Dialog from '@mui/material/Dialog'
@@ -11,6 +12,7 @@ import FormControl from '@mui/material/FormControl'
 import Grid from '@mui/material/Grid'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
+import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
 import Snackbar from '@mui/material/Snackbar'
@@ -23,7 +25,7 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { Link } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
 import type { Match, MatchStatus } from '../../types'
 import { MOCK_MATCHES, MOCK_TOURNAMENTS, getAllTeamNames } from '../../mock/data'
 import { TeamLogo } from '../../shared/ui/TeamLogo'
@@ -122,14 +124,33 @@ export function AdminMatchesPage() {
         }}
       >
         <div>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-            <Button component={Link} to="/admin" sx={{ color: '#f04b3a', p: 0, minWidth: 'auto', fontWeight: 800 }}>
-              ← Admin Dashboard
-            </Button>
-            <Typography variant="h1" sx={{ color: '#fff', fontSize: { xs: 18, sm: 22 } }}>
-              / MATCH EDITOR
+          <Breadcrumbs
+            separator="/"
+            aria-label="breadcrumb"
+            sx={{
+              color: '#fff',
+              mb: 0.5,
+              '& .MuiBreadcrumbs-separator': { color: '#9aa7b3' },
+            }}
+          >
+            <MuiLink
+              component={RouterLink}
+              to="/admin"
+              underline="hover"
+              sx={{
+                color: '#f04b3a',
+                fontWeight: 800,
+                fontSize: { xs: 18, sm: 22 },
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              Admin
+            </MuiLink>
+            <Typography variant="h1" sx={{ color: '#fff', fontSize: { xs: 18, sm: 22 }, fontWeight: 800 }}>
+              Match Editor
             </Typography>
-          </Stack>
+          </Breadcrumbs>
           <Typography sx={{ color: '#9aa7b3', fontSize: 12 }}>
             Edit match scores, live statuses, maps, and bracket participants
           </Typography>

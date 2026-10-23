@@ -23,6 +23,7 @@ import { TournamentStatusLabel } from '../../components/StatusChips'
 import { DeleteConfirmDialog } from '../../features/manage-tournaments/ui/DeleteConfirmDialog'
 import { TournamentFormDialog } from '../../features/manage-tournaments/ui/TournamentFormDialog'
 import { CreateTeamDialog } from '../../features/manage-teams/ui/CreateTeamDialog'
+import { EditTeamDialog } from '../../features/manage-teams/ui/EditTeamDialog'
 import { CreatePlayerDialog } from '../../features/manage-players/ui/CreatePlayerDialog'
 import { EditPlayerDialog } from '../../features/manage-players/ui/EditPlayerDialog'
 import { MediaUploadDialog } from '../../features/manage-media/ui/MediaUploadDialog'
@@ -60,9 +61,11 @@ export function AdminPage() {
   // Dialog states
   const [formOpen, setFormOpen] = useState(false)
   const [teamDialogOpen, setTeamDialogOpen] = useState(false)
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false)
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false)
   const [editPlayerDialogOpen, setEditPlayerDialogOpen] = useState(false)
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [deletingTournament, setDeletingTournament] = useState<Tournament | null>(null)
 
@@ -146,18 +149,35 @@ export function AdminPage() {
     setNotification({ message: `Team "${newTeam.name}" created successfully!`, severity: 'success' })
   }
 
+  const handleOpenEditTeam = (t: Team) => {
+    setEditingTeam(t)
+    setEditTeamDialogOpen(true)
+  }
+
+  const handleUpdateTeam = (updatedTeam: Team) => {
+    if (updatedTeam.logoUrl) {
+      storage.setTeamLogo(updatedTeam.name, updatedTeam.logoUrl)
+    }
+    const updated = teams.map((t) => (t.id === updatedTeam.id ? updatedTeam : t))
+    setTeams(updated)
+    storage.setTeams(updated)
+    setEditTeamDialogOpen(false)
+    setNotification({ message: `Team "${updatedTeam.name}" updated successfully!`, severity: 'success' })
+  }
+
   const handleCreatePlayer = (input: CreatePlayerInput) => {
     const slug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '')
     const newPlayer: Player = {
       id: input.id || `player-${slug}-${Date.now()}`,
       name: input.name,
-      age: input.age,
+      birthDate: input.birthDate,
+      age: input.age ?? 20,
       role: input.role,
       nationality: input.nationality,
       teamId: input.teamId,
       teamName: input.teamName,
       avatarUrl: input.avatarUrl,
-      stats: input.stats,
+      stats: input.stats || { kd: '1.00', impact: 1.0, maps: 0 },
     }
     if (input.avatarUrl) {
       storage.setPlayerAvatar(newPlayer.name, input.avatarUrl)
@@ -274,7 +294,7 @@ export function AdminPage() {
               '&:hover': { borderColor: '#f04b3a', bgcolor: 'rgba(240, 75, 58, 0.1)' },
             }}
           >
-            ⚔️ Match Editor
+            Match Editor
           </Button>
 
           <Button
@@ -289,7 +309,7 @@ export function AdminPage() {
               '&:hover': { borderColor: '#f04b3a', bgcolor: 'rgba(240, 75, 58, 0.1)' },
             }}
           >
-            📊 Bracket Editor
+            Bracket Editor
           </Button>
 
           <Button
@@ -346,9 +366,9 @@ export function AdminPage() {
             '& .Mui-selected': { color: 'primary.main' },
           }}
         >
-          <Tab value="tournaments" label="🏆 Tournaments" />
-          <Tab value="teams" label="🛡️ Teams Management" />
-          <Tab value="players" label="👥 Players Management" />
+          <Tab value="tournaments" label="Tournaments" />
+          <Tab value="teams" label="Teams Management" />
+          <Tab value="players" label="Players Management" />
         </Tabs>
       </Paper>
 
@@ -499,7 +519,10 @@ export function AdminPage() {
                             aria-label="Delete tournament"
                             sx={{ borderRadius: 0.5 }}
                           >
-                            🗑️
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
                           </IconButton>
                         </Stack>
                       </TableCell>
@@ -562,14 +585,13 @@ export function AdminPage() {
                     <TableCell sx={{ fontWeight: 800 }}>TAG</TableCell>
                     <TableCell sx={{ fontWeight: 800 }}>REGION</TableCell>
                     <TableCell sx={{ fontWeight: 800 }}>COACH</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>WORLD RANK</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 800 }}>ACTIONS</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredTeams.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+                      <TableCell colSpan={6} sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
                         No teams match your search.
                       </TableCell>
                     </TableRow>
@@ -593,16 +615,23 @@ export function AdminPage() {
                         </TableCell>
                         <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{team.region}</TableCell>
                         <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{team.coach || '—'}</TableCell>
-                        <TableCell sx={{ fontWeight: 800, color: 'primary.main' }}>#{team.ranking}</TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleOpenEditTeam(team)}
+                              sx={{ fontSize: 11, borderColor: '#0288d1', color: '#0288d1' }}
+                            >
+                              Edit
+                            </Button>
                             <Button
                               size="small"
                               variant="outlined"
                               onClick={() => setMediaModal({ open: true, type: 'team', name: team.name })}
                               sx={{ fontSize: 11 }}
                             >
-                              📷 Change Logo
+                              Change Logo
                             </Button>
                             <Button
                               component={Link}
@@ -723,7 +752,7 @@ export function AdminPage() {
                               onClick={() => setMediaModal({ open: true, type: 'player', name: player.name })}
                               sx={{ fontSize: 11 }}
                             >
-                              📷 Avatar
+                              Avatar
                             </Button>
                             <Button
                               component={Link}
@@ -759,6 +788,14 @@ export function AdminPage() {
         open={teamDialogOpen}
         onClose={() => setTeamDialogOpen(false)}
         onSubmit={handleCreateTeam}
+      />
+
+      {/* Edit Team Dialog */}
+      <EditTeamDialog
+        open={editTeamDialogOpen}
+        team={editingTeam}
+        onClose={() => setEditTeamDialogOpen(false)}
+        onSubmit={handleUpdateTeam}
       />
 
       {/* Create Player Dialog */}

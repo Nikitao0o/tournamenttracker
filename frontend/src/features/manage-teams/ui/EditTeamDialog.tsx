@@ -1,0 +1,197 @@
+import { useState } from 'react'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Grid from '@mui/material/Grid'
+import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { ImageUploadField } from '../../../shared/ui/ImageUploadField'
+import { validateTeamForm } from '../../../shared/utils/validation'
+import { storage } from '../../../shared/api/storage'
+import type { Team } from '../../../types'
+
+interface EditTeamDialogProps {
+  open: boolean
+  team: Team | null
+  onClose: () => void
+  onSubmit: (team: Team) => void
+}
+
+function EditTeamFormContent({
+  team,
+  onClose,
+  onSubmit,
+}: {
+  team: Team
+  onClose: () => void
+  onSubmit: (team: Team) => void
+}) {
+  const [name, setName] = useState(() => team.name)
+  const [shortName, setShortName] = useState(() => team.shortName)
+  const [region, setRegion] = useState(() => team.region)
+  const [coach, setCoach] = useState(() => team.coach || '')
+  const [description, setDescription] = useState(() => team.description || '')
+  const [rosterText, setRosterText] = useState(() => (team.roster || []).join(', '))
+  const [logoUrl, setLogoUrl] = useState(() => team.logoUrl || storage.getTeamLogo(team.name) || '')
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const formErrors = validateTeamForm({ name, shortName, region })
+    if (Object.keys(formErrors).length > 0) {
+      setErrors(formErrors)
+      return
+    }
+
+    const roster = rosterText
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    const updated: Team = {
+      ...team,
+      name: name.trim(),
+      shortName: shortName.trim().toUpperCase(),
+      region: region.trim(),
+      coach: coach.trim(),
+      description: description.trim(),
+      roster,
+      logoUrl: logoUrl.trim() || undefined,
+    }
+
+    onSubmit(updated)
+  }
+
+  return (
+    <Box component="form" onSubmit={handleSubmit} noValidate>
+      <DialogTitle sx={{ bgcolor: 'secondary.main', color: '#fff', py: 2 }}>
+        <Typography variant="h2" sx={{ color: '#fff', fontSize: 16 }}>
+          Edit Team: {team.name}
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3 }}>
+        <Stack spacing={2.5} sx={{ mt: 1 }}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 8 }}>
+              <TextField
+                label="Team Name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+                }}
+                error={Boolean(errors.name)}
+                helperText={errors.name}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                label="Short Tag"
+                value={shortName}
+                onChange={(e) => {
+                  setShortName(e.target.value)
+                  if (errors.shortName) setErrors((prev) => ({ ...prev, shortName: '' }))
+                }}
+                error={Boolean(errors.shortName)}
+                helperText={errors.shortName}
+                fullWidth
+                required
+              />
+            </Grid>
+          </Grid>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Region"
+                value={region}
+                onChange={(e) => {
+                  setRegion(e.target.value)
+                  if (errors.region) setErrors((prev) => ({ ...prev, region: '' }))
+                }}
+                error={Boolean(errors.region)}
+                helperText={errors.region}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Coach"
+                value={coach}
+                onChange={(e) => setCoach(e.target.value)}
+                fullWidth
+              />
+            </Grid>
+          </Grid>
+
+          <TextField
+            label="Roster (comma-separated player nicknames)"
+            placeholder="e.g. s1mple, b1t, jL, Aleksib, iM"
+            value={rosterText}
+            onChange={(e) => setRosterText(e.target.value)}
+            helperText="Separate player names with commas"
+            fullWidth
+          />
+
+          <TextField
+            label="Description"
+            multiline
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            fullWidth
+          />
+
+          <ImageUploadField
+            label="Team Logo (.PNG or .JPG):"
+            value={logoUrl}
+            onChange={setLogoUrl}
+            helperText="Upload official team logo in PNG or JPG format"
+          />
+        </Stack>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2.5, bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider' }}>
+        <Button variant="outlined" color="inherit" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="contained"
+          sx={{
+            bgcolor: '#f04b3a',
+            color: '#fff',
+            fontWeight: 700,
+            '&:hover': { bgcolor: '#d93b2a' },
+          }}
+        >
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Box>
+  )
+}
+
+export function EditTeamDialog({ open, team, onClose, onSubmit }: EditTeamDialogProps) {
+  if (!team) return null
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <EditTeamFormContent
+        key={team.id}
+        team={team}
+        onClose={onClose}
+        onSubmit={onSubmit}
+      />
+    </Dialog>
+  )
+}

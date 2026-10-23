@@ -40,14 +40,10 @@ function EditPlayerFormContent({
   onSubmit: (updated: Player) => void
 }) {
   const [name, setName] = useState(() => player.name)
-  const [age, setAge] = useState(() => player.age)
   const [role, setRole] = useState(() => player.role)
   const [nationality, setNationality] = useState(() => player.nationality)
   const [selectedTeamId, setSelectedTeamId] = useState(() => player.teamId || availableTeams[0]?.id || '')
   const [avatarUrl, setAvatarUrl] = useState(() => player.avatarUrl || storage.getPlayerAvatar(player.name) || '')
-  const [kd, setKd] = useState(() => player.stats?.kd ?? '1.15')
-  const [impact, setImpact] = useState(() => player.stats?.impact ?? 8.5)
-  const [maps, setMaps] = useState(() => player.stats?.maps ?? 45)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -71,17 +67,11 @@ function EditPlayerFormContent({
     const updated: Player = {
       ...player,
       name: name.trim(),
-      age: Number(age) || 20,
       role,
       nationality: nationality.trim(),
       teamId: selectedTeamId,
       teamName: selectedTeam?.name || player.teamName || 'Free Agent',
       avatarUrl: avatarUrl.trim() || undefined,
-      stats: {
-        kd: kd.trim() || '1.00',
-        impact: Number(impact) || 8.0,
-        maps: Number(maps) || 30,
-      },
     }
 
     onSubmit(updated)
@@ -91,38 +81,24 @@ function EditPlayerFormContent({
     <Box component="form" onSubmit={handleSubmit} noValidate>
       <DialogTitle sx={{ bgcolor: 'secondary.main', color: '#fff', py: 2 }}>
         <Typography variant="h2" sx={{ color: '#fff', fontSize: 16 }}>
-          Edit Player: {player.name}
+          Edit Player Profile: {player.name}
         </Typography>
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 8 }}>
-              <TextField
-                label="Player Nickname / Full Name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
-                }}
-                error={Boolean(errors.name)}
-                helperText={errors.name}
-                fullWidth
-                required
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                label="Age"
-                type="number"
-                value={age}
-                onChange={(e) => setAge(Number(e.target.value))}
-                slotProps={{ htmlInput: { min: 14, max: 45 } }}
-                fullWidth
-              />
-            </Grid>
-          </Grid>
+          <TextField
+            label="Player Nickname / Full Name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+            }}
+            error={Boolean(errors.name)}
+            helperText={errors.name}
+            fullWidth
+            required
+          />
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -144,7 +120,7 @@ function EditPlayerFormContent({
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
-                label="Nationality"
+                label="Nationality / Region"
                 value={nationality}
                 onChange={(e) => {
                   setNationality(e.target.value)
@@ -173,36 +149,6 @@ function EditPlayerFormContent({
               ))}
             </Select>
           </FormControl>
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 4 }}>
-              <TextField
-                label="K/D Ratio"
-                value={kd}
-                onChange={(e) => setKd(e.target.value)}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <TextField
-                label="Impact Rating"
-                type="number"
-                value={impact}
-                onChange={(e) => setImpact(Number(e.target.value))}
-                slotProps={{ htmlInput: { step: 0.1, min: 0, max: 15 } }}
-                fullWidth
-              />
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <TextField
-                label="Maps Played"
-                type="number"
-                value={maps}
-                onChange={(e) => setMaps(Number(e.target.value))}
-                fullWidth
-              />
-            </Grid>
-          </Grid>
 
           <ImageUploadField
             label="Player Avatar (.PNG or .JPG):"

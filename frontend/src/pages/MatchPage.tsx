@@ -1,8 +1,10 @@
 import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
+import MuiLink from '@mui/material/Link'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { Link, useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom'
 import { MatchStatusLabel, ScorePair } from '../components/StatusChips'
 import { formatDate } from '../utils/formatting'
 import { getMatchById, getTeamSlug } from '../mock/data'
@@ -15,8 +17,29 @@ export function MatchPage() {
   if (!match) {
     return (
       <Stack spacing={1.5}>
+        <Breadcrumbs
+          separator="/"
+          aria-label="breadcrumb"
+          sx={{
+            fontSize: 14,
+            '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+          }}
+        >
+          <MuiLink
+            component={RouterLink}
+            to="/"
+            underline="hover"
+            color="text.secondary"
+            sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+          >
+            Matches
+          </MuiLink>
+          <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+            Not Found
+          </Typography>
+        </Breadcrumbs>
         <Typography variant="h1">Match not found</Typography>
-        <Button component={Link} to="/" variant="contained">
+        <Button component={RouterLink} to="/" variant="contained" sx={{ alignSelf: 'flex-start' }}>
           Back to matches
         </Button>
       </Stack>
@@ -25,9 +48,27 @@ export function MatchPage() {
 
   return (
     <Stack spacing={1.5}>
-      <Button component={Link} to="/" sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}>
-        ← Matches
-      </Button>
+      <Breadcrumbs
+        separator="/"
+        aria-label="breadcrumb"
+        sx={{
+          fontSize: 14,
+          '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+        }}
+      >
+        <MuiLink
+          component={RouterLink}
+          to="/"
+          underline="hover"
+          color="text.secondary"
+          sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+        >
+          Matches
+        </MuiLink>
+        <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+          {match.teamA} vs {match.teamB}
+        </Typography>
+      </Breadcrumbs>
 
       <Box sx={{ border: '1px solid', borderColor: 'divider' }}>
         <Box
@@ -43,7 +84,7 @@ export function MatchPage() {
           }}
         >
           <Typography
-            component={Link}
+            component={RouterLink}
             to={`/tournaments/${match.tournamentId}`}
             sx={{ color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}
           >
@@ -69,7 +110,7 @@ export function MatchPage() {
             sx={{ alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-end' } }}
           >
             <Typography
-              component={Link}
+              component={RouterLink}
               to={`/teams/${getTeamSlug(match.teamA)}`}
               sx={{
                 fontSize: { xs: 20, sm: 26 },
@@ -96,7 +137,7 @@ export function MatchPage() {
           >
             <TeamLogo teamName={match.teamB} size={48} />
             <Typography
-              component={Link}
+              component={RouterLink}
               to={`/teams/${getTeamSlug(match.teamB)}`}
               sx={{
                 fontSize: { xs: 20, sm: 26 },

@@ -4,7 +4,7 @@
 
 ---
 
-## 🛠 Стек технологий
+## Стек технологий
 
 - **Фреймворк**: [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
 - **Сборщик**: [Vite 8](https://vitejs.dev/) (с чанкованием вендоров и оптимизацией сборки)
@@ -14,7 +14,7 @@
 
 ---
 
-## 🏗 Архитектура проекта (Feature-Sliced Design)
+## Архитектура проекта (Feature-Sliced Design)
 
 Структура исходного кода в `frontend/src` организована в соответствии с упрощённой методологией **FSD (Feature-Sliced Design)**:
 
@@ -80,7 +80,7 @@ frontend/src/
 
 ---
 
-## 🔑 Авторизация и создание пустого аккаунта
+## Авторизация и создание пустого аккаунта
 
 В шапку приложения встроен компонент `AuthPopover`:
 1. **Кнопка "Sign In"**: размещена в правой части навигации. При клике открывает выпадающее модальное окно прямо под кнопкой.
@@ -103,7 +103,7 @@ frontend/src/
 
 ---
 
-## 🛡 Админ-панель и ролевой доступ
+## Админ-панель и ролевой доступ
 
 1. **Динамическая кнопка `ADMIN` в шапке**:
    - Появляется в навигации **только** для пользователей с правами администратора (`is_admin: true`).
@@ -122,7 +122,7 @@ frontend/src/
 
 ---
 
-## ⚡ Состояния данных и анимации
+## Состояния данных и анимации
 
 - **Loading (Загрузка)**: реализованы скелетоны (`Skeleton`) для карточек турниров на главной странице, каталоге турниров и строк таблицы в админке.
 - **Empty (Пустое состояние)**: информативные заглушки с иконками при отсутствии данных или при поиске без результатов с возможностью сброса фильтров.
@@ -134,7 +134,7 @@ frontend/src/
 
 ---
 
-## 🎨 Поддержка форматов PNG и JPG для аватарок и логотипов
+## Поддержка форматов PNG и JPG для аватарок и логотипов
 
 В приложение интегрирована полноценная поддержка растровых форматов **PNG** и **JPG/JPEG** (вместе с SVG и WebP):
 1. **Реальные графические ассеты**:
@@ -146,14 +146,14 @@ frontend/src/
 3. **Интерактивная загрузка файлов (PNG / JPG)**:
    - Создан компонент **`ImageUploadField` (`src/shared/ui/ImageUploadField.tsx`)** с предпросмотром, валидацией MIME-типа (`image/png`, `image/jpeg`), расширений (`.png`, `.jpg`, `.jpeg`) и ограничения размера (до 5 МБ).
    - Диалог **`MediaUploadDialog`** доступен:
-     - На странице игрока ([`PlayerPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/PlayerPage.tsx)) по кнопке *«📷 Сменить аватар (PNG / JPG)»*;
-     - На странице команды ([`TeamPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/TeamPage.tsx)) по кнопке *«📷 Сменить лого (PNG / JPG)»*;
-     - В Админ-панели ([`AdminPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/admin/AdminPage.tsx)) во вкладке *«🖼️ Логотипы и Аватарки (PNG / JPG)»*, где можно обновить изображение любого клуба или игрока, а также сбросить его на дефолт.
+     - На странице игрока ([`PlayerPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/PlayerPage.tsx)) по кнопке *«Change Avatar (PNG / JPG)»*;
+     - На странице команды ([`TeamPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/TeamPage.tsx)) по кнопке *«Change Logo (PNG / JPG)»*;
+     - В Админ-панели ([`AdminPage`](file:///Users/nikitapahomov/fullstack/tournamenttracker/frontend/src/pages/admin/AdminPage.tsx)), где можно обновить изображение любого клуба или игрока, а также сбросить его на дефолт.
    - Загруженные через интерфейс PNG/JPG изображения кодируются в Base64 Data URL, сохраняются в `localStorage` и моментально обновляются по всему приложению.
 
 ---
 
-## 🚀 Запуск и сборка
+## Запуск и сборка
 
 ```bash
 # Установка зависимостей (из директории frontend)

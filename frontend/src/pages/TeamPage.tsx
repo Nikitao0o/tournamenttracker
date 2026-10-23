@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Grid from '@mui/material/Grid'
+import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { Link, useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useAuth } from '../app/providers/useAuth'
 import { getPlayersByTeamId, getTeamByReference } from '../mock/data'
 import { TeamLogo } from '../shared/ui/TeamLogo'
@@ -26,8 +28,29 @@ export function TeamPage() {
   if (!team) {
     return (
       <Stack spacing={2}>
+        <Breadcrumbs
+          separator="/"
+          aria-label="breadcrumb"
+          sx={{
+            fontSize: 14,
+            '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+          }}
+        >
+          <MuiLink
+            component={RouterLink}
+            to="/teams"
+            underline="hover"
+            color="text.secondary"
+            sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+          >
+            Teams
+          </MuiLink>
+          <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+            Not Found
+          </Typography>
+        </Breadcrumbs>
         <Typography variant="h1">Team not found</Typography>
-        <Button component={Link} to="/teams" variant="outlined">
+        <Button component={RouterLink} to="/teams" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
           Back to teams
         </Button>
       </Stack>
@@ -46,9 +69,27 @@ export function TeamPage() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/teams" sx={{ alignSelf: 'flex-start' }}>
-        ← Teams
-      </Button>
+      <Breadcrumbs
+        separator="/"
+        aria-label="breadcrumb"
+        sx={{
+          fontSize: 14,
+          '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+        }}
+      >
+        <MuiLink
+          component={RouterLink}
+          to="/teams"
+          underline="hover"
+          color="text.secondary"
+          sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+        >
+          Teams
+        </MuiLink>
+        <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+          {team.name}
+        </Typography>
+      </Breadcrumbs>
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Stack spacing={2}>
@@ -71,7 +112,7 @@ export function TeamPage() {
                   onClick={() => setDialogOpen(true)}
                   sx={{ fontSize: 11, fontWeight: 700 }}
                 >
-                  📷 Change Logo (PNG / JPG)
+                  Change Logo (PNG / JPG)
                 </Button>
               ) : null}
             </Stack>
@@ -105,7 +146,7 @@ export function TeamPage() {
                   </Stack>
                   <Typography sx={{ fontWeight: 700 }}>K/D {player.stats.kd}</Typography>
                   <Typography color="text.secondary">Impact rating {player.stats.impact}</Typography>
-                  <Button component={Link} to={`/players/${player.id}`} variant="outlined" sx={{ mt: 'auto' }}>
+                  <Button component={RouterLink} to={`/players/${player.id}`} variant="outlined" sx={{ mt: 'auto' }}>
                     Player profile
                   </Button>
                 </Stack>

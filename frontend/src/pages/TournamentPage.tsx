@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
+import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Tab from '@mui/material/Tab'
 import Tabs from '@mui/material/Tabs'
 import Typography from '@mui/material/Typography'
-import { Link, useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useTournaments } from '../app/providers/useTournaments'
 import { MatchList } from '../components/MatchList'
 import { TournamentStatusLabel } from '../components/StatusChips'
@@ -53,8 +55,29 @@ export function TournamentPage() {
   if (!tournament) {
     return (
       <Stack spacing={2}>
+        <Breadcrumbs
+          separator="/"
+          aria-label="breadcrumb"
+          sx={{
+            fontSize: 14,
+            '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+          }}
+        >
+          <MuiLink
+            component={RouterLink}
+            to="/tournaments"
+            underline="hover"
+            color="text.secondary"
+            sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+          >
+            Tournaments
+          </MuiLink>
+          <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+            Not Found
+          </Typography>
+        </Breadcrumbs>
         <Typography variant="h1">Tournament not found</Typography>
-        <Button component={Link} to="/tournaments" variant="outlined">
+        <Button component={RouterLink} to="/tournaments" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
           Back to tournaments
         </Button>
       </Stack>
@@ -63,9 +86,27 @@ export function TournamentPage() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/tournaments" sx={{ alignSelf: 'flex-start' }}>
-        ← Tournaments
-      </Button>
+      <Breadcrumbs
+        separator="/"
+        aria-label="breadcrumb"
+        sx={{
+          fontSize: 14,
+          '& .MuiBreadcrumbs-separator': { mx: 1, color: 'text.secondary' },
+        }}
+      >
+        <MuiLink
+          component={RouterLink}
+          to="/tournaments"
+          underline="hover"
+          color="text.secondary"
+          sx={{ fontWeight: 600, '&:hover': { color: 'primary.main' } }}
+        >
+          Tournaments
+        </MuiLink>
+        <Typography color="text.primary" sx={{ fontWeight: 700, fontSize: 14 }}>
+          {tournament.title}
+        </Typography>
+      </Breadcrumbs>
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Stack spacing={1.5}>
@@ -104,8 +145,8 @@ export function TournamentPage() {
             },
           }}
         >
-          <Tab value="bracket" label="📊 TOURNAMENT BRACKET" />
-          <Tab value="matches" label="⚔️ ALL MATCHES" />
+          <Tab value="bracket" label="TOURNAMENT BRACKET" />
+          <Tab value="matches" label="ALL MATCHES" />
         </Tabs>
       </Box>
 

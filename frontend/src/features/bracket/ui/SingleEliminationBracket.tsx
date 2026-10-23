@@ -46,12 +46,9 @@ export function SingleEliminationBracket({ bracket }: SingleEliminationBracketPr
             {grandFinal ? (
               <Stack spacing={2} sx={{ width: 300 }}>
                 <Box sx={{ pb: 0.5, borderBottom: '2px solid #ffb300' }}>
-                  <Stack direction="row" spacing={0.8} sx={{ alignItems: 'center' }}>
-                    <Box sx={{ fontSize: 14 }}>🏆</Box>
-                    <Typography sx={{ fontSize: 12, fontWeight: 900, color: '#ffb300', textTransform: 'uppercase' }}>
-                      Grand Final
-                    </Typography>
-                  </Stack>
+                  <Typography sx={{ fontSize: 12, fontWeight: 900, color: '#ffb300', textTransform: 'uppercase' }}>
+                    Grand Final
+                  </Typography>
                 </Box>
 
                 <Paper

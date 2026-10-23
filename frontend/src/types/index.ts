@@ -41,7 +41,7 @@ export type Team = {
   region: string
   coach: string
   description: string
-  ranking: number
+  ranking?: number
   roster: string[]
   logoUrl?: string
 }
@@ -49,6 +49,7 @@ export type Team = {
 export type Player = {
   id: string
   name: string
+  birthDate?: string
   age: number
   role: string
   nationality: string
@@ -97,7 +98,7 @@ export type CreateTeamInput = {
   region: string
   coach: string
   description: string
-  ranking: number
+  ranking?: number
   roster?: string[]
   logoUrl?: string
 }
@@ -105,13 +106,14 @@ export type CreateTeamInput = {
 export type CreatePlayerInput = {
   id?: string
   name: string
-  age: number
+  birthDate?: string
+  age?: number
   role: string
   nationality: string
   teamId: string
   teamName: string
   avatarUrl?: string
-  stats: {
+  stats?: {
     kd: string
     impact: number
     maps: number
