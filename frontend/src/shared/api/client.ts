@@ -344,12 +344,24 @@ export function mapBracketView(raw: BackendBracketView): TournamentBracketView {
   }
 }
 
-let isRefreshing = false
-let refreshSubscribers: Array<(token: string) => void> = []
+interface FailedRequest {
+  resolve: (value: Response | PromiseLike<Response>) => void
+  reject: (reason?: unknown) => void
+  retry: (token: string) => Promise<Response>
+}
 
-function onTokenRefreshed(newToken: string) {
-  refreshSubscribers.forEach((cb) => cb(newToken))
-  refreshSubscribers = []
+let isRefreshing = false
+let failedQueue: FailedRequest[] = []
+
+function processQueue(error: Error | null, token: string | null = null) {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error)
+    } else if (token) {
+      prom.resolve(prom.retry(token))
+    }
+  })
+  failedQueue = []
 }
 
 async function requestWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
@@ -364,49 +376,65 @@ async function requestWithAuth(url: string, options: RequestInit = {}): Promise<
 
   const response = await fetch(url, { ...options, headers })
 
-  if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+  if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh') && !url.includes('/auth/logout')) {
     const refreshToken = storage.getRefreshToken()
     if (!refreshToken) {
       storage.clearAuth()
       return response
     }
 
-    if (!isRefreshing) {
-      isRefreshing = true
-      try {
-        const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
+    if (isRefreshing) {
+      return new Promise<Response>((resolve, reject) => {
+        failedQueue.push({
+          resolve,
+          reject,
+          retry: (newToken: string) => {
+            const retryHeaders = new Headers(options.headers || {})
+            if (!retryHeaders.has('Content-Type') && !(options.body instanceof FormData)) {
+              retryHeaders.set('Content-Type', 'application/json')
+            }
+            retryHeaders.set('Authorization', `Bearer ${newToken}`)
+            return fetch(url, { ...options, headers: retryHeaders })
+          },
         })
-
-        if (refreshRes.ok) {
-          const data = await refreshRes.json()
-          storage.setToken(data.access_token)
-          if (data.refresh_token) storage.setRefreshToken(data.refresh_token)
-          isRefreshing = false
-          onTokenRefreshed(data.access_token)
-
-          headers.set('Authorization', `Bearer ${data.access_token}`)
-          return fetch(url, { ...options, headers })
-        } else {
-          isRefreshing = false
-          storage.clearAuth()
-          return response
-        }
-      } catch {
-        isRefreshing = false
-        storage.clearAuth()
-        return response
-      }
+      })
     }
 
-    return new Promise((resolve) => {
-      refreshSubscribers.push((newToken) => {
-        headers.set('Authorization', `Bearer ${newToken}`)
-        resolve(fetch(url, { ...options, headers }))
+    isRefreshing = true
+    try {
+      const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
       })
-    })
+
+      if (refreshRes.ok) {
+        const data = await refreshRes.json()
+        storage.setToken(data.access_token)
+        if (data.refresh_token) storage.setRefreshToken(data.refresh_token)
+        if (data.user) storage.setUser(data.user)
+        isRefreshing = false
+        processQueue(null, data.access_token)
+
+        const retryHeaders = new Headers(options.headers || {})
+        if (!retryHeaders.has('Content-Type') && !(options.body instanceof FormData)) {
+          retryHeaders.set('Content-Type', 'application/json')
+        }
+        retryHeaders.set('Authorization', `Bearer ${data.access_token}`)
+        return fetch(url, { ...options, headers: retryHeaders })
+      } else {
+        isRefreshing = false
+        storage.clearAuth()
+        processQueue(new Error('Session expired. Please log in again.'), null)
+        return response
+      }
+    } catch (err) {
+      isRefreshing = false
+      storage.clearAuth()
+      const refreshErr = err instanceof Error ? err : new Error('Network error during refresh')
+      processQueue(refreshErr, null)
+      return response
+    }
   }
 
   return response
@@ -460,11 +488,13 @@ export const apiClient = {
     const refreshToken = storage.getRefreshToken()
     if (refreshToken) {
       try {
-        await requestWithAuth(`${API_BASE}/auth/logout`, {
+        await fetch(`${API_BASE}/auth/logout`, {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh_token: refreshToken }),
         })
       } catch {
+        // Safe fallback on network failure
       }
     }
     storage.clearAuth()

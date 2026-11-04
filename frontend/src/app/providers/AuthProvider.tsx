@@ -9,16 +9,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => storage.getToken())
   const [isLoading, setIsLoading] = useState(false)
 
-  const logout = useCallback(() => {
-    apiClient.logout().catch(() => {})
-    setToken(null)
-    setUser(null)
-    storage.clearAuth()
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.logout()
+    } catch {
+      // Ignore network errors during logout
+    } finally {
+      setToken(null)
+      setUser(null)
+      storage.clearAuth()
+    }
   }, [])
 
   useEffect(() => {
-    // Validate session on app launch
-    if (token) {
+    // Validate session only once on initial app mount
+    const savedToken = storage.getToken()
+    const savedRefreshToken = storage.getRefreshToken()
+    if (savedToken || savedRefreshToken) {
       apiClient
         .getMe()
         .then((freshUser) => {
@@ -26,10 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => {
           // Token invalid or expired and refresh failed
-          logout()
+          setToken(null)
+          setUser(null)
+          storage.clearAuth()
         })
     }
-  }, [token, logout])
+  }, [])
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)

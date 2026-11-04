@@ -7,6 +7,7 @@ from ..auth import (
     create_refresh_token,
     get_current_user,
     revoke_refresh_token,
+    verify_and_rotate_refresh_token,
     verify_password,
     verify_refresh_token,
 )
@@ -33,7 +34,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
         )
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is inactive",
         )
 
@@ -53,20 +54,18 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/refresh", response_model=schemas.TokenOut)
 def refresh_token_endpoint(payload: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
-    """Issues a new JWT access token using a valid, unrevoked, unexpired refresh token."""
-    token_record = verify_refresh_token(db, payload.refresh_token)
-    if not token_record:
+    """Issues a new JWT access token and rotated refresh token using a valid unrevoked refresh token."""
+    user, new_refresh_token, reason = verify_and_rotate_refresh_token(db, payload.refresh_token)
+    if not user or not new_refresh_token:
+        if reason == "inactive":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is inactive or not found",
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid, expired, or revoked refresh token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user = token_record.user
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive or not found",
         )
 
     user_out = crud.enrich_user(user)
@@ -76,7 +75,7 @@ def refresh_token_endpoint(payload: schemas.RefreshTokenRequest, db: Session = D
 
     return schemas.TokenOut(
         access_token=new_access_token,
-        refresh_token=token_record.token,
+        refresh_token=new_refresh_token,
         token_type="bearer",
         user=user_out,
     )
@@ -86,11 +85,15 @@ def refresh_token_endpoint(payload: schemas.RefreshTokenRequest, db: Session = D
 def logout(
     payload: schemas.RefreshTokenRequest,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),
 ):
-    """Terminates session and revokes refresh token."""
+    """Terminates session and revokes refresh token. Public endpoint (no Bearer token required), idempotent."""
     revoked = revoke_refresh_token(db, payload.refresh_token)
-    return {"status": "ok", "message": "Successfully logged out", "token_revoked": revoked}
+    return {
+        "status": "ok",
+        "detail": "Logged out successfully",
+        "message": "Successfully logged out",
+        "token_revoked": revoked,
+    }
 
 
 @router.get("/me", response_model=schemas.UserOut)

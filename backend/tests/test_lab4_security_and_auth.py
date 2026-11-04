@@ -8,6 +8,7 @@
 """
 
 import base64
+import datetime
 import os
 import sys
 import unittest
@@ -18,11 +19,13 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from app import models
 from app.auth import (
     create_access_token,
     create_refresh_token,
     decode_access_token,
     ensure_admin,
+    hash_refresh_token,
     is_user_admin,
     verify_refresh_token,
     revoke_refresh_token,
@@ -111,24 +114,30 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         self.assertEqual(me_res.json()["email"], "admin@local.com")
 
     def test_03_logout_revokes_refresh_token(self):
-        """Logout endpoint revokes refresh token so subsequent refresh attempts fail."""
+        """Logout endpoint is public (no Bearer token required), idempotent, and revokes refresh token."""
         login_res = self.client.post(
             "/api/auth/login",
             json={"email": "admin@local.com", "password": "admin"},
         )
         token_data = login_res.json()
-        access_token = token_data["access_token"]
         refresh_token = token_data["refresh_token"]
 
-        # Logout
+        # Logout WITHOUT Bearer token
         logout_res = self.client.post(
             "/api/auth/logout",
             json={"refresh_token": refresh_token},
-            headers={"Authorization": f"Bearer {access_token}"},
         )
         self.assertEqual(logout_res.status_code, 200)
+        self.assertEqual(logout_res.json().get("detail"), "Logged out successfully")
 
-        # Attempt to use revoked refresh token
+        # Second logout call with same token must also return 200 (idempotent)
+        logout_repeat = self.client.post(
+            "/api/auth/logout",
+            json={"refresh_token": refresh_token},
+        )
+        self.assertEqual(logout_repeat.status_code, 200)
+
+        # Attempt to use revoked refresh token must fail with 401
         ref_fail = self.client.post("/api/auth/refresh", json={"refresh_token": refresh_token})
         self.assertEqual(ref_fail.status_code, 401)
         self.assertIn("Invalid, expired, or revoked", ref_fail.json()["detail"])
@@ -188,3 +197,129 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         )
         self.assertEqual(res_fake.status_code, 400)
         self.assertIn("not a valid raster image", res_fake.json()["detail"])
+
+    def test_06_expired_and_fake_refresh_tokens(self):
+        """Expired or fake refresh tokens must be rejected with 401 Unauthorized."""
+        # 1. Non-existent / fake token
+        res_fake = self.client.post("/api/auth/refresh", json={"refresh_token": "non_existent_fake_refresh_token"})
+        self.assertEqual(res_fake.status_code, 401)
+
+        # 2. Expired token
+        login_res = self.client.post(
+            "/api/auth/login",
+            json={"email": "admin@local.com", "password": "admin"},
+        )
+        refresh_token = login_res.json()["refresh_token"]
+
+        # Manually expire the token in database
+        h = hash_refresh_token(refresh_token)
+        token_record = self.db.query(models.RefreshToken).filter(models.RefreshToken.token_hash == h).first()
+        self.assertIsNotNone(token_record)
+        token_record.expires_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(days=1)
+        self.db.commit()
+
+        res_expired = self.client.post("/api/auth/refresh", json={"refresh_token": refresh_token})
+        self.assertEqual(res_expired.status_code, 401)
+
+    def test_07_token_rotation_and_revoked_token_reuse_detection(self):
+        """Token rotation issues new refresh token; replaying revoked token returns 401 and revokes family."""
+        login_res = self.client.post(
+            "/api/auth/login",
+            json={"email": "admin@local.com", "password": "admin"},
+        )
+        refresh_1 = login_res.json()["refresh_token"]
+
+        # First refresh: succeeds and rotates
+        ref1_res = self.client.post("/api/auth/refresh", json={"refresh_token": refresh_1})
+        self.assertEqual(ref1_res.status_code, 200)
+        refresh_2 = ref1_res.json()["refresh_token"]
+        self.assertNotEqual(refresh_1, refresh_2)
+
+        # Attempt to reuse refresh_1 (already revoked by rotation)
+        replay_res = self.client.post("/api/auth/refresh", json={"refresh_token": refresh_1})
+        self.assertEqual(replay_res.status_code, 401)
+
+        # Token reuse detection should have invalidated all user tokens, so refresh_2 also fails
+        ref2_res = self.client.post("/api/auth/refresh", json={"refresh_token": refresh_2})
+        self.assertEqual(ref2_res.status_code, 401)
+
+    def test_08_inactive_user_cannot_login_or_refresh(self):
+        """Deactivated user account (is_active=False) cannot log in or exchange refresh tokens."""
+        # Register user and get initial tokens
+        reg_res = self.client.post(
+            "/api/auth/register",
+            json={"email": "inactive_test@local.com", "nickname": "inact_test", "password": "password123"},
+        )
+        self.assertEqual(reg_res.status_code, 201)
+
+        login_res = self.client.post(
+            "/api/auth/login",
+            json={"email": "inactive_test@local.com", "password": "password123"},
+        )
+        self.assertEqual(login_res.status_code, 200)
+        refresh_token = login_res.json()["refresh_token"]
+
+        # Deactivate user
+        user = self.db.query(models.User).filter(models.User.email == "inactive_test@local.com").first()
+        self.assertIsNotNone(user)
+        user.is_active = False
+        self.db.commit()
+
+        # Cannot login
+        login_blocked = self.client.post(
+            "/api/auth/login",
+            json={"email": "inactive_test@local.com", "password": "password123"},
+        )
+        self.assertEqual(login_blocked.status_code, 401)
+
+        # Cannot refresh
+        ref_blocked = self.client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": refresh_token},
+        )
+        self.assertEqual(ref_blocked.status_code, 401)
+
+    def test_09_non_admin_cannot_create_tournament(self):
+        """Regular user (is_admin=False) gets 403 Forbidden when trying to create tournaments."""
+        reg_res = self.client.post(
+            "/api/auth/register",
+            json={"email": "regular_player@local.com", "nickname": "regular_guy", "password": "password123"},
+        )
+        self.assertEqual(reg_res.status_code, 201)
+
+        login_res = self.client.post(
+            "/api/auth/login",
+            json={"email": "regular_player@local.com", "password": "password123"},
+        )
+        regular_token = login_res.json()["access_token"]
+
+        tourney_payload = {
+            "title": "Unauthorized Cup",
+            "prize_pool": "$10,000",
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-05",
+            "status": "Upcoming",
+            "location": "Online",
+            "bracket_type": "single_elimination",
+        }
+
+        # Regular user attempt -> 403
+        post_res = self.client.post(
+            "/api/tournaments",
+            json=tourney_payload,
+            headers={"Authorization": f"Bearer {regular_token}"},
+        )
+        self.assertEqual(post_res.status_code, 403)
+
+        # Admin attempt -> 201
+        admin_login = self.client.post(
+            "/api/auth/login",
+            json={"email": "admin@local.com", "password": "admin"},
+        )
+        admin_token = admin_login.json()["access_token"]
+        admin_post = self.client.post(
+            "/api/tournaments",
+            json=tourney_payload,
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        self.assertEqual(admin_post.status_code, 201)

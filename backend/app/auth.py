@@ -107,20 +107,40 @@ def decode_access_token(token: str) -> dict | None:
         return None
 
 
+def hash_refresh_token(token_str: str) -> str:
+    """Returns the SHA-256 digest of the refresh token to prevent plain-text storage."""
+    return hashlib.sha256(token_str.encode("utf-8")).hexdigest()
+
+
+def cleanup_stale_refresh_tokens(db: Session) -> None:
+    """Removes expired or revoked refresh token records older than 30 days."""
+    from .models import RefreshToken
+
+    try:
+        cutoff = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(days=30)
+        db.query(RefreshToken).filter(RefreshToken.created_at < cutoff).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 def create_refresh_token(db: Session, user_id: int) -> str:
     """Generates and persists a cryptographically secure refresh token for the user session."""
     from .models import RefreshToken
 
+    cleanup_stale_refresh_tokens(db)
     raw_token = secrets.token_urlsafe(64)
+    token_hash = hash_refresh_token(raw_token)
     expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
         days=settings.REFRESH_TOKEN_EXPIRE_DAYS
     )
 
     db_token = RefreshToken(
-        token=raw_token,
+        token_hash=token_hash,
         user_id=user_id,
         expires_at=expires_at.replace(tzinfo=None),
         revoked=False,
+        revoked_at=None,
     )
     db.add(db_token)
     db.commit()
@@ -128,13 +148,75 @@ def create_refresh_token(db: Session, user_id: int) -> str:
     return raw_token
 
 
+def verify_and_rotate_refresh_token(db: Session, token_str: str):
+    """Validates refresh token, checks for revoked token reuse, and performs rotation.
+    Returns (user, new_raw_token, status_reason).
+    """
+    from .models import RefreshToken
+
+    if not token_str:
+        return None, None, "missing"
+
+    token_hash = hash_refresh_token(token_str)
+    token_record = db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+    if not token_record:
+        return None, None, "not_found"
+
+    now_naive = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+    # Token reuse detection: if token was already revoked, revoke all tokens for this user
+    if token_record.revoked or token_record.revoked_at is not None:
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == token_record.user_id,
+            RefreshToken.revoked.is_(False),
+        ).update({"revoked": True, "revoked_at": now_naive}, synchronize_session=False)
+        db.commit()
+        return None, None, "revoked_reuse"
+
+    # Check expiration
+    if token_record.expires_at < now_naive:
+        token_record.revoked = True
+        token_record.revoked_at = now_naive
+        db.commit()
+        return None, None, "expired"
+
+    user = token_record.user
+    if not user or not user.is_active:
+        return None, None, "inactive"
+
+    # Revoke old token
+    token_record.revoked = True
+    token_record.revoked_at = now_naive
+
+    # Issue new rotated refresh token
+    new_raw_token = secrets.token_urlsafe(64)
+    new_token_hash = hash_refresh_token(new_raw_token)
+    new_expires = now_naive + datetime.timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+    new_token_record = RefreshToken(
+        token_hash=new_token_hash,
+        user_id=user.id,
+        expires_at=new_expires,
+        revoked=False,
+        revoked_at=None,
+    )
+    db.add(new_token_record)
+    db.commit()
+
+    return user, new_raw_token, "ok"
+
+
 def verify_refresh_token(db: Session, token_str: str):
     """Validates that a refresh token exists, is not revoked, and has not expired."""
     from .models import RefreshToken
 
+    if not token_str:
+        return None
+
+    token_hash = hash_refresh_token(token_str)
     token_record = (
         db.query(RefreshToken)
-        .filter(RefreshToken.token == token_str, RefreshToken.revoked.is_(False))
+        .filter(RefreshToken.token_hash == token_hash, RefreshToken.revoked.is_(False))
         .first()
     )
     if not token_record:
@@ -143,6 +225,7 @@ def verify_refresh_token(db: Session, token_str: str):
     now_naive = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     if token_record.expires_at < now_naive:
         token_record.revoked = True
+        token_record.revoked_at = now_naive
         db.commit()
         return None
 
@@ -153,10 +236,16 @@ def revoke_refresh_token(db: Session, token_str: str) -> bool:
     """Revokes a refresh token on user logout."""
     from .models import RefreshToken
 
-    token_record = db.query(RefreshToken).filter(RefreshToken.token == token_str).first()
+    if not token_str:
+        return False
+
+    token_hash = hash_refresh_token(token_str)
+    token_record = db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
     if token_record:
-        token_record.revoked = True
-        db.commit()
+        if not token_record.revoked:
+            token_record.revoked = True
+            token_record.revoked_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            db.commit()
         return True
     return False
 
