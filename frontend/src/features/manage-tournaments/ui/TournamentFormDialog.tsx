@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -17,6 +18,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import type { BracketType, CreateTournamentInput, Tournament, TournamentStatus } from '../../../types'
 import { validateTournamentForm } from '../../../shared/utils/validation'
+import { getErrorMessage } from '../../../shared/api/errors'
 
 interface TournamentFormDialogProps {
   open: boolean
@@ -28,6 +30,8 @@ interface TournamentFormDialogProps {
 const BRACKET_OPTIONS: { label: string; value: BracketType }[] = [
   { label: 'Double Elimination', value: 'double_elimination' },
   { label: 'Single Elimination', value: 'single_elimination' },
+  { label: 'Round Robin', value: 'round_robin' },
+  { label: 'Swiss System', value: 'swiss' },
 ]
 
 function TournamentFormContent({
@@ -54,6 +58,7 @@ function TournamentFormContent({
   )
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,6 +78,7 @@ function TournamentFormContent({
     }
 
     setIsSubmitting(true)
+    setSubmitError(null)
     try {
       await onSubmit({
         title: title.trim(),
@@ -84,6 +90,8 @@ function TournamentFormContent({
         bracketType,
       })
       onClose()
+    } catch (err: unknown) {
+      setSubmitError(getErrorMessage(err))
     } finally {
       setIsSubmitting(false)
     }
@@ -98,6 +106,11 @@ function TournamentFormContent({
       </DialogTitle>
 
       <DialogContent sx={{ p: 3, pt: 3 }}>
+        {submitError ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {submitError}
+          </Alert>
+        ) : null}
         <Stack spacing={2.5} sx={{ mt: 1 }}>
           <TextField
             label="Tournament Title"

@@ -11,7 +11,6 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { ImageUploadField } from '../../../shared/ui/ImageUploadField'
 import { validateTeamForm } from '../../../shared/utils/validation'
-import { storage } from '../../../shared/api/storage'
 import type { Team } from '../../../types'
 
 interface EditTeamDialogProps {
@@ -36,7 +35,7 @@ function EditTeamFormContent({
   const [coach, setCoach] = useState(() => team.coach || '')
   const [description, setDescription] = useState(() => team.description || '')
   const [rosterText, setRosterText] = useState(() => (team.roster || []).join(', '))
-  const [logoUrl, setLogoUrl] = useState(() => team.logoUrl || storage.getTeamLogo(team.name) || '')
+  const [logoUrl, setLogoUrl] = useState(() => team.logoUrl || '')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 

@@ -19,6 +19,7 @@ import Typography from '@mui/material/Typography'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import type { BracketType, TournamentBracketView, BracketMatch, Tournament, Team } from '../../types'
 import { apiClient } from '../../shared/api/client'
+import { getErrorMessage } from '../../shared/api/errors'
 import { TeamLogo } from '../../shared/ui/TeamLogo'
 import { DoubleEliminationBracket } from '../../features/bracket/ui/DoubleEliminationBracket'
 import { SingleEliminationBracket } from '../../features/bracket/ui/SingleEliminationBracket'
@@ -134,7 +135,7 @@ export function AdminBracketEditorPage() {
       await apiClient.updateTournament(selectedTournamentId, { bracketType: newFormat })
       setNotification(`Bracket regenerated as ${newFormat.replace('_', ' ').toUpperCase()} on server!`)
     } catch (err: unknown) {
-      setNotification(err instanceof Error ? err.message : 'Failed to regenerate bracket')
+      setNotification(getErrorMessage(err))
     } finally {
       setIsRegenerating(false)
     }

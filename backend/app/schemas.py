@@ -195,6 +195,18 @@ class PlayerMatchStatCreate(PlayerMatchStatBase):
     pass
 
 
+class PlayerMatchStatUpdate(BaseModel):
+    map_id: int | None = None
+    kills: int | None = None
+    deaths: int | None = None
+    assists: int | None = None
+    headshots: int | None = None
+    adr: float | None = None
+    kast: float | None = None
+    rating: float | None = None
+    is_mvp: bool | None = None
+
+
 class PlayerMatchStatOut(PlayerMatchStatBase):
     model_config = ConfigDict(from_attributes=True)
     id: int

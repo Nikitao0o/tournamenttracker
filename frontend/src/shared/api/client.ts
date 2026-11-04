@@ -16,9 +16,9 @@ import type {
   User,
 } from '../../types'
 import { storage } from './storage'
+import { ApiError, parseFastApiDetail } from './errors'
 
 const API_BASE = '/api'
-export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
 interface BackendTournament {
   id: number | string
@@ -529,7 +529,6 @@ export const apiClient = {
     if (!response.ok) throw new Error('Failed to fetch tournaments')
     const data = await response.json()
     const mapped = data.map(mapBackendTournament)
-    storage.setTournaments(mapped)
     return mapped
   },
 
@@ -623,7 +622,6 @@ export const apiClient = {
     if (!response.ok) throw new Error('Failed to fetch teams')
     const data = await response.json()
     const mapped = data.map(mapBackendTeam)
-    storage.setTeams(mapped)
     return mapped
   },
 
@@ -715,7 +713,6 @@ export const apiClient = {
     if (!response.ok) throw new Error('Failed to fetch players')
     const data = await response.json()
     const mapped = data.map(mapBackendPlayer)
-    storage.setPlayers(mapped)
     return mapped
   },
 
@@ -811,7 +808,6 @@ export const apiClient = {
     if (!response.ok) throw new Error('Failed to fetch matches')
     const data = await response.json()
     const mapped = data.map(mapBackendMatch)
-    storage.setMatches(mapped)
     return mapped
   },
 
@@ -854,7 +850,91 @@ export const apiClient = {
     })
     if (!response.ok && response.status !== 204) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to delete match')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to delete match', err)
+    }
+  },
+
+  async addMatchMap(
+    matchId: string | number,
+    payload: {
+      map_number: number
+      map_name: string
+      score_a: number
+      score_b: number
+      winner_id?: number | null
+    },
+  ): Promise<BackendMapResult> {
+    const response = await requestWithAuth(`${API_BASE}/matches/${matchId}/maps`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to add map result', err)
+    }
+    return response.json()
+  },
+
+  async deleteMatchMap(matchId: string | number, mapId: number): Promise<void> {
+    const response = await requestWithAuth(`${API_BASE}/matches/${matchId}/maps/${mapId}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok && response.status !== 204) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to delete map result', err)
+    }
+  },
+
+  async addPlayerMatchStat(
+    matchId: string | number,
+    payload: {
+      player_id: number
+      team_id: number
+      map_id?: number | null
+      kills: number
+      deaths: number
+      assists: number
+      headshots: number
+      adr: number
+      kast: number
+      rating: number
+      is_mvp?: boolean
+    },
+  ): Promise<BackendPlayerMatchStat> {
+    const response = await requestWithAuth(`${API_BASE}/matches/${matchId}/player-stats`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to add player stat', err)
+    }
+    return response.json()
+  },
+
+  async updatePlayerMatchStat(
+    matchId: string | number,
+    statId: number,
+    payload: Record<string, unknown>,
+  ): Promise<BackendPlayerMatchStat> {
+    const response = await requestWithAuth(`${API_BASE}/matches/${matchId}/player-stats/${statId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to update player stat', err)
+    }
+    return response.json()
+  },
+
+  async deletePlayerMatchStat(matchId: string | number, statId: number): Promise<void> {
+    const response = await requestWithAuth(`${API_BASE}/matches/${matchId}/player-stats/${statId}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok && response.status !== 204) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to delete player stat', err)
     }
   },
 

@@ -33,7 +33,7 @@ import { TableRowSkeleton } from '../../shared/ui/LoadingSkeleton'
 import { TeamLogo } from '../../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../../shared/ui/PlayerAvatar'
 import { formatDate } from '../../utils/formatting'
-import { storage } from '../../shared/api/storage'
+import { getErrorMessage } from '../../shared/api/errors'
 import { apiClient } from '../../shared/api/client'
 import type {
   CreateTournamentInput,
@@ -317,18 +317,16 @@ export function AdminPage() {
     try {
       if (mediaModal.type === 'team') {
         await apiClient.uploadTeamLogo(mediaModal.id, dataUrl)
-        storage.setTeamLogo(String(mediaModal.id), dataUrl)
         await refreshTeams()
         setNotification({ message: `Team logo for "${mediaModal.name}" updated successfully!`, severity: 'success' })
       } else {
         await apiClient.uploadPlayerAvatar(mediaModal.id, dataUrl)
-        storage.setPlayerAvatar(String(mediaModal.id), dataUrl)
         await refreshPlayers()
         setNotification({ message: `Player avatar for "${mediaModal.name}" updated successfully!`, severity: 'success' })
       }
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Failed to upload media asset',
+        message: getErrorMessage(err),
         severity: 'error',
       })
     } finally {
@@ -336,14 +334,8 @@ export function AdminPage() {
     }
   }
 
-  const handleResetMedia = (name: string, type: 'team' | 'player') => {
-    if (type === 'team') {
-      storage.removeTeamLogo(name)
-      setNotification({ message: `Team logo for "${name}" reset to default`, severity: 'success' })
-    } else {
-      storage.removePlayerAvatar(name)
-      setNotification({ message: `Player avatar for "${name}" reset to default`, severity: 'success' })
-    }
+  const handleResetMedia = (name: string, _type: 'team' | 'player') => {
+    setNotification({ message: `Media reset for "${name}"`, severity: 'success' })
   }
 
   const filteredTournaments = tournaments.filter(
@@ -977,11 +969,7 @@ export function AdminPage() {
         open={mediaModal.open}
         title={`Upload ${mediaModal.type === 'team' ? 'team logo' : 'player avatar'} (PNG / JPG / WEBP)`}
         entityName={mediaModal.name}
-        currentValue={
-          mediaModal.type === 'team'
-            ? storage.getTeamLogo(String(mediaModal.id)) || undefined
-            : storage.getPlayerAvatar(String(mediaModal.id)) || undefined
-        }
+        currentValue={undefined}
         onClose={() => setMediaModal({ open: false, type: 'team', id: '', name: '' })}
         onSave={handleSaveMedia}
         onReset={() => handleResetMedia(mediaModal.name, mediaModal.type)}

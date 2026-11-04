@@ -1281,3 +1281,67 @@ def add_player_match_stat(
         rating=stat.rating,
         is_mvp=stat.is_mvp,
     )
+
+
+def delete_map_result(db: Session, match_id: int, map_id: int) -> None:
+    mr = (
+        db.query(models.MapResult)
+        .filter(models.MapResult.id == map_id, models.MapResult.match_id == match_id)
+        .first()
+    )
+    if not mr:
+        raise HTTPException(status_code=404, detail="Map result not found")
+    # Cascade delete associated player match stats for this map
+    db.query(models.PlayerMatchStat).filter(models.PlayerMatchStat.map_id == map_id).delete(
+        synchronize_session=False
+    )
+    db.delete(mr)
+    db.commit()
+
+
+def update_player_match_stat(
+    db: Session, match_id: int, stat_id: int, payload: schemas.PlayerMatchStatUpdate
+) -> schemas.PlayerMatchStatOut:
+    stat = (
+        db.query(models.PlayerMatchStat)
+        .filter(models.PlayerMatchStat.id == stat_id, models.PlayerMatchStat.match_id == match_id)
+        .first()
+    )
+    if not stat:
+        raise HTTPException(status_code=404, detail="Player match stat not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(stat, k, v)
+
+    db.commit()
+    db.refresh(stat)
+    return schemas.PlayerMatchStatOut(
+        id=stat.id,
+        match_id=stat.match_id,
+        map_id=stat.map_id,
+        player_id=stat.player_id,
+        player_nickname=stat.player.nickname if stat.player else None,
+        team_id=stat.team_id,
+        team_name=stat.team.name if stat.team else None,
+        kills=stat.kills,
+        deaths=stat.deaths,
+        assists=stat.assists,
+        headshots=stat.headshots,
+        adr=stat.adr,
+        kast=stat.kast,
+        rating=stat.rating,
+        is_mvp=stat.is_mvp,
+    )
+
+
+def delete_player_match_stat(db: Session, match_id: int, stat_id: int) -> None:
+    stat = (
+        db.query(models.PlayerMatchStat)
+        .filter(models.PlayerMatchStat.id == stat_id, models.PlayerMatchStat.match_id == match_id)
+        .first()
+    )
+    if not stat:
+        raise HTTPException(status_code=404, detail="Player match stat not found")
+    db.delete(stat)
+    db.commit()

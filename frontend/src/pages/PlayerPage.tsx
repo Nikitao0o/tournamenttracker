@@ -16,7 +16,7 @@ import type { Player, Team } from '../types'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
-import { storage } from '../shared/api/storage'
+import { getErrorMessage } from '../shared/api/errors'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
 export function PlayerPage() {
@@ -73,16 +73,13 @@ export function PlayerPage() {
     try {
       const updated = await apiClient.uploadPlayerAvatar(player.id, dataUrl)
       setPlayer(updated)
-      storage.setPlayerAvatar(String(player.id), dataUrl)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to upload player avatar'
-      alert(msg)
+      alert(getErrorMessage(err))
     }
   }
 
   const handleResetAvatar = () => {
     if (!player) return
-    storage.removePlayerAvatar(String(player.id))
   }
 
   if (isLoading) {
@@ -237,7 +234,7 @@ export function PlayerPage() {
           open={dialogOpen}
           title="Upload Player Avatar (PNG / JPG)"
           entityName={player.name}
-          currentValue={player.avatarUrl || storage.getPlayerAvatar(String(player.id)) || undefined}
+          currentValue={player.avatarUrl || undefined}
           onClose={() => setDialogOpen(false)}
           onSave={handleSaveAvatar}
           onReset={handleResetAvatar}

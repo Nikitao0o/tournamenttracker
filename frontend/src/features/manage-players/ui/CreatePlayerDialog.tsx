@@ -39,11 +39,12 @@ function getAgeFromBirthDate(birthDateStr: string): number {
 }
 
 export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: CreatePlayerDialogProps) {
+  const [nickname, setNickname] = useState('')
   const [name, setName] = useState('')
   const [birthDate, setBirthDate] = useState('2004-05-15')
   const [role, setRole] = useState('Entry Fragger')
   const [nationality, setNationality] = useState('European')
-  const [selectedTeamId, setSelectedTeamId] = useState(availableTeams[0]?.id || 'team-spirit')
+  const [selectedTeamId, setSelectedTeamId] = useState(availableTeams[0]?.id || '')
   const [avatarUrl, setAvatarUrl] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -54,22 +55,28 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
     e.preventDefault()
 
     const formErrors = validatePlayerForm({
+      nickname,
       name,
       role,
       nationality,
       teamName: selectedTeam?.name || 'Free Agent',
     })
 
+    if (!selectedTeamId && availableTeams.length > 0) {
+      formErrors.teamId = 'Please select a team'
+    }
+
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors)
       return
     }
 
-    const playerId = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
+    const playerId = nickname.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
     const calculatedAge = getAgeFromBirthDate(birthDate)
 
     onSubmit({
       id: playerId,
+      nickname: nickname.trim(),
       name: name.trim(),
       birthDate,
       age: calculatedAge,
@@ -85,6 +92,7 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
       },
     })
 
+    setNickname('')
     setName('')
     setBirthDate('2004-05-15')
     setRole('Entry Fragger')
@@ -106,10 +114,25 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
         <DialogContent sx={{ p: 3 }}>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 7 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="Player Nickname / Full Name"
-                  placeholder="e.g. m0NESY (Ilya Osipov)"
+                  label="Nickname / Никнейм"
+                  placeholder="e.g. s1mple"
+                  value={nickname}
+                  onChange={(e) => {
+                    setNickname(e.target.value)
+                    if (errors.nickname) setErrors((prev) => ({ ...prev, nickname: '' }))
+                  }}
+                  error={Boolean(errors.nickname)}
+                  helperText={errors.nickname}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Full Name / Настоящее имя"
+                  placeholder="e.g. Oleksandr Kostyliev"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value)
@@ -121,7 +144,10 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
                   required
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 5 }}>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Date of Birth"
                   type="date"
@@ -131,6 +157,31 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
                   fullWidth
                   required
                 />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <FormControl fullWidth error={Boolean(errors.teamId)}>
+                  <InputLabel id="player-team-label">Team</InputLabel>
+                  <Select
+                    labelId="player-team-label"
+                    value={selectedTeamId}
+                    label="Team"
+                    onChange={(e) => {
+                      setSelectedTeamId(e.target.value)
+                      if (errors.teamId) setErrors((prev) => ({ ...prev, teamId: '' }))
+                    }}
+                  >
+                    {availableTeams.map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.name} ({t.shortName})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {errors.teamId ? (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      {errors.teamId}
+                    </Typography>
+                  ) : null}
+                </FormControl>
               </Grid>
             </Grid>
 
@@ -168,22 +219,6 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
                 />
               </Grid>
             </Grid>
-
-            <FormControl fullWidth>
-              <InputLabel id="player-team-label">Assigned Team</InputLabel>
-              <Select
-                labelId="player-team-label"
-                value={selectedTeamId}
-                label="Assigned Team"
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-              >
-                {availableTeams.map((team) => (
-                  <MenuItem key={team.id} value={team.id}>
-                    {team.name} ({team.shortName})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
 
             <ImageUploadField
               label="Player Avatar (.PNG or .JPG):"

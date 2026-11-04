@@ -15,7 +15,6 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { ImageUploadField } from '../../../shared/ui/ImageUploadField'
 import { validatePlayerForm } from '../../../shared/utils/validation'
-import { storage } from '../../../shared/api/storage'
 import type { Player, Team } from '../../../types'
 
 interface EditPlayerDialogProps {
@@ -39,11 +38,12 @@ function EditPlayerFormContent({
   onClose: () => void
   onSubmit: (updated: Player) => void
 }) {
+  const [nickname, setNickname] = useState(() => player.nickname || player.name)
   const [name, setName] = useState(() => player.name)
   const [role, setRole] = useState(() => player.role)
   const [nationality, setNationality] = useState(() => player.nationality)
   const [selectedTeamId, setSelectedTeamId] = useState(() => player.teamId || availableTeams[0]?.id || '')
-  const [avatarUrl, setAvatarUrl] = useState(() => player.avatarUrl || storage.getPlayerAvatar(player.name) || '')
+  const [avatarUrl, setAvatarUrl] = useState(() => player.avatarUrl || '')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -53,6 +53,7 @@ function EditPlayerFormContent({
     e.preventDefault()
 
     const formErrors = validatePlayerForm({
+      nickname,
       name,
       role,
       nationality,
@@ -66,6 +67,7 @@ function EditPlayerFormContent({
 
     const updated: Player = {
       ...player,
+      nickname: nickname.trim(),
       name: name.trim(),
       role,
       nationality: nationality.trim(),
@@ -81,24 +83,42 @@ function EditPlayerFormContent({
     <Box component="form" onSubmit={handleSubmit} noValidate>
       <DialogTitle sx={{ bgcolor: 'secondary.main', color: '#fff', py: 2 }}>
         <Typography variant="h2" sx={{ color: '#fff', fontSize: 16 }}>
-          Edit Player Profile: {player.name}
+          Edit Player Profile: {nickname}
         </Typography>
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
-          <TextField
-            label="Player Nickname / Full Name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
-            }}
-            error={Boolean(errors.name)}
-            helperText={errors.name}
-            fullWidth
-            required
-          />
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Nickname / Никнейм"
+                value={nickname}
+                onChange={(e) => {
+                  setNickname(e.target.value)
+                  if (errors.nickname) setErrors((prev) => ({ ...prev, nickname: '' }))
+                }}
+                error={Boolean(errors.nickname)}
+                helperText={errors.nickname}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Full Name / Настоящее имя"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+                }}
+                error={Boolean(errors.name)}
+                helperText={errors.name}
+                fullWidth
+                required
+              />
+            </Grid>
+          </Grid>
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>

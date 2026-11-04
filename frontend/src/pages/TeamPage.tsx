@@ -16,7 +16,7 @@ import type { Player, Team } from '../types'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
-import { storage } from '../shared/api/storage'
+import { getErrorMessage } from '../shared/api/errors'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
 function getSlug(name: string): string {
@@ -73,16 +73,13 @@ export function TeamPage() {
     try {
       const updated = await apiClient.uploadTeamLogo(team.id, dataUrl)
       setTeam(updated)
-      storage.setTeamLogo(String(team.id), dataUrl)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to upload team logo'
-      alert(msg)
+      alert(getErrorMessage(err))
     }
   }
 
   const handleResetLogo = () => {
     if (!team) return
-    storage.removeTeamLogo(String(team.id))
   }
 
   if (isLoading) {
@@ -225,7 +222,7 @@ export function TeamPage() {
           open={dialogOpen}
           title="Upload Team Logo (PNG / JPG)"
           entityName={team.name}
-          currentValue={team.logoUrl || storage.getTeamLogo(String(team.id)) || undefined}
+          currentValue={team.logoUrl || undefined}
           onClose={() => setDialogOpen(false)}
           onSave={handleSaveLogo}
           onReset={handleResetLogo}

@@ -75,6 +75,17 @@ def add_map(
     return crud.add_map_result(db, match_id, payload)
 
 
+@router.delete("/{match_id}/maps/{map_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_map(
+    match_id: int,
+    map_id: int,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Delete individual map score breakdown from a match (admin only)."""
+    crud.delete_map_result(db, match_id, map_id)
+
+
 @router.post("/{match_id}/player-stats", response_model=schemas.PlayerMatchStatOut, status_code=status.HTTP_201_CREATED)
 def add_player_stat(
     match_id: int,
@@ -84,3 +95,26 @@ def add_player_stat(
 ):
     """Record player performance statistics for a match (admin only)."""
     return crud.add_player_match_stat(db, match_id, payload)
+
+
+@router.patch("/{match_id}/player-stats/{stat_id}", response_model=schemas.PlayerMatchStatOut)
+def update_player_stat(
+    match_id: int,
+    stat_id: int,
+    payload: schemas.PlayerMatchStatUpdate,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Update a player match stat (admin only)."""
+    return crud.update_player_match_stat(db, match_id, stat_id, payload)
+
+
+@router.delete("/{match_id}/player-stats/{stat_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_player_stat(
+    match_id: int,
+    stat_id: int,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Delete a player match stat (admin only)."""
+    crud.delete_player_match_stat(db, match_id, stat_id)

@@ -3,10 +3,13 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import type { Match } from '../types'
-import { getTeamSlug } from '../mock/data'
 import { MatchStatusLabel, ScorePair } from './StatusChips'
 import { formatDateShort } from '../utils/formatting'
 import { TeamLogo } from '../shared/ui/TeamLogo'
+
+function getTeamSlug(name: string): string {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
 
 type MatchRowProps = {
   match: Match

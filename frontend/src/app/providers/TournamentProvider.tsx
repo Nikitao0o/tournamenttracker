@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { CreateTournamentInput, Tournament, UpdateTournamentInput } from '../../types'
 import { apiClient } from '../../shared/api/client'
-import { storage } from '../../shared/api/storage'
+import { getErrorMessage } from '../../shared/api/errors'
 import { TournamentContext } from './TournamentContext'
 
 export function TournamentProvider({ children }: { children: ReactNode }) {
-  const [tournaments, setTournaments] = useState<Tournament[]>(() => storage.getTournaments() ?? [])
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -16,7 +16,7 @@ export function TournamentProvider({ children }: { children: ReactNode }) {
       const data = await apiClient.getTournaments()
       setTournaments(data)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load tournaments')
+      setError(getErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
@@ -34,7 +34,7 @@ export function TournamentProvider({ children }: { children: ReactNode }) {
       })
       .catch((err: unknown) => {
         if (active) {
-          setError(err instanceof Error ? err.message : 'Failed to load tournaments')
+          setError(getErrorMessage(err))
           setIsLoading(false)
         }
       })

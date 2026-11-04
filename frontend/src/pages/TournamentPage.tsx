@@ -10,6 +10,7 @@ import Tabs from '@mui/material/Tabs'
 import Typography from '@mui/material/Typography'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useTournaments } from '../app/providers/useTournaments'
+import { useAuth } from '../app/providers/useAuth'
 import { MatchList } from '../components/MatchList'
 import { TournamentStatusLabel } from '../components/StatusChips'
 import { apiClient } from '../shared/api/client'
@@ -19,6 +20,7 @@ import { TournamentBracketView } from '../features/bracket/ui/TournamentBracketV
 
 export function TournamentPage() {
   const { id } = useParams<{ id: string }>()
+  const { isAdmin } = useAuth()
   const { getTournament } = useTournaments()
   const [activeTab, setActiveTab] = useState<'bracket' | 'matches'>('bracket')
   const [bracket, setBracket] = useState<BracketViewType | null>(null)
@@ -123,6 +125,17 @@ export function TournamentPage() {
               {tournament.title}
             </Typography>
             <TournamentStatusLabel status={tournament.status} />
+            {isAdmin ? (
+              <Button
+                component={RouterLink}
+                to={`/admin/bracket?tournament=${tournament.id}`}
+                size="small"
+                variant="outlined"
+                sx={{ ml: 'auto', fontSize: 11, fontWeight: 700 }}
+              >
+                ⚙ Manage Bracket & Seeds
+              </Button>
+            ) : null}
           </Stack>
           <Typography color="text.secondary">{tournament.location}</Typography>
           <Typography sx={{ fontWeight: 600 }}>Prize pool {tournament.prizePool}</Typography>

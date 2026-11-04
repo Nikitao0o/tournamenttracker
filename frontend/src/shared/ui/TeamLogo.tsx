@@ -2,9 +2,7 @@ import { useState } from 'react'
 import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
 import type { SxProps, Theme } from '@mui/material/styles'
-import { getTeamLogoData } from './teamLogosData'
 import { resolveImageUrl } from '../utils/image'
-import { storage } from '../api/storage'
 
 interface TeamLogoProps {
   teamName?: string
@@ -18,14 +16,17 @@ interface TeamLogoProps {
 export function TeamLogo({
   teamName,
   logoUrl,
-  preferredFormat,
   size = 28,
   variant = 'rounded',
   sx,
 }: TeamLogoProps) {
-  const [attempt, setAttempt] = useState(0)
+  const [hasError, setHasError] = useState(false)
 
-  const isTBD = !teamName || teamName.trim() === '' || teamName.toUpperCase() === 'TBD' || teamName === 'To Be Decided'
+  const isTBD =
+    !teamName ||
+    teamName.trim() === '' ||
+    teamName.toUpperCase() === 'TBD' ||
+    teamName === 'To Be Decided'
 
   if (isTBD) {
     return (
@@ -61,35 +62,8 @@ export function TeamLogo({
     )
   }
 
-  const known = getTeamLogoData(teamName)
-  const storedCustomLogo = storage.getTeamLogo(teamName) || (known?.short ? storage.getTeamLogo(known.short) : null)
-
-  const getSource = (): string | undefined => {
-    if (attempt === 0) {
-      if (storedCustomLogo) return storedCustomLogo
-      if (logoUrl) return resolveImageUrl(logoUrl)
-      if (preferredFormat === 'png' && known?.png) return known.png
-      if (preferredFormat === 'jpg' && known?.jpg) return known.jpg
-      if (preferredFormat === 'svg' && known?.svg) return known.svg
-      return known?.primaryImg || known?.svg
-    }
-    if (attempt === 1) {
-      return known?.primaryImg || known?.svg
-    }
-    if (attempt === 2) {
-      return known?.svg
-    }
-    return undefined
-  }
-
-  const effectiveSrc = getSource()
-  const initial = known?.short || teamName.slice(0, 3).toUpperCase()
-  const bgColor = known?.bg || '#2d3e50'
-  const textColor = known?.color || '#ffffff'
-
-  const handleError = () => {
-    setAttempt((prev) => prev + 1)
-  }
+  const resolvedSrc = logoUrl && !hasError ? resolveImageUrl(logoUrl) : undefined
+  const initial = teamName ? teamName.slice(0, 3).toUpperCase() : '?'
 
   return (
     <Box
@@ -102,12 +76,12 @@ export function TeamLogo({
       }}
     >
       <Avatar
-        src={effectiveSrc}
+        src={resolvedSrc}
         alt={teamName}
         variant={variant}
         slotProps={{
           img: {
-            onError: handleError,
+            onError: () => setHasError(true),
             style: { objectFit: 'cover' },
           },
         }}
@@ -116,8 +90,8 @@ export function TeamLogo({
           height: size,
           fontSize: Math.max(9, Math.round(size * 0.36)),
           fontWeight: 800,
-          bgcolor: bgColor,
-          color: textColor,
+          bgcolor: '#2d3e50',
+          color: '#ffffff',
           border: '1px solid rgba(0,0,0,0.15)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
         }}

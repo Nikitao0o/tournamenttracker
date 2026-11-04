@@ -108,6 +108,7 @@ export function validateTeamForm(values: {
 }
 
 export function validatePlayerForm(values: {
+  nickname?: string
   name: string
   role: string
   nationality: string
@@ -115,10 +116,18 @@ export function validatePlayerForm(values: {
 }): Record<string, string> {
   const errors: Record<string, string> = {}
 
+  if (values.nickname !== undefined) {
+    if (!values.nickname.trim()) {
+      errors.nickname = 'Nickname is required'
+    } else if (values.nickname.trim().length < 2) {
+      errors.nickname = 'Nickname must be at least 2 characters'
+    }
+  }
+
   if (!values.name.trim()) {
-    errors.name = 'Player name is required'
+    errors.name = 'Full name is required'
   } else if (values.name.trim().length < 2) {
-    errors.name = 'Player name must be at least 2 characters'
+    errors.name = 'Full name must be at least 2 characters'
   }
 
   if (!values.role.trim()) {
