@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from .. import crud, models, schemas
-from ..auth import get_admin_identifiers, get_current_admin
+from ..auth import get_current_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -37,9 +37,3 @@ def admin_claim_player(
 ):
     """Admin binds an existing registered user to a player profile."""
     return crud.claim_player_for_user(db, payload.player_id, payload.user_id)
-
-
-@router.get("/admins-list")
-def get_admins_list(admin: models.User = Depends(get_current_admin)):
-    """View current administrator accounts loaded dynamically from admins.txt."""
-    return {"admins": sorted(list(get_admin_identifiers()))}

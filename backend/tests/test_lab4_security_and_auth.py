@@ -22,6 +22,7 @@ from app.auth import (
     create_access_token,
     create_refresh_token,
     decode_access_token,
+    ensure_admin,
     is_user_admin,
     verify_refresh_token,
     revoke_refresh_token,
@@ -45,6 +46,7 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
     def setUp(self):
         Base.metadata.create_all(bind=self.engine)
         self.db = self.Session()
+        ensure_admin(self.db)
         seed_if_empty(self.db)
 
         def override_get_db():
@@ -63,7 +65,7 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
 
     def test_01_signature_verification_and_tampering_rejection(self):
         """Tokens with modified payload, forged sub, or wrong secret must be rejected."""
-        valid_token = create_access_token(user_id=1, email="admin@tracker.local", nickname="admin", is_admin=True)
+        valid_token = create_access_token(user_id=1, email="admin@local.com", nickname="admin", is_admin=True)
         payload = decode_access_token(valid_token)
         self.assertIsNotNone(payload)
         self.assertEqual(payload.get("sub"), "1")
@@ -73,7 +75,7 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         self.assertEqual(len(parts), 3)
 
         fake_payload_b64 = base64.urlsafe_b64encode(
-            b'{"sub":"999","email":"admin@tracker.local","nickname":"admin","is_admin":true,"type":"access","exp":9999999999}'
+            b'{"sub":"999","email":"admin@local.com","nickname":"admin","is_admin":true,"type":"access","exp":9999999999}'
         ).decode().rstrip("=")
 
         tampered_token = f"{parts[0]}.{fake_payload_b64}.{parts[2]}"
@@ -87,7 +89,7 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         """Login issues access_token and refresh_token; refresh endpoint exchanges valid refresh token."""
         login_res = self.client.post(
             "/api/auth/login",
-            json={"email": "admin@tracker.local", "password": "password123"},
+            json={"email": "admin@local.com", "password": "admin"},
         )
         self.assertEqual(login_res.status_code, 200)
         body = login_res.json()
@@ -106,13 +108,13 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         # Verify access token works on protected route
         me_res = self.client.get("/api/auth/me", headers={"Authorization": f"Bearer {new_access}"})
         self.assertEqual(me_res.status_code, 200)
-        self.assertEqual(me_res.json()["email"], "admin@tracker.local")
+        self.assertEqual(me_res.json()["email"], "admin@local.com")
 
     def test_03_logout_revokes_refresh_token(self):
         """Logout endpoint revokes refresh token so subsequent refresh attempts fail."""
         login_res = self.client.post(
             "/api/auth/login",
-            json={"email": "admin@tracker.local", "password": "password123"},
+            json={"email": "admin@local.com", "password": "admin"},
         )
         token_data = login_res.json()
         access_token = token_data["access_token"]
@@ -132,18 +134,32 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         self.assertIn("Invalid, expired, or revoked", ref_fail.json()["detail"])
 
     def test_04_admin_check_strictly_email_never_nickname(self):
-        """Registering a nickname that matches an admin entry in admins.txt must NOT grant admin status."""
-        reg_res = self.client.post(
+        """Admin status is strictly determined by User.is_admin from DB. Registration never grants admin, and admin duplicate returns 409."""
+        # 1. Attempting to register admin@local.com must return 409 Conflict
+        conflict_res = self.client.post(
             "/api/auth/register",
-            json={"email": "attacker@random.local", "nickname": "admin@tracker.local", "password": "password123"},
+            json={"email": "admin@local.com", "nickname": "fake_admin", "password": "password123"},
         )
-        self.assertEqual(reg_res.status_code, 201)
-        attacker = reg_res.json()
-        self.assertFalse(attacker["is_admin"])
+        self.assertEqual(conflict_res.status_code, 409)
 
-        # Function check
-        self.assertFalse(is_user_admin("attacker@random.local", "admin@tracker.local"))
-        self.assertTrue(is_user_admin("admin@tracker.local"))
+        # 2. Registering with admin-like emails/nicknames must always result in is_admin=False
+        for test_email in ["admin@tracker.local", "superadmin@domain.com", "root@admin.com"]:
+            reg_res = self.client.post(
+                "/api/auth/register",
+                json={"email": test_email, "nickname": f"nick_{test_email}", "password": "password123"},
+            )
+            self.assertEqual(reg_res.status_code, 201)
+            user_data = reg_res.json()
+            self.assertFalse(user_data["is_admin"])
+
+        # 3. is_user_admin function checks user.is_admin field
+        class DummyUser:
+            def __init__(self, is_admin):
+                self.is_admin = is_admin
+
+        self.assertFalse(is_user_admin(DummyUser(False)))
+        self.assertTrue(is_user_admin(DummyUser(True)))
+        self.assertFalse(is_user_admin(None))
 
     def test_05_file_upload_svg_rejection_and_magic_bytes(self):
         """Uploading SVG images or fake non-image files must be rejected with 400 Bad Request."""
@@ -151,7 +167,7 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         svg_b64 = "data:image/svg+xml;base64," + base64.b64encode(b"<svg><script>alert(1)</script></svg>").decode()
         login_res = self.client.post(
             "/api/auth/login",
-            json={"email": "admin@tracker.local", "password": "password123"},
+            json={"email": "admin@local.com", "password": "admin"},
         )
         admin_headers = {"Authorization": f"Bearer {login_res.json()['access_token']}"}
 

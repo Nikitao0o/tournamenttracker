@@ -13,7 +13,7 @@
 - **Безопасность и аутентификация**:
   - Хеширование паролей: **Argon2id** (`argon2-cffi`) в соответствии с рекомендациями OWASP.
   - Двухтокеновая авторизация: **JWT Access Token** (HS256 через PyJWT с обязательной проверкой подписи и срока жизни) + **Refresh Token** с хранением в БД и отзывом при логауте.
-  - Строгая валидация прав администратора по подтвержденному email (`admins.txt` и `User.is_admin`), защита от спуфинга через никнейм.
+  - Строгая валидация прав администратора по флагу `User.is_admin` в базе данных (создаётся идемпотентно при старте из переменных `ADMIN_EMAIL` / `ADMIN_PASSWORD`), защита от спуфинга через никнейм.
   - Безопасная загрузка файлов: проверка magic bytes через Pillow (PNG, JPEG, WEBP; SVG исключён во избежание XSS).
 - **Контейнеризация**: Docker (непривилегированный пользователь `appuser`), Docker Compose с healthcheck и томом `uploads_data`.
 - **Frontend**: [React 19](https://react.dev/), [TypeScript 6](https://www.typescriptlang.org/), [Vite 8](https://vitejs.dev/), [Material UI (MUI v9)](https://mui.com/), `@emotion/react`, `@emotion/styled`, [React Router v7](https://reactrouter.com/), [Oxlint](https://oxc.rs/)
@@ -76,7 +76,6 @@ tournamenttracker/
 │   │   ├── test_crud.py
 │   │   ├── test_lab4_security_and_auth.py
 │   │   └── test_swagger_endpoints.py
-│   ├── admins.txt            # Список email-адресов администраторов
 │   ├── requirements.txt      # Продакшн-зависимости (закрепленные версии)
 │   ├── requirements-dev.txt  # Зависимости разработки и тестирования (pytest, httpx)
 │   └── Dockerfile            # Контейнер бэкенда (non-root appuser)
@@ -116,6 +115,25 @@ docker compose ps
 - **Frontend SPA**: `http://localhost:5173`
 - **Backend API**: `http://localhost:8000`
 - **Интерактивная документация Swagger**: `http://localhost:8000/docs`
+
+Учётная запись администратора по умолчанию: `admin@local.com` / `admin`.
+
+#### Сброс базы данных и управление пользователями
+- Для полного сброса базы данных в Docker выполните:
+  ```bash
+  docker compose down -v
+  docker compose up -d --build
+  ```
+- Для очистки существующих пользователей без удаления команд/турниров запустите CLI-команду purge (удалит всех пользователей, кроме `ADMIN_EMAIL`, отвяжет игроков и каскадно удалит refresh-токены):
+  ```bash
+  docker compose exec backend python -m app.cli purge-users
+  # или локально:
+  python -m app.cli purge-users
+  ```
+- Для создания дополнительных администраторов:
+  ```bash
+  python -m app.cli create-admin newadmin@local.com strongpassword123
+  ```
 
 ---
 

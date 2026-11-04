@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.database import Base, get_db
 from app.main import app
 from app.seed import seed_if_empty
+from app.auth import ensure_admin
 
 DUMMY_PNG_B64 = (
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
@@ -41,6 +42,7 @@ def get_test_client():
     if _shared_client is None:
         Base.metadata.create_all(bind=test_engine)
         db = TestingSessionLocal()
+        ensure_admin(db)
         seed_if_empty(db)
 
         def override_get_db():
@@ -107,7 +109,7 @@ class TestAllSwaggerRoutes(unittest.TestCase):
             "http://localhost:8000",
             "POST",
             "/api/auth/login",
-            data={"email": "admin@tracker.local", "password": "password123"},
+            data={"email": "admin@local.com", "password": "admin"},
         )
         cls.admin_token = body.get("access_token")
 
@@ -185,10 +187,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertTrue(len(b) >= 2)
                 self.assert_cors(h, origin)
 
-                c, h, b = api_call(base_url, "GET", "/api/admin/admins-list", token=self.admin_token, origin=origin)
-                self.assertEqual(c, 200)
-                self.assertIn("admins", b)
-                self.assert_cors(h, origin)
 
                 c, h, b = api_call(base_url, "GET", "/api/tournaments", origin=origin)
                 self.assertEqual(c, 200)

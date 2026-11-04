@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.database import Base, get_db
 from app.main import app
+from app.auth import ensure_admin
 from app.seed import seed_if_empty
 
 DUMMY_PNG_B64 = (
@@ -87,6 +88,7 @@ class TestSwaggerAndCORS(unittest.TestCase):
     def setUp(self):
         Base.metadata.create_all(bind=self.engine)
         self.db = self.Session()
+        ensure_admin(self.db)
         seed_if_empty(self.db)
 
         def override_get_db():
@@ -186,8 +188,8 @@ class TestSwaggerAndCORS(unittest.TestCase):
     def test_05_admin_endpoints_with_admin_account(self):
         """Log in as seeded admin and access protected admin endpoints."""
         login_payload = {
-            "email": "admin@tracker.local",
-            "password": "password123",
+            "email": "admin@local.com",
+            "password": "admin",
         }
         code, h, body = self.tester.request("POST", "/api/auth/login", login_payload, use_auth=False)
         self.assertEqual(code, 200)
@@ -196,18 +198,14 @@ class TestSwaggerAndCORS(unittest.TestCase):
 
         code, h, users = self.tester.request("GET", "/api/admin/users")
         self.assertEqual(code, 200)
-        self.assertTrue(len(users) >= 2)
-
-        code, h, admins = self.tester.request("GET", "/api/admin/admins-list")
-        self.assertEqual(code, 200)
-        self.assertIn("admins", admins)
+        self.assertTrue(len(users) >= 1)
 
     def test_06_tournaments_and_bracket_types(self):
         """Create, read, update tournaments and generate all bracket formats."""
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            {"email": "admin@tracker.local", "password": "password123"},
+            {"email": "admin@local.com", "password": "admin"},
             use_auth=False,
         )
         self.tester.token = body.get("access_token")
@@ -246,7 +244,7 @@ class TestSwaggerAndCORS(unittest.TestCase):
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            {"email": "admin@tracker.local", "password": "password123"},
+            {"email": "admin@local.com", "password": "admin"},
             use_auth=False,
         )
         self.tester.token = body.get("access_token")
@@ -291,7 +289,7 @@ class TestSwaggerAndCORS(unittest.TestCase):
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            {"email": "admin@tracker.local", "password": "password123"},
+            {"email": "admin@local.com", "password": "admin"},
             use_auth=False,
         )
         self.tester.token = body.get("access_token")
@@ -320,7 +318,7 @@ class TestSwaggerAndCORS(unittest.TestCase):
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            {"email": "admin@tracker.local", "password": "password123"},
+            {"email": "admin@local.com", "password": "admin"},
             use_auth=False,
         )
         self.tester.token = body.get("access_token")

@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from app import models, schemas, crud
+from app import models, schemas, crud, auth
 from app.auth import is_user_admin
 from app.seed import seed_if_empty
 
@@ -28,6 +28,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
     def setUp(self):
         models.Base.metadata.create_all(bind=self.engine)
         self.db = self.Session()
+        auth.ensure_admin(self.db)
         seed_if_empty(self.db)
 
     def tearDown(self):
@@ -35,13 +36,17 @@ class TestTournamentTrackerFull(unittest.TestCase):
         models.Base.metadata.drop_all(bind=self.engine)
 
     def test_users_and_admin_file(self):
-        admin = crud.get_user_by_email(self.db, "admin@tracker.local")
+        admin = crud.get_user_by_email(self.db, "admin@local.com")
         self.assertIsNotNone(admin)
-        self.assertTrue(is_user_admin(admin.email, admin.nickname))
+        self.assertTrue(is_user_admin(admin))
 
-        regular = crud.get_user_by_email(self.db, "user@tracker.local")
+        regular_out = crud.create_user(
+            self.db,
+            schemas.UserRegister(email="regular@example.com", nickname="regular_guy", password="password123"),
+        )
+        regular = self.db.get(models.User, regular_out.id)
         self.assertIsNotNone(regular)
-        self.assertFalse(is_user_admin(regular.email, regular.nickname))
+        self.assertFalse(is_user_admin(regular))
 
         updated = crud.update_user_self(
             self.db,

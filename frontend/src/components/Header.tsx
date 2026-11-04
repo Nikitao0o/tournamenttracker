@@ -5,7 +5,7 @@ import { AuthPopover } from '../features/auth/ui/AuthPopover'
 import { UserBadge } from '../features/auth/ui/UserBadge'
 
 export default function Header() {
-  const { isAuthenticated, isAdmin } = useAuth()
+  const { isAuthenticated } = useAuth()
 
   const navItems = [
     { label: 'MATCHES', href: '/', end: true },
@@ -14,10 +14,6 @@ export default function Header() {
     { label: 'PLAYERS', href: '/players' },
     { label: 'ABOUT', href: '/about' },
   ]
-
-  if (isAdmin) {
-    navItems.push({ label: 'ADMIN', href: '/admin', end: false })
-  }
 
   return (
     <Box

@@ -16,6 +16,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
+from app.auth import ensure_admin
 from app.seed import seed_if_empty
 
 
@@ -34,6 +35,7 @@ class TestApiEndpoints(unittest.TestCase):
             self.skipTest("httpx is not installed in the local environment (available inside Docker container).")
         Base.metadata.create_all(bind=self.engine)
         self.db = self.Session()
+        ensure_admin(self.db)
         seed_if_empty(self.db)
 
         def override_get_db():
@@ -91,14 +93,28 @@ class TestApiEndpoints(unittest.TestCase):
         forbidden_res = self.client.post("/api/tournaments", headers=user_headers, json=tourney_payload)
         self.assertEqual(forbidden_res.status_code, 403)
 
-        self.client.post(
+        # Registering with an admin-like or any email creates a regular non-admin user
+        fake_admin_reg = self.client.post(
             "/api/auth/register",
-            json={"email": "admin@tracker.local", "nickname": "admin", "password": "password123"},
+            json={"email": "admin2@local.com", "nickname": "fake_admin", "password": "password123"},
         )
+        self.assertEqual(fake_admin_reg.status_code, 201)
+        self.assertFalse(fake_admin_reg.json()["is_admin"])
+
+        # Attempting to re-register existing admin@local.com must return 409 Conflict
+        dup_admin_reg = self.client.post(
+            "/api/auth/register",
+            json={"email": "admin@local.com", "nickname": "another_admin", "password": "password123"},
+        )
+        self.assertEqual(dup_admin_reg.status_code, 409)
+
+        # Login with actual admin credentials (admin@local.com / admin)
         admin_login = self.client.post(
             "/api/auth/login",
-            json={"email": "admin@tracker.local", "password": "password123"},
+            json={"email": "admin@local.com", "password": "admin"},
         )
+        self.assertEqual(admin_login.status_code, 200)
+        self.assertTrue(admin_login.json()["user"]["is_admin"])
         admin_token = admin_login.json()["access_token"]
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
 

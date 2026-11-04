@@ -47,7 +47,7 @@ class Settings(BaseModel):
         )
     )
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default_factory=lambda: int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+        default_factory=lambda: int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     )
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
         default_factory=lambda: int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
@@ -56,8 +56,8 @@ class Settings(BaseModel):
     AUTO_SEED: bool = Field(
         default_factory=lambda: os.getenv("AUTO_SEED", "True").lower() in ("true", "1", "t")
     )
-    ADMIN_EMAIL: str = Field(default_factory=lambda: os.getenv("ADMIN_EMAIL", "admin@tracker.local"))
-    ADMIN_PASSWORD: str = Field(default_factory=lambda: os.getenv("ADMIN_PASSWORD", "password123"))
+    ADMIN_EMAIL: str = Field(default_factory=lambda: os.getenv("ADMIN_EMAIL", "admin@local.com"))
+    ADMIN_PASSWORD: str = Field(default_factory=lambda: os.getenv("ADMIN_PASSWORD", "admin"))
 
     ALLOWED_ORIGINS: list[str] = Field(
         default_factory=lambda: [
@@ -83,7 +83,7 @@ class Settings(BaseModel):
     )
 
     def validate_production_security(self):
-        """Enforces that SECRET_KEY is not default in production."""
+        """Enforces that SECRET_KEY is not default in production and logs warning for default admin password."""
         is_prod = self.ENVIRONMENT.lower() in ("production", "prod") or (
             not self.DEBUG and os.getenv("DOCKER_CONTAINER")
         )
@@ -91,6 +91,11 @@ class Settings(BaseModel):
             raise RuntimeError(
                 "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY must be explicitly set in production! "
                 "Default development secret cannot be used."
+            )
+        if is_prod and self.ADMIN_PASSWORD == "admin":
+            logger.warning(
+                "SECURITY WARNING: Production environment is using default ADMIN_PASSWORD='admin'. "
+                "Please set a strong ADMIN_PASSWORD in your production environment variables."
             )
 
     def get_database_url(self) -> str:

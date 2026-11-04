@@ -12,8 +12,6 @@ export function validateLoginForm(email: string, password: string): { email?: st
 
   if (!password) {
     errors.password = 'Password is required'
-  } else if (password.length < 6) {
-    errors.password = 'Password must be at least 6 characters'
   }
 
   return errors
@@ -24,13 +22,24 @@ export function validateRegisterForm(
   nickname: string,
   password: string,
 ): { email?: string; nickname?: string; password?: string } {
-  const errors = validateLoginForm(email, password)
-  const fullErrors: { email?: string; nickname?: string; password?: string } = { ...errors }
+  const fullErrors: { email?: string; nickname?: string; password?: string } = {}
+
+  if (!email.trim()) {
+    fullErrors.email = 'Email is required'
+  } else if (!isValidEmail(email)) {
+    fullErrors.email = 'Invalid email address format'
+  }
 
   if (!nickname.trim()) {
     fullErrors.nickname = 'Nickname is required'
   } else if (nickname.trim().length < 2) {
     fullErrors.nickname = 'Nickname must be at least 2 characters'
+  }
+
+  if (!password) {
+    fullErrors.password = 'Password is required'
+  } else if (password.length < 6) {
+    fullErrors.password = 'Password must be at least 6 characters'
   }
 
   return fullErrors

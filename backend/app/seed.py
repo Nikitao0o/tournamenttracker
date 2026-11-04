@@ -6,37 +6,17 @@ from .models import Bracket, MapResult, Match, Player, PlayerMatchStat, Team, To
 
 
 def seed_if_empty(db_session=None):
-    """Fills the database with initial demonstration data if it is empty."""
+    """Fills the database with initial demonstration teams, players, tournaments, and matches if empty."""
+    if not settings.AUTO_SEED:
+        return
+
     db = db_session or SessionLocal()
     try:
         if db.query(Team).count() > 0:
             print("[seed] Database already populated, skipping seed.")
             return
 
-        print("[seed] Populating database with demo data...")
-
-        pw_hash, salt = hash_password(settings.ADMIN_PASSWORD)
-
-        admin_user = User(
-            email=settings.ADMIN_EMAIL,
-            nickname="admin",
-            hashed_password=pw_hash,
-            salt=salt,
-            is_active=True,
-            is_admin=True,
-            created_at=datetime.datetime.utcnow(),
-        )
-        regular_user = User(
-            email="user@tracker.local",
-            nickname="player_donk",
-            hashed_password=pw_hash,
-            salt=salt,
-            is_active=True,
-            is_admin=False,
-            created_at=datetime.datetime.utcnow(),
-        )
-        db.add_all([admin_user, regular_user])
-        db.commit()
+        print("[seed] Populating database with demo teams, players, tournaments, and matches...")
 
         teams = [
             Team(
@@ -92,7 +72,7 @@ def seed_if_empty(db_session=None):
             # Team Spirit
             Player(nickname="donk", name="Danil Kryshkovets", age=19, role="Entry Fragger",
                    nationality="Russian", kd="1.34", impact=9.6, maps=64, team_id=teams[0].id,
-                   user_id=regular_user.id, avatar_url="https://api.dicebear.com/7.x/bottts/svg?seed=donk"),
+                   user_id=None, avatar_url="https://api.dicebear.com/7.x/bottts/svg?seed=donk"),
             Player(nickname="chopper", name="Aleksandr Gorbunov", age=23, role="IGL",
                    nationality="Russian", kd="1.15", impact=8.8, maps=61, team_id=teams[0].id,
                    avatar_url="https://api.dicebear.com/7.x/bottts/svg?seed=chopper"),

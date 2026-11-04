@@ -45,14 +45,6 @@ export function AuthPopover() {
     setServerError(null)
   }
 
-  const fillDemo = (demoEmail: string) => {
-    setMode('signIn')
-    setEmail(demoEmail)
-    setPassword('password123')
-    setErrors({})
-    setServerError(null)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setServerError(null)
@@ -263,38 +255,6 @@ export function AuthPopover() {
                 {mode === 'signIn' ? 'Sign Up' : 'Sign In'}
               </Button>
             </Typography>
-          </Box>
-
-          <Box sx={{ pt: 1, borderTop: '1px dashed #333842' }}>
-            <Typography variant="caption" sx={{ color: '#7b8390', display: 'block', mb: 0.8, fontSize: 10 }}>
-              Quick login for testing:
-            </Typography>
-            <Stack direction="row" spacing={1}>
-              <Chip
-                label="Admin"
-                size="small"
-                onClick={() => fillDemo('admin@tracker.local')}
-                sx={{
-                  bgcolor: '#303642',
-                  color: '#f04b3a',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: '#3e4554' },
-                }}
-              />
-              <Chip
-                label="User"
-                size="small"
-                onClick={() => fillDemo('user@tracker.local')}
-                sx={{
-                  bgcolor: '#303642',
-                  color: '#a7aab0',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: '#3e4554' },
-                }}
-              />
-            </Stack>
           </Box>
         </Stack>
       </Popover>

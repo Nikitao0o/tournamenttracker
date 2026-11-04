@@ -161,43 +161,42 @@ def revoke_refresh_token(db: Session, token_str: str) -> bool:
     return False
 
 
-def get_admin_identifiers() -> set[str]:
-    """Reads administrator email addresses from admins.txt.
-    Evaluated dynamically so file edits take effect immediately without restart.
-    """
-    possible_paths = [
-        Path("/app/admins.txt"),
-        Path("admins.txt"),
-        Path("backend/admins.txt"),
-        Path(__file__).resolve().parent / "admins.txt",
-        Path(__file__).resolve().parent.parent / "admins.txt",
-        Path(__file__).resolve().parent.parent.parent / "admins.txt",
-    ]
-    admins = set()
-    for p in possible_paths:
-        if p.exists() and p.is_file():
-            try:
-                with open(p, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        admins.add(line.lower())
-            except Exception:
-                pass
-            if admins:
-                break
-    return admins
+def ensure_admin(db: Session):
+    """Idempotently ensures the primary administrator account exists based on ADMIN_EMAIL/ADMIN_PASSWORD."""
+    from .models import User
+
+    admin_email = settings.ADMIN_EMAIL.strip().lower()
+    admin = db.query(User).filter(User.email == admin_email).first()
+    if admin:
+        if not admin.is_admin:
+            admin.is_admin = True
+            db.commit()
+            db.refresh(admin)
+        return admin
+
+    pw_hash, salt = hash_password(settings.ADMIN_PASSWORD)
+    admin = User(
+        email=admin_email,
+        nickname="admin",
+        hashed_password=pw_hash,
+        salt=salt,
+        is_active=True,
+        is_admin=True,
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    return admin
 
 
-def is_user_admin(email: str, flag_or_nick: bool | str | None = None) -> bool:
-    """Checks whether a user is an administrator based on DB flag or admins.txt email list.
-    Strictly checks EMAIL only; never checks nickname to prevent spoofing.
-    """
-    if isinstance(flag_or_nick, bool) and flag_or_nick:
-        return True
-    admins = get_admin_identifiers()
-    return email.strip().lower() in admins
+def is_user_admin(user=None, is_admin_flag: bool | None = None) -> bool:
+    """Checks whether a user has administrator privileges strictly based on User.is_admin flag."""
+    if user is not None and hasattr(user, "is_admin"):
+        return bool(user.is_admin)
+    if is_admin_flag is not None and isinstance(is_admin_flag, bool):
+        return is_admin_flag
+    return False
 
 
 def get_current_user_optional(
@@ -246,8 +245,8 @@ def get_current_user(
 def get_current_admin(
     current_user = Depends(get_current_user),
 ):
-    """Requires administrator privileges (user.is_admin or email in admins.txt)."""
-    if not is_user_admin(current_user.email, current_user.is_admin):
+    """Requires administrator privileges (user.is_admin)."""
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied. Action allowed only for tournament administrators.",

@@ -21,6 +21,14 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     sync_db_schema()
 
+    from .database import SessionLocal
+    from .auth import ensure_admin
+    db = SessionLocal()
+    try:
+        ensure_admin(db)
+    finally:
+        db.close()
+
     if settings.AUTO_SEED or settings.DEBUG:
         from .seed import seed_if_empty
         seed_if_empty()

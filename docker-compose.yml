@@ -24,12 +24,14 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD:-tracker}@db:5432/${POSTGRES_DB:-tracker}
       ENVIRONMENT: production
-      SECRET_KEY: ${SECRET_KEY:-tournament-tracker-production-sec-key-778899}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@local.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      AUTO_SEED: ${AUTO_SEED:-True}
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./admins.txt:/app/admins.txt:ro
       - uploads_data:/app/uploads
     ports:
       - "8000:8000"

@@ -11,7 +11,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
-COPY admins.txt* ./
 RUN mkdir -p /app/uploads/teams /app/uploads/players && chown -R appuser:appgroup /app
 
 USER appuser

@@ -30,14 +30,13 @@ def enrich_user(user: models.User) -> schemas.UserOut:
         if isinstance(user.created_at, datetime.datetime)
         else str(user.created_at)
     )
-    admin_status = is_user_admin(user.email, user.is_admin)
     return schemas.UserOut(
         id=user.id,
         email=user.email,
         nickname=user.nickname,
         is_active=user.is_active,
         created_at=created_at_val,
-        is_admin=admin_status,
+        is_admin=bool(user.is_admin),
         player_id=user.player.id if user.player else None,
         avatar_url=user.player.avatar_url if (user.player and user.player.avatar_url) else user.avatar_url,
     )
@@ -59,7 +58,6 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
         )
 
     hashed_pw, salt = hash_password(payload.password)
-    admin_flag = is_user_admin(email_clean)
 
     user = models.User(
         email=email_clean,
@@ -67,8 +65,8 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
         hashed_password=hashed_pw,
         salt=salt,
         is_active=True,
-        is_admin=admin_flag,
-        created_at=datetime.datetime.utcnow(),
+        is_admin=False,
+        created_at=datetime.datetime.now(datetime.timezone.utc),
     )
     db.add(user)
     db.commit()

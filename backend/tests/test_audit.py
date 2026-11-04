@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from app import models, schemas, crud
+from app import auth, models, schemas, crud
 from app.auth import is_user_admin
 from app.seed import seed_if_empty
 
@@ -28,6 +28,7 @@ class TestAllRoutesAndEdgeCases(unittest.TestCase):
     def setUp(self):
         models.Base.metadata.create_all(bind=self.engine)
         self.db = self.Session()
+        auth.ensure_admin(self.db)
         seed_if_empty(self.db)
 
     def tearDown(self):
@@ -355,9 +356,13 @@ class TestAllRoutesAndEdgeCases(unittest.TestCase):
         )
         self.assertTrue(uploaded_player.avatar_url.startswith("/uploads/players/"))
 
-        linked_player = next((p for p in players if p.user_id is not None), None)
-        self.assertIsNotNone(linked_player)
-        user = self.db.get(models.User, linked_player.user_id)
+        # Explicitly link a user to test enrich_user with player profile
+        test_user = crud.create_user(
+            self.db,
+            schemas.UserRegister(email="audit_user@example.com", nickname="audit_nick", password="password123"),
+        )
+        crud.claim_player_for_user(self.db, players[0].id, test_user.id)
+        user = self.db.get(models.User, test_user.id)
         user_out = crud.enrich_user(user)
         self.assertEqual(user_out.avatar_url, user.player.avatar_url)
 
