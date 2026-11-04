@@ -12,6 +12,7 @@ import Typography from '@mui/material/Typography'
 import type { BracketMatch, TournamentBracketView } from '../../../types'
 import { BracketMatchCard } from './BracketMatchCard'
 import { TeamLogo } from '../../../shared/ui/TeamLogo'
+import { ensureTeamRecord } from './standingUtils'
 
 interface RoundRobinBracketProps {
   bracket: TournamentBracketView
@@ -33,25 +34,26 @@ export function RoundRobinBracket({ bracket }: RoundRobinBracketProps) {
   const standings = useMemo(() => {
     const stats: Record<string, TeamStanding> = {}
 
-    const ensureTeam = (name: string, logo?: string | null) => {
-      if (!name || name === 'TBD') return
-      if (!stats[name]) {
-        stats[name] = {
-          name,
-          logoUrl: logo,
+    allRounds.forEach((round) => {
+      round.matches.forEach((m: BracketMatch) => {
+        ensureTeamRecord(stats, m.teamAName, () => ({
+          name: m.teamAName,
+          logoUrl: m.teamALogoUrl,
           played: 0,
           won: 0,
           lost: 0,
           points: 0,
           mapDiff: 0,
-        }
-      }
-    }
-
-    allRounds.forEach((round) => {
-      round.matches.forEach((m: BracketMatch) => {
-        ensureTeam(m.teamAName, m.teamALogoUrl)
-        ensureTeam(m.teamBName, m.teamBLogoUrl)
+        }))
+        ensureTeamRecord(stats, m.teamBName, () => ({
+          name: m.teamBName,
+          logoUrl: m.teamBLogoUrl,
+          played: 0,
+          won: 0,
+          lost: 0,
+          points: 0,
+          mapDiff: 0,
+        }))
 
         if (m.status === 'FINISHED' && m.scoreA !== null && m.scoreB !== null && m.scoreA !== undefined && m.scoreB !== undefined) {
           const tA = stats[m.teamAName]

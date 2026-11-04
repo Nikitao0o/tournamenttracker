@@ -30,6 +30,8 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@local.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
       AUTO_SEED: ${AUTO_SEED:-True}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
     depends_on:
       db:
         condition: service_healthy

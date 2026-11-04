@@ -147,15 +147,15 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         # 1. Attempting to register admin@local.com must return 409 Conflict
         conflict_res = self.client.post(
             "/api/auth/register",
-            json={"email": "admin@local.com", "nickname": "fake_admin", "password": "password123"},
+            json={"email": "admin@local.com", "nickname": "fake_admin", "password": "securePass123"},
         )
         self.assertEqual(conflict_res.status_code, 409)
 
         # 2. Registering with admin-like emails/nicknames must always result in is_admin=False
-        for test_email in ["admin@tracker.local", "superadmin@domain.com", "root@admin.com"]:
+        for test_email in ["admin@example.org", "superadmin@domain.com", "root@admin.com"]:
             reg_res = self.client.post(
                 "/api/auth/register",
-                json={"email": test_email, "nickname": f"nick_{test_email}", "password": "password123"},
+                json={"email": test_email, "nickname": f"nick_{test_email}", "password": "securePass123"},
             )
             self.assertEqual(reg_res.status_code, 201)
             user_data = reg_res.json()
@@ -248,13 +248,13 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         # Register user and get initial tokens
         reg_res = self.client.post(
             "/api/auth/register",
-            json={"email": "inactive_test@local.com", "nickname": "inact_test", "password": "password123"},
+            json={"email": "inactive_test@local.com", "nickname": "inact_test", "password": "securePass123"},
         )
         self.assertEqual(reg_res.status_code, 201)
 
         login_res = self.client.post(
             "/api/auth/login",
-            json={"email": "inactive_test@local.com", "password": "password123"},
+            json={"email": "inactive_test@local.com", "password": "securePass123"},
         )
         self.assertEqual(login_res.status_code, 200)
         refresh_token = login_res.json()["refresh_token"]
@@ -268,7 +268,7 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         # Cannot login
         login_blocked = self.client.post(
             "/api/auth/login",
-            json={"email": "inactive_test@local.com", "password": "password123"},
+            json={"email": "inactive_test@local.com", "password": "securePass123"},
         )
         self.assertEqual(login_blocked.status_code, 401)
 
@@ -283,13 +283,13 @@ class TestLab4SecurityAndAuth(unittest.TestCase):
         """Regular user (is_admin=False) gets 403 Forbidden when trying to create tournaments."""
         reg_res = self.client.post(
             "/api/auth/register",
-            json={"email": "regular_player@local.com", "nickname": "regular_guy", "password": "password123"},
+            json={"email": "regular_player@local.com", "nickname": "regular_guy", "password": "securePass123"},
         )
         self.assertEqual(reg_res.status_code, 201)
 
         login_res = self.client.post(
             "/api/auth/login",
-            json={"email": "regular_player@local.com", "password": "password123"},
+            json={"email": "regular_player@local.com", "password": "securePass123"},
         )
         regular_token = login_res.json()["access_token"]
 

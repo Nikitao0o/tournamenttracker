@@ -230,6 +230,10 @@ class MapResult(Base):
     match: Mapped["Match"] = relationship(back_populates="map_results")
     winner: Mapped["Team | None"] = relationship(foreign_keys=[winner_id])
 
+    @property
+    def winner_name(self) -> str | None:
+        return self.winner.name if self.winner else None
+
 
 class PlayerMatchStat(Base):
     """Detailed HLTV-style player statistics per match."""
@@ -261,3 +265,11 @@ class PlayerMatchStat(Base):
     match: Mapped["Match"] = relationship(back_populates="player_stats")
     player: Mapped["Player"] = relationship(back_populates="match_stats")
     team: Mapped["Team"] = relationship()
+
+    @property
+    def player_nickname(self) -> str | None:
+        return self.player.nickname if self.player else None
+
+    @property
+    def team_name(self) -> str | None:
+        return self.team.name if self.team else None

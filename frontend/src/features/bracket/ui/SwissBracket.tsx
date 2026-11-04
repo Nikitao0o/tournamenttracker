@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography'
 import type { BracketMatch, TournamentBracketView } from '../../../types'
 import { BracketMatchCard } from './BracketMatchCard'
 import { TeamLogo } from '../../../shared/ui/TeamLogo'
+import { ensureTeamRecord } from './standingUtils'
 
 interface SwissBracketProps {
   bracket: TournamentBracketView
@@ -26,17 +27,10 @@ export function SwissBracket({ bracket }: SwissBracketProps) {
   const teamRecords = useMemo(() => {
     const records: Record<string, SwissTeamStatus> = {}
 
-    const ensureTeam = (name: string, logo?: string | null) => {
-      if (!name || name === 'TBD') return
-      if (!records[name]) {
-        records[name] = { name, logoUrl: logo, wins: 0, losses: 0 }
-      }
-    }
-
     allRounds.forEach((round) => {
       round.matches.forEach((m: BracketMatch) => {
-        ensureTeam(m.teamAName, m.teamALogoUrl)
-        ensureTeam(m.teamBName, m.teamBLogoUrl)
+        ensureTeamRecord(records, m.teamAName, () => ({ name: m.teamAName, logoUrl: m.teamALogoUrl, wins: 0, losses: 0 }))
+        ensureTeamRecord(records, m.teamBName, () => ({ name: m.teamBName, logoUrl: m.teamBLogoUrl, wins: 0, losses: 0 }))
 
         if (m.status === 'FINISHED' && m.scoreA !== null && m.scoreB !== null && m.scoreA !== undefined && m.scoreB !== undefined) {
           const tA = records[m.teamAName]

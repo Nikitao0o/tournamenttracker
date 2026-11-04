@@ -42,7 +42,7 @@ class TestTournamentTrackerFull(unittest.TestCase):
 
         regular_out = crud.create_user(
             self.db,
-            schemas.UserRegister(email="regular@example.com", nickname="regular_guy", password="password123"),
+            schemas.UserRegister(email="regular@example.com", nickname="regular_guy", password="securePass123"),
         )
         regular = self.db.get(models.User, regular_out.id)
         self.assertIsNotNone(regular)
@@ -80,14 +80,14 @@ class TestTournamentTrackerFull(unittest.TestCase):
         new_user = crud.create_user(
             self.db,
             schemas.UserRegister(
-                email="pro_sniper@tracker.local",
+                email="pro_sniper@example.org",
                 nickname="sniper_god",
-                password="password123",
+                password="securePass123",
             ),
         )
 
         claimed = crud.claim_player_for_user(self.db, player_no_acc.id, new_user.id)
-        self.assertEqual(claimed.user_email, "pro_sniper@tracker.local")
+        self.assertEqual(claimed.user_email, "pro_sniper@example.org")
 
     def test_double_elimination_bracket_and_progression(self):
         tournament = crud.get_tournaments(self.db)[0]

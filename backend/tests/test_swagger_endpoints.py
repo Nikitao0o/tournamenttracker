@@ -157,7 +157,7 @@ class TestSwaggerAndCORS(unittest.TestCase):
         reg_payload = {
             "email": "testplayer@audit.local",
             "nickname": "audit_ninja",
-            "password": "password123",
+            "password": "securePass123",
         }
         code, h, body = self.tester.request("POST", "/api/auth/register", reg_payload, use_auth=False)
         self.assertEqual(code, 201)
@@ -166,7 +166,7 @@ class TestSwaggerAndCORS(unittest.TestCase):
 
         login_payload = {
             "email": "testplayer@audit.local",
-            "password": "password123",
+            "password": "securePass123",
         }
         code, h, body = self.tester.request("POST", "/api/auth/login", login_payload, use_auth=False)
         self.assertEqual(code, 200)

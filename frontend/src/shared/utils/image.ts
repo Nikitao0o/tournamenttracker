@@ -1,5 +1,5 @@
-export const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.webp'] as const
-export const SUPPORTED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'] as const
+export const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'] as const
+export const SUPPORTED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
@@ -20,7 +20,7 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   if (!isMimeValid && !isExtValid) {
     return {
       valid: false,
-      error: 'Unsupported image format. Allowed formats: .PNG, .JPG, .JPEG, .SVG, .WEBP',
+      error: 'Unsupported image format. Allowed formats: .PNG, .JPG, .JPEG, .WEBP',
     }
   }
 

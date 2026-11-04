@@ -359,7 +359,7 @@ class TestAllRoutesAndEdgeCases(unittest.TestCase):
         # Explicitly link a user to test enrich_user with player profile
         test_user = crud.create_user(
             self.db,
-            schemas.UserRegister(email="audit_user@example.com", nickname="audit_nick", password="password123"),
+            schemas.UserRegister(email="audit_user@example.com", nickname="audit_nick", password="securePass123"),
         )
         crud.claim_player_for_user(self.db, players[0].id, test_user.id)
         user = self.db.get(models.User, test_user.id)

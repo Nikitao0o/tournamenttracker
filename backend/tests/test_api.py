@@ -61,13 +61,13 @@ class TestApiEndpoints(unittest.TestCase):
     def test_auth_and_permissions(self):
         reg_res = self.client.post(
             "/api/auth/register",
-            json={"email": "newuser@test.local", "nickname": "new_player", "password": "password123"},
+            json={"email": "newuser@example.test", "nickname": "new_player", "password": "securePass123"},
         )
         self.assertEqual(reg_res.status_code, 201)
 
         login_res = self.client.post(
             "/api/auth/login",
-            json={"email": "newuser@test.local", "password": "password123"},
+            json={"email": "newuser@example.test", "password": "securePass123"},
         )
         self.assertEqual(login_res.status_code, 200)
         token = login_res.json()["access_token"]
@@ -96,7 +96,7 @@ class TestApiEndpoints(unittest.TestCase):
         # Registering with an admin-like or any email creates a regular non-admin user
         fake_admin_reg = self.client.post(
             "/api/auth/register",
-            json={"email": "admin2@local.com", "nickname": "fake_admin", "password": "password123"},
+            json={"email": "admin2@local.com", "nickname": "fake_admin", "password": "securePass123"},
         )
         self.assertEqual(fake_admin_reg.status_code, 201)
         self.assertFalse(fake_admin_reg.json()["is_admin"])
@@ -104,7 +104,7 @@ class TestApiEndpoints(unittest.TestCase):
         # Attempting to re-register existing admin@local.com must return 409 Conflict
         dup_admin_reg = self.client.post(
             "/api/auth/register",
-            json={"email": "admin@local.com", "nickname": "another_admin", "password": "password123"},
+            json={"email": "admin@local.com", "nickname": "another_admin", "password": "securePass123"},
         )
         self.assertEqual(dup_admin_reg.status_code, 409)
 
@@ -163,7 +163,7 @@ class TestApiEndpoints(unittest.TestCase):
             json={"player_id": player_id, "user_id": regular_user_id},
         )
         self.assertEqual(claim_res.status_code, 200)
-        self.assertEqual(claim_res.json()["user_email"], "newuser@test.local")
+        self.assertEqual(claim_res.json()["user_email"], "newuser@example.test")
 
     def test_bracket_endpoint(self):
         tournaments = self.client.get("/api/tournaments").json()

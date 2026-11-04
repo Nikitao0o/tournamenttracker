@@ -135,7 +135,7 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                     base_url,
                     "POST",
                     "/api/auth/register",
-                    data={"email": f"u_{uid}_{name}@tracker.local", "nickname": f"n_{uid}_{name}", "password": "password123"},
+                    data={"email": f"u_{uid}_{name}@example.test", "nickname": f"n_{uid}_{name}", "password": "securePass123"},
                     origin=origin,
                 )
                 self.assertEqual(c, 201)
@@ -145,7 +145,7 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                     base_url,
                     "POST",
                     "/api/auth/login",
-                    data={"email": f"u_{uid}_{name}@tracker.local", "password": "password123"},
+                    data={"email": f"u_{uid}_{name}@example.test", "password": "securePass123"},
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
@@ -155,7 +155,7 @@ class TestAllSwaggerRoutes(unittest.TestCase):
 
                 c, h, b = api_call(base_url, "GET", "/api/auth/me", token=user_token, origin=origin)
                 self.assertEqual(c, 200)
-                self.assertEqual(b.get("email"), f"u_{uid}_{name}@tracker.local")
+                self.assertEqual(b.get("email"), f"u_{uid}_{name}@example.test")
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
