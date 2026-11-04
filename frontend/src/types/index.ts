@@ -1,25 +1,69 @@
-export type BracketType = 'double_elimination' | 'single_elimination'
+export type BracketType =
+  | 'double_elimination'
+  | 'single_elimination'
+  | 'round_robin'
+  | 'swiss'
 
 export type MatchStatus = 'LIVE' | 'UPCOMING' | 'FINISHED'
 
 export type TournamentStatus = 'Ongoing' | 'Upcoming' | 'Completed'
 
+export type MapResult = {
+  id: number
+  matchId: number
+  mapNumber: number
+  mapName: string
+  scoreA: number
+  scoreB: number
+  winnerId?: number | null
+  winnerName?: string | null
+}
+
+export type PlayerMatchStat = {
+  id: number
+  matchId: number
+  mapId?: number | null
+  playerId: number
+  playerNickname: string
+  teamId: number
+  teamName: string
+  kills: number
+  deaths: number
+  assists: number
+  headshots: number
+  adr: number
+  kast: number
+  rating: number
+  isMvp: boolean
+}
+
 export type Match = {
   id: string
   teamA: string
   teamB: string
-  scoreA?: number
-  scoreB?: number
+  teamAId?: number | null
+  teamBId?: number | null
+  teamALogoUrl?: string | null
+  teamBLogoUrl?: string | null
+  scoreA?: number | null
+  scoreB?: number | null
   status: MatchStatus
   tournamentId: string
-  tournamentName: string
+  tournamentName?: string
   date: string
-  map?: string
+  startTime?: string | null
+  map?: string | null
+  mapName?: string | null
+  matchFormat?: string
   bracketType?: BracketType | string
-  roundName?: string
-  roundOrder?: number
-  nextMatchId?: string
-  nextLoserMatchId?: string
+  roundName?: string | null
+  roundOrder?: number | null
+  winnerId?: number | null
+  winnerName?: string | null
+  nextMatchId?: string | number | null
+  nextLoserMatchId?: string | number | null
+  mapResults?: MapResult[]
+  playerStats?: PlayerMatchStat[]
 }
 
 export type Tournament = {
@@ -43,11 +87,14 @@ export type Team = {
   description: string
   ranking?: number
   roster: string[]
-  logoUrl?: string
+  logoUrl?: string | null
+  points?: number
+  winRate?: number
 }
 
 export type Player = {
   id: string
+  nickname?: string
   name: string
   birthDate?: string
   age: number
@@ -55,11 +102,13 @@ export type Player = {
   nationality: string
   teamId: string
   teamName: string
-  avatarUrl?: string
+  avatarUrl?: string | null
   stats: {
     kd: string
     impact: number
     maps: number
+    adr?: number
+    rating?: number
   }
 }
 
@@ -71,10 +120,12 @@ export type User = {
   created_at: string
   is_admin: boolean
   player_id?: number | string | null
+  avatar_url?: string | null
 }
 
 export type AuthToken = {
   access_token: string
+  refresh_token?: string
   token_type: string
   user: User
 }
@@ -105,6 +156,7 @@ export type CreateTeamInput = {
 
 export type CreatePlayerInput = {
   id?: string
+  nickname?: string
   name: string
   birthDate?: string
   age?: number
@@ -174,4 +226,24 @@ export type TournamentBracketView = {
   grandFinal?: BracketMatch | null
   allRounds: BracketRoundGroup[]
   stages?: BracketStage[]
+}
+
+export type LeaderboardTeam = {
+  rank: number
+  teamId: number
+  name: string
+  logoUrl?: string | null
+  points: number
+  winRate: number
+}
+
+export type LeaderboardPlayer = {
+  rank: number
+  playerId: number
+  nickname: string
+  teamName: string
+  avatarUrl?: string | null
+  rating: number
+  kd: string
+  adr: number
 }

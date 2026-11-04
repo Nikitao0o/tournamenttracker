@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from .. import crud, schemas
+from .. import crud, models, schemas
 from ..auth import get_current_admin
 from ..database import get_db
 
@@ -36,7 +36,7 @@ def get_tournament_bracket(tournament_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=schemas.TournamentOut, status_code=status.HTTP_201_CREATED)
 def create_tournament(
     payload: schemas.TournamentCreate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Create a tournament (admin only)."""
@@ -47,7 +47,7 @@ def create_tournament(
 def update_tournament(
     tournament_id: int,
     payload: schemas.TournamentUpdate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Modify tournament details (admin only)."""
@@ -57,7 +57,7 @@ def update_tournament(
 @router.delete("/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_tournament(
     tournament_id: int,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Delete tournament (admin only)."""
@@ -68,7 +68,7 @@ def delete_tournament(
 def generate_bracket(
     tournament_id: int,
     payload: schemas.BracketCreate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Generate tournament bracket of chosen type (admin only).

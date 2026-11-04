@@ -1,15 +1,25 @@
-"""End-to-end audit for all OpenAPI/Swagger endpoints and CORS compliance.
-Ensures every route responds with valid status codes and proper CORS headers
-for both direct backend access (port 8000) and frontend reverse proxy (port 5173).
+"""Audit for all OpenAPI/Swagger endpoints and CORS compliance.
+Tests each route via FastAPI TestClient with an isolated in-memory test database.
+Verifies:
+1. Valid HTTP status codes (2xx, 400, 401, 403, 404, 409).
+2. Proper CORS headers on responses.
+3. Preflight OPTIONS responses.
+4. Correct auth, CRUD, advancement, and leaderboards functionality.
 """
 
-import base64
+import os
 import sys
 import unittest
-import urllib.error
-import urllib.parse
-import urllib.request
-import json
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from fastapi.testclient import TestClient
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.database import Base, get_db
+from app.main import app
+from app.seed import seed_if_empty
 
 DUMMY_PNG_B64 = (
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
@@ -18,8 +28,8 @@ DUMMY_PNG_B64 = (
 
 
 class BaseEndpointTester:
-    def __init__(self, base_url: str):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, client: TestClient):
+        self.client = client
         self.token: str | None = None
 
     def request(
@@ -31,42 +41,23 @@ class BaseEndpointTester:
         use_auth: bool = True,
         extra_headers: dict | None = None,
     ) -> tuple[int, dict, dict]:
-        url = f"{self.base_url}{path}"
-        headers = {
-            "Accept": "application/json",
-            "Origin": origin,
-        }
+        headers = {"Origin": origin, "Accept": "application/json"}
         if extra_headers:
             headers.update(extra_headers)
-
-        body_bytes = None
-        if data is not None:
-            body_bytes = json.dumps(data).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-
         if use_auth and self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
-        req = urllib.request.Request(url, data=body_bytes, headers=headers, method=method)
+        response = self.client.request(
+            method=method,
+            url=path,
+            json=data if data is not None else None,
+            headers=headers,
+        )
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                status_code = resp.status
-                resp_headers = dict(resp.headers)
-                raw_body = resp.read().decode("utf-8")
-                try:
-                    resp_json = json.loads(raw_body) if raw_body else {}
-                except Exception:
-                    resp_json = {"raw": raw_body}
-                return status_code, resp_headers, resp_json
-        except urllib.error.HTTPError as e:
-            status_code = e.code
-            resp_headers = dict(e.headers)
-            raw_body = e.read().decode("utf-8")
-            try:
-                resp_json = json.loads(raw_body) if raw_body else {}
-            except Exception:
-                resp_json = {"raw": raw_body}
-            return status_code, resp_headers, resp_json
+            resp_json = response.json()
+        except Exception:
+            resp_json = {"raw": response.text}
+        return response.status_code, dict(response.headers), resp_json
 
     def options(
         self,
@@ -74,26 +65,44 @@ class BaseEndpointTester:
         method: str = "POST",
         origin: str = "http://localhost:8000",
     ) -> tuple[int, dict]:
-        url = f"{self.base_url}{path}"
         headers = {
             "Origin": origin,
             "Access-Control-Request-Method": method,
             "Access-Control-Request-Headers": "authorization,content-type",
         }
-        req = urllib.request.Request(url, headers=headers, method="OPTIONS")
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return resp.status, dict(resp.headers)
-        except urllib.error.HTTPError as e:
-            return e.code, dict(e.headers)
+        response = self.client.options(path, headers=headers)
+        return response.status_code, dict(response.headers)
 
 
 class TestSwaggerAndCORS(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.backend_url = "http://localhost:8000"
-        cls.proxy_url = "http://localhost:5173"
-        cls.tester = BaseEndpointTester(cls.backend_url)
+        cls.engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        cls.Session = sessionmaker(autocommit=False, autoflush=False, bind=cls.engine)
+
+    def setUp(self):
+        Base.metadata.create_all(bind=self.engine)
+        self.db = self.Session()
+        seed_if_empty(self.db)
+
+        def override_get_db():
+            try:
+                yield self.db
+            finally:
+                pass
+
+        app.dependency_overrides[get_db] = override_get_db
+        self.client = TestClient(app)
+        self.tester = BaseEndpointTester(self.client)
+
+    def tearDown(self):
+        app.dependency_overrides.clear()
+        self.db.close()
+        Base.metadata.drop_all(bind=self.engine)
 
     def assert_cors_headers(self, headers: dict, origin: str):
         norm = {k.lower(): v for k, v in headers.items()}
@@ -111,360 +120,241 @@ class TestSwaggerAndCORS(unittest.TestCase):
         )
 
     def test_01_docs_and_openapi_availability(self):
-        """Swagger UI (/docs) and OpenAPI JSON schema (/openapi.json) must load without errors."""
-        for base in [self.backend_url, self.proxy_url]:
-            t = BaseEndpointTester(base)
-            code, h, b = t.request("GET", "/docs", origin=base, use_auth=False)
-            self.assertEqual(code, 200, f"/docs failed on {base}")
+        """Swagger UI (/docs) and OpenAPI JSON schema (/openapi.json) load without errors."""
+        code, h, b = self.tester.request("GET", "/docs", origin="http://localhost:8000", use_auth=False)
+        self.assertEqual(code, 200)
 
-            code, h, schema = t.request("GET", "/openapi.json", origin=base, use_auth=False)
-            self.assertEqual(code, 200, f"/openapi.json failed on {base}")
-            self.assertIn("paths", schema, "OpenAPI schema must contain 'paths'")
+        code, h, schema = self.tester.request("GET", "/openapi.json", origin="http://localhost:8000", use_auth=False)
+        self.assertEqual(code, 200)
+        self.assertIn("openapi", schema)
+        self.assertIn("paths", schema)
 
     def test_02_cors_preflight_on_all_methods(self):
-        """OPTIONS preflight must return 200 OK with proper headers for Swagger requests."""
-        endpoints_to_check = [
-            ("POST", "/api/auth/login"),
-            ("POST", "/api/auth/register"),
-            ("GET", "/api/auth/me"),
-            ("PATCH", "/api/auth/me"),
-            ("POST", "/api/auth/me/avatar"),
-            ("GET", "/api/admin/users"),
-            ("POST", "/api/admin/players"),
-            ("GET", "/api/tournaments"),
-            ("POST", "/api/tournaments"),
-            ("GET", "/api/matches"),
-            ("POST", "/api/matches"),
-            ("GET", "/api/teams"),
-            ("POST", "/api/teams"),
-            ("GET", "/api/players"),
-            ("POST", "/api/players"),
-            ("GET", "/api/leaderboards/teams"),
-            ("GET", "/api/leaderboards/players"),
-            ("GET", "/api/health"),
+        """OPTIONS preflight requests must return 200 and valid CORS headers."""
+        sample_paths = [
+            "/api/auth/login",
+            "/api/tournaments",
+            "/api/matches",
+            "/api/teams",
+            "/api/players",
         ]
-        for method, path in endpoints_to_check:
-            for origin in ["http://localhost:8000", "http://localhost:5173"]:
-                code, headers = self.tester.options(path, method=method, origin=origin)
-                self.assertEqual(code, 200, f"OPTIONS preflight failed for {method} {path} from {origin}")
-                self.assert_cors_headers(headers, origin)
+        for path in sample_paths:
+            code, h = self.tester.options(path, method="POST", origin="http://localhost:8000")
+            self.assertEqual(code, 200, f"OPTIONS preflight failed for {path}")
+            self.assert_cors_headers(h, "http://localhost:8000")
 
     def test_03_health_check(self):
-        """GET /api/health returns 200 and status ok."""
-        code, h, body = self.tester.request("GET", "/api/health")
+        """GET /api/health returns 200 ok."""
+        code, h, body = self.tester.request("GET", "/api/health", origin="http://localhost:8000", use_auth=False)
         self.assertEqual(code, 200)
         self.assertEqual(body.get("status"), "ok")
         self.assert_cors_headers(h, "http://localhost:8000")
 
     def test_04_auth_lifecycle(self):
-        """Register, login, me, and avatar upload endpoints."""
-        origin = "http://localhost:8000"
-        import time
-        suffix = int(time.time() * 1000)
-        user_email = f"testuser_{suffix}@tracker.local"
-        user_nick = f"test_{suffix}"
+        """Test registration, login, profile retrieval, refresh token, and token verification."""
+        reg_payload = {
+            "email": "testplayer@audit.local",
+            "nickname": "audit_ninja",
+            "password": "password123",
+        }
+        code, h, body = self.tester.request("POST", "/api/auth/register", reg_payload, use_auth=False)
+        self.assertEqual(code, 201)
+        self.assertEqual(body.get("email"), "testplayer@audit.local")
+        self.assertFalse(body.get("is_admin"))
 
-        code, h, body = self.tester.request(
-            "POST",
-            "/api/auth/register",
-            data={"email": user_email, "nickname": user_nick, "password": "password123"},
-            origin=origin,
-            use_auth=False,
-        )
-        self.assertIn(code, [201, 409], f"Register failed: {body}")
-        self.assert_cors_headers(h, origin)
-
-        code, h, body = self.tester.request(
-            "POST",
-            "/api/auth/login",
-            data={"email": user_email, "password": "password123"},
-            origin=origin,
-            use_auth=False,
-        )
-        self.assertEqual(code, 200, f"Login failed: {body}")
-        self.assertIn("access_token", body)
-        self.assert_cors_headers(h, origin)
-        user_token = body["access_token"]
-
-        user_tester = BaseEndpointTester(self.backend_url)
-        user_tester.token = user_token
-        code, h, body = user_tester.request("GET", "/api/auth/me", origin=origin)
+        login_payload = {
+            "email": "testplayer@audit.local",
+            "password": "password123",
+        }
+        code, h, body = self.tester.request("POST", "/api/auth/login", login_payload, use_auth=False)
         self.assertEqual(code, 200)
-        self.assertEqual(body.get("email"), user_email)
-        self.assert_cors_headers(h, origin)
+        access_token = body.get("access_token")
+        refresh_token = body.get("refresh_token")
+        self.assertIsNotNone(access_token)
+        self.assertIsNotNone(refresh_token)
 
-        code, h, body = user_tester.request("PATCH", "/api/auth/me", data={"nickname": f"{user_nick}_upd"}, origin=origin)
+        self.tester.token = access_token
+        code, h, me_body = self.tester.request("GET", "/api/auth/me")
         self.assertEqual(code, 200)
-        self.assertEqual(body.get("nickname"), f"{user_nick}_upd")
-        self.assert_cors_headers(h, origin)
+        self.assertEqual(me_body.get("nickname"), "audit_ninja")
 
-        code, h, body = user_tester.request(
-            "POST",
-            "/api/auth/me/avatar",
-            data={"image_base64": DUMMY_PNG_B64},
-            origin=origin,
-        )
+        # Test refresh token
+        code, h, ref_body = self.tester.request("POST", "/api/auth/refresh", {"refresh_token": refresh_token}, use_auth=False)
         self.assertEqual(code, 200)
-        self.assertTrue(body.get("avatar_url", "").startswith("/uploads/players/"))
-        self.assert_cors_headers(h, origin)
+        self.assertIn("access_token", ref_body)
 
     def test_05_admin_endpoints_with_admin_account(self):
-        """Admin accounts from admins.txt must have access to /api/admin/*."""
-        origin = "http://localhost:8000"
+        """Log in as seeded admin and access protected admin endpoints."""
+        login_payload = {
+            "email": "admin@tracker.local",
+            "password": "password123",
+        }
+        code, h, body = self.tester.request("POST", "/api/auth/login", login_payload, use_auth=False)
+        self.assertEqual(code, 200)
+        admin_token = body.get("access_token")
+        self.tester.token = admin_token
+
+        code, h, users = self.tester.request("GET", "/api/admin/users")
+        self.assertEqual(code, 200)
+        self.assertTrue(len(users) >= 2)
+
+        code, h, admins = self.tester.request("GET", "/api/admin/admins-list")
+        self.assertEqual(code, 200)
+        self.assertIn("admins", admins)
+
+    def test_06_tournaments_and_bracket_types(self):
+        """Create, read, update tournaments and generate all bracket formats."""
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            data={"email": "admin@tracker.local", "password": "password123"},
-            origin=origin,
+            {"email": "admin@tracker.local", "password": "password123"},
             use_auth=False,
         )
-        self.assertEqual(code, 200, f"Admin login failed: {body}")
-        admin_token = body["access_token"]
-        self.assertTrue(body["user"]["is_admin"], "admin@tracker.local must be admin")
+        self.tester.token = body.get("access_token")
 
-        admin_tester = BaseEndpointTester(self.backend_url)
-        admin_tester.token = admin_token
-
-        code, h, users = admin_tester.request("GET", "/api/admin/users", origin=origin)
-        self.assertEqual(code, 200)
-        self.assertIsInstance(users, list)
-        self.assert_cors_headers(h, origin)
-
-        code, h, admins = admin_tester.request("GET", "/api/admin/admins-list", origin=origin)
-        self.assertEqual(code, 200)
-        self.assertIn("admins", admins)
-        self.assert_cors_headers(h, origin)
-
-        import time
-        p_nick = f"solo_{int(time.time() * 1000)}"
-        code, h, player = admin_tester.request(
-            "POST",
-            "/api/admin/players",
-            data={
-                "nickname": p_nick,
-                "name": "Solo Player",
-                "age": 21,
-                "role": "Rifler",
-                "nationality": "Germany",
-                "kd": "1.15",
-                "impact": 1.2,
-                "maps": 45,
-                "team_id": 1,
-                "user_id": None,
-            },
-            origin=origin,
-        )
+        t_payload = {
+            "title": "Swagger Audit Cup",
+            "prize_pool": "$50,000",
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-05",
+            "status": "Upcoming",
+            "location": "Online",
+            "bracket_type": "double_elimination",
+        }
+        code, h, created_t = self.tester.request("POST", "/api/tournaments", t_payload)
         self.assertEqual(code, 201)
-        self.assert_cors_headers(h, origin)
+        t_id = created_t["id"]
 
-    def test_06_tournaments_and_bracket_types(self):
-        """CRUD for tournaments and generation of all 4 bracket types."""
-        origin = "http://localhost:8000"
-        code, _, login_body = self.tester.request(
-            "POST",
-            "/api/auth/login",
-            data={"email": "admin@tracker.local", "password": "password123"},
-            origin=origin,
-            use_auth=False,
-        )
-        admin_tester = BaseEndpointTester(self.backend_url)
-        admin_tester.token = login_body["access_token"]
+        code, h, teams = self.tester.request("GET", "/api/teams")
+        team_ids = [t["id"] for t in teams[:4]]
 
-        code, h, tourneys = self.tester.request("GET", "/api/tournaments", origin=origin, use_auth=False)
-        self.assertEqual(code, 200)
-        self.assertIsInstance(tourneys, list)
-        self.assert_cors_headers(h, origin)
-
-        import time
-        t_title = f"Championship_{int(time.time() * 1000)}"
-        code, h, new_t = admin_tester.request(
-            "POST",
-            "/api/tournaments",
-            data={
-                "title": t_title,
-                "prize_pool": "$500,000",
-                "start_date": "2026-11-01",
-                "end_date": "2026-11-10",
-                "status": "Upcoming",
-                "location": "Berlin, Germany",
-                "bracket_type": "double_elimination",
-            },
-            origin=origin,
-        )
-        self.assertEqual(code, 201)
-        t_id = new_t["id"]
-        self.assert_cors_headers(h, origin)
-
-        code, h, t_get = self.tester.request("GET", f"/api/tournaments/{t_id}", origin=origin, use_auth=False)
-        self.assertEqual(code, 200)
-        self.assertEqual(t_get["title"], t_title)
-
-        bracket_types = ["single_elimination", "double_elimination", "round_robin", "swiss"]
-        for b_type in bracket_types:
-            code, h, b_view = admin_tester.request(
-                "POST",
-                f"/api/tournaments/{t_id}/bracket/generate",
-                data={
-                    "name": f"Stage {b_type}",
-                    "bracket_type": b_type,
-                    "team_ids": [1, 2, 3, 4],
-                    "match_format": "BO3",
-                },
-                origin=origin,
+        for b_type in ["double_elimination", "single_elimination", "round_robin", "swiss"]:
+            b_payload = {
+                "name": f"{b_type} Playoff",
+                "bracket_type": b_type,
+                "team_ids": team_ids,
+                "match_format": "BO3",
+            }
+            code, h, bracket_view = self.tester.request(
+                "POST", f"/api/tournaments/{t_id}/bracket/generate", b_payload
             )
-            self.assertEqual(code, 200, f"Bracket generation failed for {b_type}: {b_view}")
-            self.assert_cors_headers(h, origin)
-
-        code, h, b_view = self.tester.request("GET", f"/api/tournaments/{t_id}/bracket", origin=origin, use_auth=False)
-        self.assertEqual(code, 200)
-        self.assert_cors_headers(h, origin)
-
-        code, h, _ = admin_tester.request("DELETE", f"/api/tournaments/{t_id}", origin=origin)
-        self.assertEqual(code, 204)
-        self.assert_cors_headers(h, origin)
+            self.assertEqual(code, 200, f"Bracket gen failed for {b_type}: {bracket_view}")
+            self.assertEqual(bracket_view.get("bracket_type"), b_type)
 
     def test_07_matches_crud_and_advancement(self):
-        """Matches listing, creation, score updating, and deletion."""
-        origin = "http://localhost:8000"
-        code, _, login_body = self.tester.request(
+        """Test match creation, map scores, player stats, and progression."""
+        code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            data={"email": "admin@tracker.local", "password": "password123"},
-            origin=origin,
+            {"email": "admin@tracker.local", "password": "password123"},
             use_auth=False,
         )
-        admin_tester = BaseEndpointTester(self.backend_url)
-        admin_tester.token = login_body["access_token"]
+        self.tester.token = body.get("access_token")
 
-        code, h, matches = self.tester.request("GET", "/api/matches", origin=origin, use_auth=False)
-        self.assertEqual(code, 200)
-        self.assertIsInstance(matches, list)
-        self.assert_cors_headers(h, origin)
+        code, h, teams = self.tester.request("GET", "/api/teams")
+        code, h, tournaments = self.tester.request("GET", "/api/tournaments")
+        t_id = tournaments[0]["id"]
 
-        code, h, m = admin_tester.request(
-            "POST",
-            "/api/matches",
-            data={
-                "tournament_id": 1,
-                "team_a_id": 1,
-                "team_b_id": 2,
-                "status": "UPCOMING",
-                "date": "2026-11-05",
-                "match_format": "BO3",
-            },
-            origin=origin,
-        )
+        m_payload = {
+            "tournament_id": t_id,
+            "team_a_id": teams[0]["id"],
+            "team_b_id": teams[1]["id"],
+            "date": "2026-10-15",
+            "start_time": "18:00",
+            "status": "UPCOMING",
+            "match_format": "BO3",
+        }
+        code, h, match = self.tester.request("POST", "/api/matches", m_payload)
         self.assertEqual(code, 201)
-        m_id = m["id"]
-        self.assert_cors_headers(h, origin)
+        m_id = match["id"]
 
-        code, h, m_upd = admin_tester.request(
-            "PATCH",
-            f"/api/matches/{m_id}",
-            data={"status": "FINISHED", "score_a": 2, "score_b": 0},
-            origin=origin,
+        # Add map result
+        map_payload = {
+            "map_number": 1,
+            "map_name": "Dust2",
+            "score_a": 13,
+            "score_b": 10,
+            "winner_id": teams[0]["id"],
+        }
+        code, h, map_res = self.tester.request("POST", f"/api/matches/{m_id}/maps", map_payload)
+        self.assertEqual(code, 201)
+
+        # Update match to FINISHED
+        code, h, updated_m = self.tester.request(
+            "PATCH", f"/api/matches/{m_id}", {"status": "FINISHED", "score_a": 2, "score_b": 0}
         )
         self.assertEqual(code, 200)
-        self.assertEqual(m_upd["status"], "FINISHED")
-        self.assertEqual(m_upd["winner_id"], 1)
-        self.assert_cors_headers(h, origin)
-
-        code, h, _ = admin_tester.request("DELETE", f"/api/matches/{m_id}", origin=origin)
-        self.assertEqual(code, 204)
-        self.assert_cors_headers(h, origin)
+        self.assertEqual(updated_m.get("winner_id"), teams[0]["id"])
 
     def test_08_teams_and_logo_upload(self):
-        """Teams listing, creation, logo upload, and deletion."""
-        origin = "http://localhost:8000"
-        code, _, login_body = self.tester.request(
+        """Create team and upload PNG logo."""
+        code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            data={"email": "admin@tracker.local", "password": "password123"},
-            origin=origin,
+            {"email": "admin@tracker.local", "password": "password123"},
             use_auth=False,
         )
-        admin_tester = BaseEndpointTester(self.backend_url)
-        admin_tester.token = login_body["access_token"]
+        self.tester.token = body.get("access_token")
 
-        code, h, teams = self.tester.request("GET", "/api/teams", origin=origin, use_auth=False)
-        self.assertEqual(code, 200)
-        self.assertIsInstance(teams, list)
-        self.assert_cors_headers(h, origin)
-
-        import time
-        team_name = f"TestTeam_{int(time.time() * 1000)}"
-        code, h, team = admin_tester.request(
-            "POST",
-            "/api/teams",
-            data={
-                "name": team_name,
-                "short_name": "TT",
-                "region": "Europe",
-                "coach": "Test Coach",
-                "description": "A test squad",
-                "ranking": 99,
-            },
-            origin=origin,
-        )
+        team_payload = {
+            "name": "Audit Elite Team",
+            "short_name": "AET",
+            "region": "Americas",
+            "coach": "Audit Coach",
+            "description": "Team created for OpenAPI coverage tests",
+            "ranking": 10,
+        }
+        code, h, team = self.tester.request("POST", "/api/teams", team_payload)
         self.assertEqual(code, 201)
         team_id = team["id"]
-        self.assert_cors_headers(h, origin)
 
-        code, h, logo_res = admin_tester.request(
-            "POST",
-            f"/api/teams/{team_id}/logo",
-            data={"image_base64": DUMMY_PNG_B64},
-            origin=origin,
+        logo_payload = {"image_base64": DUMMY_PNG_B64}
+        code, h, updated_team = self.tester.request(
+            "POST", f"/api/teams/{team_id}/logo", logo_payload
         )
         self.assertEqual(code, 200)
-        self.assertTrue(logo_res.get("logo_url", "").startswith("/uploads/teams/"))
-        self.assert_cors_headers(h, origin)
-
-        code, h, _ = admin_tester.request("DELETE", f"/api/teams/{team_id}", origin=origin)
-        self.assertEqual(code, 204)
-        self.assert_cors_headers(h, origin)
+        self.assertIsNotNone(updated_team.get("logo_url"))
 
     def test_09_players_and_avatar_upload(self):
-        """Players listing, avatar upload, and updates."""
-        origin = "http://localhost:8000"
-        code, _, login_body = self.tester.request(
+        """Create player and upload avatar."""
+        code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
-            data={"email": "admin@tracker.local", "password": "password123"},
-            origin=origin,
+            {"email": "admin@tracker.local", "password": "password123"},
             use_auth=False,
         )
-        admin_tester = BaseEndpointTester(self.backend_url)
-        admin_tester.token = login_body["access_token"]
+        self.tester.token = body.get("access_token")
 
-        code, h, players = self.tester.request("GET", "/api/players", origin=origin, use_auth=False)
-        self.assertEqual(code, 200)
-        self.assertIsInstance(players, list)
-        self.assert_cors_headers(h, origin)
+        code, h, teams = self.tester.request("GET", "/api/teams")
+        p_payload = {
+            "nickname": "AuditAce",
+            "name": "Alex Audit",
+            "age": 20,
+            "role": "Entry Fragger",
+            "nationality": "Germany",
+            "kd": "1.25",
+            "impact": 9.1,
+            "maps": 45,
+            "team_id": teams[0]["id"],
+        }
+        code, h, player = self.tester.request("POST", "/api/players", p_payload)
+        self.assertEqual(code, 201)
+        p_id = player["id"]
 
-        code, h, p_res = admin_tester.request(
-            "POST",
-            "/api/players/1/avatar",
-            data={"image_base64": DUMMY_PNG_B64},
-            origin=origin,
+        avatar_payload = {"image_base64": DUMMY_PNG_B64}
+        code, h, updated_p = self.tester.request(
+            "POST", f"/api/players/{p_id}/avatar", avatar_payload
         )
         self.assertEqual(code, 200)
-        self.assertTrue(p_res.get("avatar_url", "").startswith("/uploads/players/"))
-        self.assert_cors_headers(h, origin)
+        self.assertIsNotNone(updated_p.get("avatar_url"))
 
     def test_10_leaderboards(self):
         """GET /api/leaderboards/teams and /api/leaderboards/players."""
-        origin = "http://localhost:8000"
-        code, h, teams_lb = self.tester.request("GET", "/api/leaderboards/teams", origin=origin, use_auth=False)
+        code, h, teams_lb = self.tester.request("GET", "/api/leaderboards/teams", use_auth=False)
         self.assertEqual(code, 200)
-        self.assertIsInstance(teams_lb, list)
-        self.assert_cors_headers(h, origin)
+        self.assertTrue(len(teams_lb) > 0)
 
-        code, h, players_lb = self.tester.request("GET", "/api/leaderboards/players", origin=origin, use_auth=False)
+        code, h, players_lb = self.tester.request("GET", "/api/leaderboards/players", use_auth=False)
         self.assertEqual(code, 200)
-        self.assertIsInstance(players_lb, list)
-        self.assert_cors_headers(h, origin)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertTrue(len(players_lb) > 0)
+        self.assertTrue(players_lb[0]["rating"] > 0)

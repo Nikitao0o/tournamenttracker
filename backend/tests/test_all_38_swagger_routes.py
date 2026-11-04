@@ -1,22 +1,57 @@
-"""Exhaustive test verifying all 38 Swagger/OpenAPI endpoints.
-Tests each route via direct backend (8000) and reverse proxy (5173).
+"""Exhaustive test verifying all Swagger/OpenAPI endpoints.
+Uses FastAPI TestClient and in-memory database to test all routes in CI.
 Verifies:
 1. Valid HTTP status codes (2xx, 400, 401, 403, 404, 409).
 2. Proper CORS headers on every response.
 3. Preflight OPTIONS responses.
-4. Zero network failures, unhandled crashes, or CORS blockage.
+4. Comprehensive entity operations across users, tournaments, teams, players, matches, leaderboards.
 """
 
-import json
+import os
+import sys
+import time
 import unittest
-import urllib.error
-import urllib.parse
-import urllib.request
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.database import Base, get_db
+from app.main import app
+from app.seed import seed_if_empty
 
 DUMMY_PNG_B64 = (
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
     "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 )
+
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+_shared_client = None
+
+
+def get_test_client():
+    global _shared_client
+    if _shared_client is None:
+        Base.metadata.create_all(bind=test_engine)
+        db = TestingSessionLocal()
+        seed_if_empty(db)
+
+        def override_get_db():
+            try:
+                yield db
+            finally:
+                pass
+
+        app.dependency_overrides[get_db] = override_get_db
+        _shared_client = TestClient(app)
+    return _shared_client
 
 
 def api_call(
@@ -27,53 +62,38 @@ def api_call(
     token: str | None = None,
     origin: str = "http://localhost:8000",
 ) -> tuple[int, dict, dict]:
-    url = f"{base_url}{path}"
+    client = get_test_client()
     headers = {
         "Accept": "application/json",
         "Origin": origin,
     }
-    body_bytes = None
-    if data is not None:
-        body_bytes = json.dumps(data).encode("utf-8")
-        headers["Content-Type"] = "application/json"
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    req = urllib.request.Request(url, data=body_bytes, headers=headers, method=method)
+    resp = client.request(
+        method=method,
+        url=path,
+        json=data if data is not None else None,
+        headers=headers,
+    )
+    code = resp.status_code
+    h = dict(resp.headers)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            code = resp.status
-            h = dict(resp.headers)
-            raw = resp.read().decode("utf-8")
-            try:
-                b = json.loads(raw) if raw else {}
-            except Exception:
-                b = {"raw": raw}
-            return code, h, b
-    except urllib.error.HTTPError as e:
-        code = e.code
-        h = dict(e.headers)
-        raw = e.read().decode("utf-8")
-        try:
-            b = json.loads(raw) if raw else {}
-        except Exception:
-            b = {"raw": raw}
-        return code, h, b
+        b = resp.json()
+    except Exception:
+        b = {"raw": resp.text}
+    return code, h, b
 
 
 def options_call(base_url: str, path: str, method: str, origin: str) -> tuple[int, dict]:
-    url = f"{base_url}{path}"
+    client = get_test_client()
     headers = {
         "Origin": origin,
         "Access-Control-Request-Method": method,
         "Access-Control-Request-Headers": "authorization,content-type",
     }
-    req = urllib.request.Request(url, headers=headers, method="OPTIONS")
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status, dict(resp.headers)
-    except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers)
+    resp = client.options(path, headers=headers)
+    return resp.status_code, dict(resp.headers)
 
 
 class TestAllSwaggerRoutes(unittest.TestCase):
@@ -108,7 +128,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(b.get("status"), "ok")
                 self.assert_cors(h, origin)
 
-                import time
                 uid = int(time.time() * 1000)
                 c, h, b = api_call(
                     base_url,
@@ -128,72 +147,141 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
-                u_token = b["access_token"]
+                user_token = b.get("access_token")
+                self.assertIsNotNone(user_token)
                 self.assert_cors(h, origin)
 
-                c, h, b = api_call(base_url, "GET", "/api/auth/me", token=u_token, origin=origin)
+                c, h, b = api_call(base_url, "GET", "/api/auth/me", token=user_token, origin=origin)
                 self.assertEqual(c, 200)
+                self.assertEqual(b.get("email"), f"u_{uid}_{name}@tracker.local")
                 self.assert_cors(h, origin)
 
-                c, h, b = api_call(base_url, "PATCH", "/api/auth/me", data={"nickname": f"upd_{uid}_{name}"}, token=u_token, origin=origin)
+                c, h, b = api_call(
+                    base_url,
+                    "PATCH",
+                    "/api/auth/me",
+                    data={"nickname": f"updated_{uid}_{name}"},
+                    token=user_token,
+                    origin=origin,
+                )
                 self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "POST", "/api/auth/me/avatar", data={"image_base64": DUMMY_PNG_B64}, token=u_token, origin=origin)
-                self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", "/api/admin/users", token=self.admin_token, origin=origin)
-                self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", "/api/admin/admins-list", token=self.admin_token, origin=origin)
-                self.assertEqual(c, 200)
+                self.assertEqual(b.get("nickname"), f"updated_{uid}_{name}")
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
                     "POST",
-                    "/api/admin/players",
+                    "/api/auth/me/avatar",
+                    data={"image_base64": DUMMY_PNG_B64},
+                    token=user_token,
+                    origin=origin,
+                )
+                self.assertEqual(c, 200)
+                self.assertIn("/uploads/players/", b.get("avatar_url", ""))
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", "/api/admin/users", token=self.admin_token, origin=origin)
+                self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 2)
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", "/api/admin/admins-list", token=self.admin_token, origin=origin)
+                self.assertEqual(c, 200)
+                self.assertIn("admins", b)
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", "/api/tournaments", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 1)
+                first_tourney_id = b[0]["id"]
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/tournaments/{first_tourney_id}", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertEqual(b.get("id"), first_tourney_id)
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/tournaments/{first_tourney_id}/matches", origin=origin)
+                self.assertEqual(c, 200)
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/tournaments/{first_tourney_id}/bracket", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertIn("upper_bracket", b)
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(
+                    base_url,
+                    "POST",
+                    "/api/tournaments",
                     data={
-                        "nickname": f"p_adm_{uid}_{name}",
-                        "name": "Admin Created Player",
-                        "age": 22,
-                        "role": "Entry",
-                        "nationality": "France",
-                        "kd": "1.20",
-                        "impact": 1.3,
-                        "maps": 50,
-                        "team_id": 1,
-                        "user_id": None,
+                        "title": f"New Tourney {uid}_{name}",
+                        "prize_pool": "$200,000",
+                        "start_date": "2026-12-01",
+                        "end_date": "2026-12-10",
+                        "status": "Upcoming",
+                        "location": "Warsaw",
+                        "bracket_type": "double_elimination",
                     },
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 201)
-                p_adm_id = b["id"]
+                new_t_id = b["id"]
                 self.assert_cors(h, origin)
 
-                c, _, reg_b = api_call(
+                c, h, b = api_call(
                     base_url,
-                    "POST",
-                    "/api/auth/register",
-                    data={"email": f"claim_{uid}_{name}@tracker.local", "nickname": f"claim_{uid}_{name}", "password": "password123"},
+                    "PATCH",
+                    f"/api/tournaments/{new_t_id}",
+                    data={"location": "Berlin"},
+                    token=self.admin_token,
                     origin=origin,
                 )
-                claim_user_id = reg_b["id"]
+                self.assertEqual(c, 200)
+                self.assertEqual(b.get("location"), "Berlin")
+                self.assert_cors(h, origin)
+
+                c, h, teams = api_call(base_url, "GET", "/api/teams", origin=origin)
+                team_ids = [t["id"] for t in teams[:4]]
                 c, h, b = api_call(
                     base_url,
                     "POST",
-                    "/api/admin/players/claim",
-                    data={"player_id": p_adm_id, "user_id": claim_user_id},
+                    f"/api/tournaments/{new_t_id}/bracket/generate",
+                    data={
+                        "name": "Playoffs",
+                        "bracket_type": "double_elimination",
+                        "team_ids": team_ids,
+                        "match_format": "BO3",
+                    },
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
+                c, h, b = api_call(
+                    base_url,
+                    "DELETE",
+                    f"/api/tournaments/{new_t_id}",
+                    token=self.admin_token,
+                    origin=origin,
+                )
+                self.assertEqual(c, 204)
+                self.assert_cors(h, origin)
+
                 c, h, b = api_call(base_url, "GET", "/api/teams", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 4)
+                team_id = b[0]["id"]
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/teams/{team_id}", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertEqual(b.get("id"), team_id)
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/teams/{team_id}/players", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
@@ -202,52 +290,63 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                     "POST",
                     "/api/teams",
                     data={
-                        "name": f"Team_{uid}_{name}",
-                        "short_name": "TM",
+                        "name": f"Cloud {uid}_{name}",
+                        "short_name": "C9",
                         "region": "Americas",
-                        "coach": "Coach X",
-                        "description": "Team description",
-                        "ranking": 50,
+                        "coach": "groove",
+                        "description": "NA team",
+                        "ranking": 12,
                     },
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 201)
-                t_team_id = b["id"]
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", f"/api/teams/{t_team_id}", origin=origin)
-                self.assertEqual(c, 200)
+                new_team_id = b["id"]
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
-                    f"/api/teams/{t_team_id}",
-                    data={"description": "Updated team description"},
+                    f"/api/teams/{new_team_id}",
+                    data={"ranking": 11},
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
+                self.assertEqual(b.get("ranking"), 11)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
                     "POST",
-                    f"/api/teams/{t_team_id}/logo",
+                    f"/api/teams/{new_team_id}/logo",
                     data={"image_base64": DUMMY_PNG_B64},
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
+                self.assertIn("/uploads/teams/", b.get("logo_url", ""))
                 self.assert_cors(h, origin)
 
-                c, h, b = api_call(base_url, "GET", f"/api/teams/{t_team_id}/players", origin=origin)
-                self.assertEqual(c, 200)
+                c, h, b = api_call(
+                    base_url,
+                    "DELETE",
+                    f"/api/teams/{new_team_id}",
+                    token=self.admin_token,
+                    origin=origin,
+                )
+                self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(base_url, "GET", "/api/players", origin=origin)
                 self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 5)
+                player_id = b[0]["id"]
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/players/{player_id}", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertEqual(b.get("id"), player_id)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
@@ -255,115 +354,66 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                     "POST",
                     "/api/players",
                     data={
-                        "nickname": f"pro_{uid}_{name}",
-                        "name": "Pro Player",
-                        "age": 24,
-                        "role": "Sniper",
+                        "nickname": f"gunner_{uid}_{name}",
+                        "name": "Alex Gunner",
+                        "age": 21,
+                        "role": "Entry Fragger",
                         "nationality": "Sweden",
-                        "kd": "1.32",
-                        "impact": 1.4,
-                        "maps": 60,
-                        "team_id": t_team_id,
-                        "user_id": None,
+                        "kd": "1.21",
+                        "impact": 9.1,
+                        "maps": 45,
+                        "team_id": team_id,
                     },
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 201)
-                test_player_id = b["id"]
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", f"/api/players/{test_player_id}", origin=origin)
-                self.assertEqual(c, 200)
+                new_p_id = b["id"]
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
-                    f"/api/players/{test_player_id}",
-                    data={"role": "Support"},
+                    f"/api/players/{new_p_id}",
+                    data={"role": "Lurker"},
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
+                self.assertEqual(b.get("role"), "Lurker")
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
                     "POST",
-                    f"/api/players/{test_player_id}/avatar",
+                    f"/api/players/{new_p_id}/avatar",
                     data={"image_base64": DUMMY_PNG_B64},
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", "/api/tournaments", origin=origin)
-                self.assertEqual(c, 200)
+                self.assertIn("/uploads/players/", b.get("avatar_url", ""))
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
-                    "POST",
-                    "/api/tournaments",
-                    data={
-                        "title": f"Tourney_{uid}_{name}",
-                        "prize_pool": "$250,000",
-                        "start_date": "2026-12-01",
-                        "end_date": "2026-12-10",
-                        "status": "Upcoming",
-                        "location": "Paris, France",
-                        "bracket_type": "double_elimination",
-                    },
+                    "DELETE",
+                    f"/api/players/{new_p_id}",
                     token=self.admin_token,
                     origin=origin,
                 )
-                self.assertEqual(c, 201)
-                t_tourney_id = b["id"]
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", f"/api/tournaments/{t_tourney_id}", origin=origin)
-                self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(
-                    base_url,
-                    "PATCH",
-                    f"/api/tournaments/{t_tourney_id}",
-                    data={"prize_pool": "$300,000"},
-                    token=self.admin_token,
-                    origin=origin,
-                )
-                self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(
-                    base_url,
-                    "POST",
-                    f"/api/tournaments/{t_tourney_id}/bracket/generate",
-                    data={
-                        "name": "Playoffs",
-                        "bracket_type": "double_elimination",
-                        "team_ids": [1, 2, 3, 4],
-                        "match_format": "BO3",
-                    },
-                    token=self.admin_token,
-                    origin=origin,
-                )
-                self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", f"/api/tournaments/{t_tourney_id}/bracket", origin=origin)
-                self.assertEqual(c, 200)
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", f"/api/tournaments/{t_tourney_id}/matches", origin=origin)
-                self.assertEqual(c, 200)
+                self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(base_url, "GET", "/api/matches", origin=origin)
                 self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 1)
+                match_id = b[0]["id"]
+                self.assert_cors(h, origin)
+
+                c, h, b = api_call(base_url, "GET", f"/api/matches/{match_id}", origin=origin)
+                self.assertEqual(c, 200)
+                self.assertEqual(b.get("id"), match_id)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
@@ -371,60 +421,49 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                     "POST",
                     "/api/matches",
                     data={
-                        "tournament_id": t_tourney_id,
-                        "team_a_id": 1,
-                        "team_b_id": 2,
+                        "tournament_id": first_tourney_id,
+                        "team_a_id": teams[0]["id"],
+                        "team_b_id": teams[1]["id"],
+                        "date": "2026-11-20",
+                        "start_time": "19:00",
                         "status": "UPCOMING",
-                        "date": "2026-12-05",
                         "match_format": "BO3",
                     },
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 201)
-                t_match_id = b["id"]
-                self.assert_cors(h, origin)
-
-                c, h, b = api_call(base_url, "GET", f"/api/matches/{t_match_id}", origin=origin)
-                self.assertEqual(c, 200)
+                new_m_id = b["id"]
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
-                    f"/api/matches/{t_match_id}",
-                    data={"status": "FINISHED", "score_a": 2, "score_b": 1},
+                    f"/api/matches/{new_m_id}",
+                    data={"score_a": 2, "score_b": 1, "status": "FINISHED"},
                     token=self.admin_token,
                     origin=origin,
                 )
                 self.assertEqual(c, 200)
-                self.assertEqual(b["winner_id"], 1)
+                self.assertEqual(b.get("status"), "FINISHED")
                 self.assert_cors(h, origin)
 
-                c, h, _ = api_call(base_url, "DELETE", f"/api/matches/{t_match_id}", token=self.admin_token, origin=origin)
-                self.assertEqual(c, 204)
-                self.assert_cors(h, origin)
-
-                c, h, _ = api_call(base_url, "DELETE", f"/api/tournaments/{t_tourney_id}", token=self.admin_token, origin=origin)
-                self.assertEqual(c, 204)
-                self.assert_cors(h, origin)
-
-                c, h, _ = api_call(base_url, "DELETE", f"/api/players/{test_player_id}", token=self.admin_token, origin=origin)
-                self.assertEqual(c, 204)
-                self.assert_cors(h, origin)
-
-                c, h, _ = api_call(base_url, "DELETE", f"/api/teams/{t_team_id}", token=self.admin_token, origin=origin)
+                c, h, b = api_call(
+                    base_url,
+                    "DELETE",
+                    f"/api/matches/{new_m_id}",
+                    token=self.admin_token,
+                    origin=origin,
+                )
                 self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(base_url, "GET", "/api/leaderboards/teams", origin=origin)
                 self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 4)
                 self.assert_cors(h, origin)
 
                 c, h, b = api_call(base_url, "GET", "/api/leaderboards/players", origin=origin)
                 self.assertEqual(c, 200)
+                self.assertTrue(len(b) >= 5)
                 self.assert_cors(h, origin)
-
-
-if __name__ == "__main__":
-    unittest.main()

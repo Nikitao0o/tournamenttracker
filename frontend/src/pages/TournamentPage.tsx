@@ -12,9 +12,8 @@ import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useTournaments } from '../app/providers/useTournaments'
 import { MatchList } from '../components/MatchList'
 import { TournamentStatusLabel } from '../components/StatusChips'
-import { getMatchesByTournamentId, getTournamentById } from '../mock/data'
 import { apiClient } from '../shared/api/client'
-import type { TournamentBracketView as BracketViewType } from '../types'
+import type { Match, TournamentBracketView as BracketViewType } from '../types'
 import { formatDate } from '../utils/formatting'
 import { TournamentBracketView } from '../features/bracket/ui/TournamentBracketView'
 
@@ -24,9 +23,9 @@ export function TournamentPage() {
   const [activeTab, setActiveTab] = useState<'bracket' | 'matches'>('bracket')
   const [bracket, setBracket] = useState<BracketViewType | null>(null)
   const [isBracketLoading, setIsBracketLoading] = useState(true)
+  const [matches, setMatches] = useState<Match[]>([])
 
-  const tournament = id ? (getTournament(id) || getTournamentById(id)) : undefined
-  const matches = id ? getMatchesByTournamentId(id) : []
+  const tournament = id ? getTournament(id) : undefined
 
   useEffect(() => {
     let active = true
@@ -45,6 +44,16 @@ export function TournamentPage() {
           setIsBracketLoading(false)
         }
       })
+
+    const tNum = Number(id)
+    if (!isNaN(tNum)) {
+      apiClient
+        .getMatches({ tournamentId: tNum })
+        .then((m) => {
+          if (active) setMatches(m)
+        })
+        .catch(() => {})
+    }
 
     return () => {
       active = false
@@ -155,7 +164,7 @@ export function TournamentPage() {
           <Typography variant="h2" sx={{ mb: 1.5 }}>
             Matches
           </Typography>
-          <MatchList matches={matches} emptyText="No demo matches for this event yet." />
+          <MatchList matches={matches} emptyText="No matches for this tournament yet." />
         </div>
       )}
     </Stack>

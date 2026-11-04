@@ -8,7 +8,7 @@ import { storage } from '../api/storage'
 
 interface TeamLogoProps {
   teamName?: string
-  logoUrl?: string
+  logoUrl?: string | null
   preferredFormat?: 'png' | 'jpg' | 'svg'
   size?: number
   variant?: 'circular' | 'rounded' | 'square'

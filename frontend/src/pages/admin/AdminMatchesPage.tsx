@@ -101,7 +101,7 @@ export function AdminMatchesPage() {
       search.trim() === '' ||
       (m.teamA && m.teamA.toLowerCase().includes(search.toLowerCase())) ||
       (m.teamB && m.teamB.toLowerCase().includes(search.toLowerCase())) ||
-      m.tournamentName.toLowerCase().includes(search.toLowerCase())
+      Boolean(m.tournamentName && m.tournamentName.toLowerCase().includes(search.toLowerCase()))
 
     return matchesTourney && matchesStat && matchesSearch
   })

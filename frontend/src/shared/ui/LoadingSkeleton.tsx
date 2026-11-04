@@ -35,3 +35,12 @@ export function TableRowSkeleton({ count = 4 }: { count?: number }) {
     </Stack>
   )
 }
+
+export function PageSkeleton() {
+  return (
+    <Box sx={{ py: 2 }}>
+      <Skeleton variant="rectangular" height={60} sx={{ mb: 2.5 }} />
+      <CardSkeleton count={3} />
+    </Box>
+  )
+}

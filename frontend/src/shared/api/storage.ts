@@ -1,6 +1,7 @@
 import type { Match, Player, Team, Tournament, TournamentBracketView, User } from '../../types'
 
 const TOKEN_KEY = 'tt_auth_token'
+const REFRESH_TOKEN_KEY = 'tt_refresh_token'
 const USER_KEY = 'tt_auth_user'
 const TOURNAMENTS_KEY = 'tt_tournaments_v1'
 const MATCHES_KEY = 'tt_matches_v1'
@@ -27,6 +28,31 @@ export const storage = {
       localStorage.removeItem(TOKEN_KEY)
     } catch {
     }
+  },
+
+  getRefreshToken(): string | null {
+    try {
+      return localStorage.getItem(REFRESH_TOKEN_KEY)
+    } catch {
+      return null
+    }
+  },
+  setRefreshToken(token: string): void {
+    try {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token)
+    } catch {
+    }
+  },
+  clearRefreshToken(): void {
+    try {
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+    } catch {
+    }
+  },
+  clearAuth(): void {
+    this.clearToken()
+    this.clearRefreshToken()
+    this.clearUser()
   },
 
   getUser(): User | null {

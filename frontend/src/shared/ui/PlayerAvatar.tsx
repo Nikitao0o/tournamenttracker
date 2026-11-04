@@ -18,7 +18,7 @@ export const DEFAULT_PLAYER_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http:/
 
 interface PlayerAvatarProps {
   name?: string
-  avatarUrl?: string
+  avatarUrl?: string | null
   teamId?: string
   preferredFormat?: 'png' | 'jpg' | 'svg'
   size?: number

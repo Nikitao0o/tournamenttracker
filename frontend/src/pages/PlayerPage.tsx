@@ -1,28 +1,97 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
+import Grid from '@mui/material/Grid'
 import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useAuth } from '../app/providers/useAuth'
-import { getPlayerById, getTeamById } from '../mock/data'
+import { apiClient } from '../shared/api/client'
+import type { Player, Team } from '../types'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
 import { storage } from '../shared/api/storage'
+import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
 export function PlayerPage() {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
   const { id } = useParams<{ id: string }>()
-  const player = id ? getPlayerById(id) : undefined
-  const team = player ? getTeamById(player.teamId) : undefined
 
+  const [player, setPlayer] = useState<Player | null>(null)
+  const [team, setTeam] = useState<Team | null>(null)
+  const [isLoading, setIsLoading] = useState(Boolean(id))
+  const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [, setVersion] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    if (!id) return
+
+    apiClient
+      .getPlayers()
+      .then((playersList) => {
+        if (!mounted) return
+        const found = playersList.find(
+          (p) => String(p.id) === id || p.nickname?.toLowerCase() === id.toLowerCase() || p.name.toLowerCase() === id.toLowerCase()
+        )
+        if (found) {
+          setPlayer(found)
+          return apiClient.getTeam(found.teamId).then((t) => {
+            if (mounted) {
+              setTeam(t)
+              setIsLoading(false)
+            }
+          })
+        } else {
+          setIsLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err.message || 'Error loading player profile')
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [id])
+
+  const canEditAvatar = Boolean(
+    isAdmin || (user && user.player_id && String(user.player_id) === String(player?.id))
+  )
+
+  const handleSaveAvatar = async (dataUrl: string) => {
+    if (!player) return
+    try {
+      const updated = await apiClient.uploadPlayerAvatar(player.id, dataUrl)
+      setPlayer(updated)
+      storage.setPlayerAvatar(String(player.id), dataUrl)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to upload player avatar'
+      alert(msg)
+    }
+  }
+
+  const handleResetAvatar = () => {
+    if (!player) return
+    storage.removePlayerAvatar(String(player.id))
+  }
+
+  if (isLoading) {
+    return (
+      <Stack spacing={3}>
+        <CardSkeleton count={3} />
+      </Stack>
+    )
+  }
 
   if (!player) {
     return (
@@ -56,16 +125,6 @@ export function PlayerPage() {
     )
   }
 
-  const handleSaveAvatar = (dataUrl: string) => {
-    storage.setPlayerAvatar(player.name, dataUrl)
-    setVersion((v) => v + 1)
-  }
-
-  const handleResetAvatar = () => {
-    storage.removePlayerAvatar(player.name)
-    setVersion((v) => v + 1)
-  }
-
   return (
     <Stack spacing={3}>
       <Breadcrumbs
@@ -90,21 +149,26 @@ export function PlayerPage() {
         </Typography>
       </Breadcrumbs>
 
+      {error && <Alert severity="warning">{error}</Alert>}
+
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
-        <Stack spacing={2.5}>
+        <Stack spacing={2}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
             <Stack direction="row" spacing={2.5} sx={{ alignItems: 'center' }}>
               <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={72} />
               <div>
-                <Typography variant="h1" sx={{ fontSize: { xs: 22, sm: 28 } }}>{player.name}</Typography>
+                <Typography variant="h1" sx={{ fontSize: { xs: 24, sm: 30 } }}>
+                  {player.nickname ? player.nickname : player.name}
+                </Typography>
                 <Typography color="text.secondary">
-                  {player.age} years old • {player.nationality}
+                  {player.name} • {player.age} years old • {player.nationality}
                 </Typography>
               </div>
             </Stack>
+
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Chip label={player.role} color="secondary" sx={{ fontWeight: 800 }} />
-              {isAdmin ? (
+              <Chip label={player.role} color="secondary" sx={{ fontWeight: 700 }} />
+              {canEditAvatar && (
                 <Button
                   variant="outlined"
                   size="small"
@@ -113,64 +177,72 @@ export function PlayerPage() {
                 >
                   Change Avatar (PNG / JPG)
                 </Button>
-              ) : null}
+              )}
             </Stack>
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography color="text.secondary">Team:</Typography>
-            <TeamLogo teamName={player.teamName} size={22} />
-            <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
-              {player.teamName}
-            </Box>
-          </Stack>
-
-          {team ? (
-            <Button component={RouterLink} to={`/teams/${team.id}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>
-              View team roster
-            </Button>
-          ) : null}
+          {team && (
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', pt: 1 }}>
+              <TeamLogo teamName={team.name} logoUrl={team.logoUrl} size={28} />
+              <MuiLink
+                component={RouterLink}
+                to={`/teams/${team.id}`}
+                underline="hover"
+                sx={{ fontWeight: 700, fontSize: 16, color: 'text.primary' }}
+              >
+                {team.name}
+              </MuiLink>
+              <Chip label={`#${team.ranking}`} size="small" variant="outlined" />
+            </Stack>
+          )}
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Box>
         <Typography variant="h2" sx={{ mb: 2 }}>
-          Key stats
+          HLTV Performance Statistics
         </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 6, sm: 3 }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Typography color="text.secondary" sx={{ fontSize: 12 }}>K/D Ratio</Typography>
+              <Typography variant="h3" sx={{ mt: 0.5 }}>{player.stats.kd}</Typography>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3 }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Typography color="text.secondary" sx={{ fontSize: 12 }}>Impact Rating</Typography>
+              <Typography variant="h3" sx={{ mt: 0.5 }}>{player.stats.impact}</Typography>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3 }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Typography color="text.secondary" sx={{ fontSize: 12 }}>Maps Played</Typography>
+              <Typography variant="h3" sx={{ mt: 0.5 }}>{player.stats.maps}</Typography>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3 }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Typography color="text.secondary" sx={{ fontSize: 12 }}>Rating 2.0</Typography>
+              <Typography variant="h3" sx={{ mt: 0.5, color: 'primary.main' }}>
+                {player.stats.rating ?? (Number(player.stats.impact) / 10 + 0.3).toFixed(2)}
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Box>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <Box sx={{ flex: 1, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', p: 2 }}>
-            <Typography color="text.secondary">K/D ratio</Typography>
-            <Typography variant="h3" sx={{ fontSize: 28, mt: 1 }}>
-              {player.stats.kd}
-            </Typography>
-          </Box>
-          <Box sx={{ flex: 1, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', p: 2 }}>
-            <Typography color="text.secondary">Impact rating</Typography>
-            <Typography variant="h3" sx={{ fontSize: 28, mt: 1 }}>
-              {player.stats.impact}
-            </Typography>
-          </Box>
-          <Box sx={{ flex: 1, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', p: 2 }}>
-            <Typography color="text.secondary">Maps played</Typography>
-            <Typography variant="h3" sx={{ fontSize: 28, mt: 1 }}>
-              {player.stats.maps}
-            </Typography>
-          </Box>
-        </Stack>
-      </Paper>
-
-      {isAdmin ? (
+      {canEditAvatar && (
         <MediaUploadDialog
           open={dialogOpen}
           title="Upload Player Avatar (PNG / JPG)"
           entityName={player.name}
-          currentValue={storage.getPlayerAvatar(player.name) || undefined}
+          currentValue={player.avatarUrl || storage.getPlayerAvatar(String(player.id)) || undefined}
           onClose={() => setDialogOpen(false)}
           onSave={handleSaveAvatar}
           onReset={handleResetAvatar}
         />
-      ) : null}
+      )}
     </Stack>
   )
 }

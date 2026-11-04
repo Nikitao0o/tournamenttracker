@@ -2,14 +2,12 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { CreateTournamentInput, Tournament, UpdateTournamentInput } from '../../types'
 import { apiClient } from '../../shared/api/client'
 import { storage } from '../../shared/api/storage'
-import { useAuth } from './useAuth'
 import { TournamentContext } from './TournamentContext'
 
 export function TournamentProvider({ children }: { children: ReactNode }) {
   const [tournaments, setTournaments] = useState<Tournament[]>(() => storage.getTournaments() ?? [])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { token } = useAuth()
 
   const refreshTournaments = useCallback(async () => {
     setIsLoading(true)
@@ -46,24 +44,24 @@ export function TournamentProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const createTournament = async (input: CreateTournamentInput): Promise<Tournament> => {
-    const created = await apiClient.createTournament(input, token)
+    const created = await apiClient.createTournament(input)
     setTournaments((prev) => [created, ...prev])
     return created
   }
 
   const updateTournament = async (id: string, input: UpdateTournamentInput): Promise<Tournament> => {
-    const updated = await apiClient.updateTournament(id, input, token)
+    const updated = await apiClient.updateTournament(id, input)
     setTournaments((prev) => prev.map((t) => (t.id === id ? updated : t)))
     return updated
   }
 
   const deleteTournament = async (id: string): Promise<void> => {
-    await apiClient.deleteTournament(id, token)
+    await apiClient.deleteTournament(id)
     setTournaments((prev) => prev.filter((t) => t.id !== id))
   }
 
   const getTournament = (id: string): Tournament | undefined => {
-    return tournaments.find((t) => t.id === id)
+    return tournaments.find((t) => String(t.id) === String(id))
   }
 
   return (

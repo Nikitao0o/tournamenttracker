@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from .. import crud, schemas
+from .. import crud, models, schemas
 from ..auth import get_current_admin
 from ..database import get_db
 
@@ -26,7 +26,7 @@ def list_matches(
 
 @router.get("/{match_id}", response_model=schemas.MatchOut)
 def get_match(match_id: int, db: Session = Depends(get_db)):
-    """Get match details by ID."""
+    """Get match details by ID, including map results and player statistics."""
     m = crud.get_match_or_404(db, match_id)
     return crud.enrich_match(m)
 
@@ -34,7 +34,7 @@ def get_match(match_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=schemas.MatchOut, status_code=status.HTTP_201_CREATED)
 def create_match(
     payload: schemas.MatchCreate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Create a match (admin only)."""
@@ -45,7 +45,7 @@ def create_match(
 def update_match(
     match_id: int,
     payload: schemas.MatchUpdate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Update match score and status (admin only).
@@ -57,8 +57,30 @@ def update_match(
 @router.delete("/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_match(
     match_id: int,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Delete match (admin only)."""
     crud.delete_match(db, match_id)
+
+
+@router.post("/{match_id}/maps", response_model=schemas.MapResultOut, status_code=status.HTTP_201_CREATED)
+def add_map(
+    match_id: int,
+    payload: schemas.MapResultCreate,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Add individual map score breakdown to a match (admin only)."""
+    return crud.add_map_result(db, match_id, payload)
+
+
+@router.post("/{match_id}/player-stats", response_model=schemas.PlayerMatchStatOut, status_code=status.HTTP_201_CREATED)
+def add_player_stat(
+    match_id: int,
+    payload: schemas.PlayerMatchStatCreate,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Record player performance statistics for a match (admin only)."""
+    return crud.add_player_match_stat(db, match_id, payload)

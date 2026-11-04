@@ -1,10 +1,21 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+import datetime
+import re
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class UserRegister(BaseModel):
-    email: str = Field(..., min_length=3, max_length=120, description="User email address")
+    email: str = Field(..., min_length=3, max_length=120, description="Valid user email address")
     nickname: str = Field(..., min_length=2, max_length=60, description="Display nickname")
     password: str = Field(..., min_length=6, max_length=100, description="Account password")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, v: str) -> str:
+        clean = v.strip().lower()
+        pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        if not re.match(pattern, clean):
+            raise ValueError("Invalid email format. Must follow user@domain.tld")
+        return clean
 
 
 class UserLogin(BaseModel):
@@ -13,8 +24,7 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Standard user can update ONLY email, nickname, password, and avatar."""
-    email: str | None = Field(default=None, min_length=3, max_length=120)
+    """Standard user can update nickname, password, and avatar. Email changes are restricted."""
     nickname: str | None = Field(default=None, min_length=2, max_length=60)
     password: str | None = Field(default=None, min_length=6, max_length=100)
     avatar_url: str | None = Field(default=None, max_length=500)
@@ -26,7 +36,7 @@ class UserOut(BaseModel):
     email: str
     nickname: str
     is_active: bool
-    created_at: str
+    created_at: str | datetime.datetime
     is_admin: bool = False
     player_id: int | None = None
     avatar_url: str | None = None
@@ -34,8 +44,13 @@ class UserOut(BaseModel):
 
 class TokenOut(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., description="Valid refresh token string")
 
 
 class TeamBase(BaseModel):
@@ -143,6 +158,51 @@ class TournamentOut(TournamentBase):
     id: int
 
 
+class MapResultBase(BaseModel):
+    map_number: int = Field(default=1, ge=1)
+    map_name: str = Field(..., min_length=1, max_length=40)
+    score_a: int = Field(default=0, ge=0)
+    score_b: int = Field(default=0, ge=0)
+    winner_id: int | None = None
+
+
+class MapResultCreate(MapResultBase):
+    pass
+
+
+class MapResultOut(MapResultBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    match_id: int
+    winner_name: str | None = None
+
+
+class PlayerMatchStatBase(BaseModel):
+    player_id: int
+    team_id: int
+    map_id: int | None = None
+    kills: int = 0
+    deaths: int = 0
+    assists: int = 0
+    headshots: int = 0
+    adr: float = 70.0
+    kast: float = 70.0
+    rating: float = 1.0
+    is_mvp: bool = False
+
+
+class PlayerMatchStatCreate(PlayerMatchStatBase):
+    pass
+
+
+class PlayerMatchStatOut(PlayerMatchStatBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    match_id: int
+    player_nickname: str | None = None
+    team_name: str | None = None
+
+
 class MatchBase(BaseModel):
     status: str = Field(default="UPCOMING", min_length=1, max_length=20, description="Match status (UPCOMING, LIVE, FINISHED)")
     score_a: int | None = Field(default=None, ge=0, description="Team A score")
@@ -213,6 +273,8 @@ class MatchOut(MatchBase):
     loser_id: int | None = None
     winner_name: str | None = None
     tournament_name: str | None = None
+    map_results: list[MapResultOut] = []
+    player_stats: list[PlayerMatchStatOut] = []
 
 
 class BracketBase(BaseModel):
@@ -256,6 +318,8 @@ class TeamLeaderboardEntry(BaseModel):
     team_id: int
     name: str
     logo_url: str | None = None
+    points: int = 1000
+    win_rate: float = 0.0
 
 
 class PlayerLeaderboardEntry(BaseModel):
@@ -265,6 +329,8 @@ class PlayerLeaderboardEntry(BaseModel):
     team_name: str
     avatar_url: str | None = None
     rating: float
+    kd: str = "1.00"
+    adr: float = 70.0
 
 
 class ImageUploadPayload(BaseModel):

@@ -1,6 +1,10 @@
 import os
+import sys
+import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger("tournament_tracker")
 
 
 def _load_env_file():
@@ -33,8 +37,38 @@ class Settings(BaseModel):
     """Application and database configuration settings."""
 
     APP_TITLE: str = "Tournament Tracker API"
-    APP_VERSION: str = "0.2.0"
+    APP_VERSION: str = "0.3.0"
+    ENVIRONMENT: str = Field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
     DEBUG: bool = Field(default_factory=lambda: os.getenv("DEBUG", "False").lower() in ("true", "1", "t"))
+
+    SECRET_KEY: str = Field(
+        default_factory=lambda: os.getenv(
+            "SECRET_KEY", "tournament-tracker-super-secret-key-2026-development-only"
+        )
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default_factory=lambda: int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+    )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default_factory=lambda: int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+    )
+
+    AUTO_SEED: bool = Field(
+        default_factory=lambda: os.getenv("AUTO_SEED", "True").lower() in ("true", "1", "t")
+    )
+    ADMIN_EMAIL: str = Field(default_factory=lambda: os.getenv("ADMIN_EMAIL", "admin@tracker.local"))
+    ADMIN_PASSWORD: str = Field(default_factory=lambda: os.getenv("ADMIN_PASSWORD", "password123"))
+
+    ALLOWED_ORIGINS: list[str] = Field(
+        default_factory=lambda: [
+            origin.strip()
+            for origin in os.getenv(
+                "ALLOWED_ORIGINS",
+                "http://localhost:5173,http://localhost:8000,http://127.0.0.1:5173,http://127.0.0.1:8000",
+            ).split(",")
+            if origin.strip()
+        ]
+    )
 
     POSTGRES_USER: str = Field(default_factory=lambda: os.getenv("POSTGRES_USER", "tracker"))
     POSTGRES_PASSWORD: str = Field(default_factory=lambda: os.getenv("POSTGRES_PASSWORD", "tracker"))
@@ -47,6 +81,17 @@ class Settings(BaseModel):
     UPLOAD_DIR: Path = Field(
         default_factory=lambda: Path(os.getenv("UPLOAD_DIR", "uploads")).resolve()
     )
+
+    def validate_production_security(self):
+        """Enforces that SECRET_KEY is not default in production."""
+        is_prod = self.ENVIRONMENT.lower() in ("production", "prod") or (
+            not self.DEBUG and os.getenv("DOCKER_CONTAINER")
+        )
+        if is_prod and "development-only" in self.SECRET_KEY:
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY must be explicitly set in production! "
+                "Default development secret cannot be used."
+            )
 
     def get_database_url(self) -> str:
         """Returns the final database connection URL.
@@ -66,10 +111,11 @@ class Settings(BaseModel):
             return postgres_url
 
         try:
-            import psycopg
+            import psycopg  # noqa: F401
             return postgres_url
         except ImportError:
             return "sqlite:///./tracker.db"
 
 
 settings = Settings()
+settings.validate_production_security()

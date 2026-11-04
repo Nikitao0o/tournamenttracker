@@ -37,11 +37,11 @@ export function ScorePair({
   scoreB,
   live = false,
 }: {
-  scoreA?: number
-  scoreB?: number
+  scoreA?: number | null
+  scoreB?: number | null
   live?: boolean
 }) {
-  if (scoreA === undefined || scoreB === undefined) {
+  if (scoreA === undefined || scoreB === undefined || scoreA === null || scoreB === null) {
     return (
       <Typography sx={{ minWidth: 40, textAlign: 'center', color: 'text.secondary', fontWeight: 700 }}>
         vs

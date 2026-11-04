@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from .. import crud, schemas
+from .. import crud, models, schemas
 from ..auth import get_current_admin, get_current_user, is_user_admin
 from ..database import get_db
 
@@ -24,7 +24,7 @@ def get_player(player_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=schemas.PlayerOut, status_code=status.HTTP_201_CREATED)
 def create_player(
     payload: schemas.PlayerCreate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Create a player (admin only).
@@ -37,7 +37,7 @@ def create_player(
 def update_player(
     player_id: int,
     payload: schemas.PlayerUpdate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Update player details and statistics (admin only)."""
@@ -48,7 +48,7 @@ def update_player(
 def upload_player_avatar(
     player_id: int,
     payload: schemas.ImageUploadPayload,
-    current_user = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Upload or update player avatar image.
@@ -56,8 +56,8 @@ def upload_player_avatar(
     """
     player = crud.get_player_or_404(db, player_id)
     is_owner = current_user.player and current_user.player.id == player_id
-    is_admin = is_user_admin(current_user.email, current_user.nickname)
-    if not is_admin and not is_owner:
+    admin_status = is_user_admin(current_user.email, current_user.is_admin)
+    if not admin_status and not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only update your own player avatar",
@@ -68,7 +68,7 @@ def upload_player_avatar(
 @router.delete("/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_player(
     player_id: int,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Delete player profile (admin only)."""

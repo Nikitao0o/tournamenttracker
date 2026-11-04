@@ -1,9 +1,15 @@
 import base64
 import datetime
+import io
+import math
+import re
 import time
+from urllib.parse import urlparse
+
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from PIL import Image
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .auth import hash_password, is_user_admin
@@ -19,11 +25,22 @@ def get_user_by_nickname(db: Session, nickname: str) -> models.User | None:
 
 
 def enrich_user(user: models.User) -> schemas.UserOut:
-    out = schemas.UserOut.model_validate(user)
-    out.is_admin = is_user_admin(user.email, user.nickname)
-    out.player_id = user.player.id if user.player else None
-    out.avatar_url = user.player.avatar_url if (user.player and user.player.avatar_url) else user.avatar_url
-    return out
+    created_at_val = (
+        user.created_at.isoformat()
+        if isinstance(user.created_at, datetime.datetime)
+        else str(user.created_at)
+    )
+    admin_status = is_user_admin(user.email, user.is_admin)
+    return schemas.UserOut(
+        id=user.id,
+        email=user.email,
+        nickname=user.nickname,
+        is_active=user.is_active,
+        created_at=created_at_val,
+        is_admin=admin_status,
+        player_id=user.player.id if user.player else None,
+        avatar_url=user.player.avatar_url if (user.player and user.player.avatar_url) else user.avatar_url,
+    )
 
 
 def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
@@ -42,7 +59,7 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
         )
 
     hashed_pw, salt = hash_password(payload.password)
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    admin_flag = is_user_admin(email_clean)
 
     user = models.User(
         email=email_clean,
@@ -50,7 +67,8 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
         hashed_password=hashed_pw,
         salt=salt,
         is_active=True,
-        created_at=now_str,
+        is_admin=admin_flag,
+        created_at=datetime.datetime.utcnow(),
     )
     db.add(user)
     db.commit()
@@ -59,18 +77,7 @@ def create_user(db: Session, payload: schemas.UserRegister) -> schemas.UserOut:
 
 
 def update_user_self(db: Session, user: models.User, payload: schemas.UserUpdate) -> schemas.UserOut:
-    """Standard user can update ONLY their email, nickname, and password."""
-    if payload.email is not None:
-        new_email = payload.email.strip().lower()
-        if new_email != user.email:
-            existing = get_user_by_email(db, new_email)
-            if existing and existing.id != user.id:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Email '{payload.email}' is already taken",
-                )
-            user.email = new_email
-
+    """Standard user can update nickname, password, and avatar."""
     if payload.nickname is not None:
         new_nick = payload.nickname.strip()
         if new_nick != user.nickname:
@@ -265,7 +272,6 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
 
 
 def claim_player_for_user(db: Session, player_id: int, user_id: int) -> schemas.PlayerOut:
-    """Administrator links a registered user to a player profile."""
     player = get_player_or_404(db, player_id)
     user = db.get(models.User, user_id)
     if not user:
@@ -327,13 +333,8 @@ def update_tournament(db: Session, tournament_id: int, payload: schemas.Tourname
 
 
 def delete_tournament(db: Session, tournament_id: int) -> None:
+    """Deletes tournament and lets DB and ORM cascades clean up all brackets and matches."""
     tournament = get_tournament_or_404(db, tournament_id)
-    db.query(models.Match).filter(models.Match.tournament_id == tournament_id).update({
-        models.Match.next_match_id: None,
-        models.Match.next_loser_match_id: None,
-    })
-    db.query(models.Match).filter(models.Match.tournament_id == tournament_id).delete()
-    db.query(models.Bracket).filter(models.Bracket.tournament_id == tournament_id).delete()
     db.delete(tournament)
     db.commit()
 
@@ -346,6 +347,43 @@ def enrich_match(match: models.Match) -> schemas.MatchOut:
     out.team_b_logo_url = match.team_b.logo_url if match.team_b else None
     out.winner_name = match.winner.name if match.winner else None
     out.tournament_name = match.tournament.title if match.tournament else None
+
+    # Enrich maps
+    out.map_results = [
+        schemas.MapResultOut(
+            id=mr.id,
+            match_id=mr.match_id,
+            map_number=mr.map_number,
+            map_name=mr.map_name,
+            score_a=mr.score_a,
+            score_b=mr.score_b,
+            winner_id=mr.winner_id,
+            winner_name=mr.winner.name if mr.winner else None,
+        )
+        for mr in match.map_results
+    ]
+
+    # Enrich player stats
+    out.player_stats = [
+        schemas.PlayerMatchStatOut(
+            id=ps.id,
+            match_id=ps.match_id,
+            map_id=ps.map_id,
+            player_id=ps.player_id,
+            player_nickname=ps.player.nickname if ps.player else "Unknown",
+            team_id=ps.team_id,
+            team_name=ps.team.name if ps.team else "Unknown",
+            kills=ps.kills,
+            deaths=ps.deaths,
+            assists=ps.assists,
+            headshots=ps.headshots,
+            adr=ps.adr,
+            kast=ps.kast,
+            rating=ps.rating,
+            is_mvp=ps.is_mvp,
+        )
+        for ps in match.player_stats
+    ]
     return out
 
 
@@ -383,12 +421,15 @@ def advance_bracket_progression(
     old_winner_id: int | None = None,
     old_loser_id: int | None = None,
 ) -> None:
-    """Automatically advances match winner and loser to their next bracket positions."""
+    """Advances winner and loser down the bracket.
+    Guards against bracket desync: prevents changes if downstream match is already finished.
+    """
     if old_winner_id is None:
         old_winner_id = match.winner_id
     if old_loser_id is None:
         old_loser_id = match.loser_id
 
+    # If score or status is incomplete
     if (
         match.status != "FINISHED"
         or match.score_a is None
@@ -400,23 +441,52 @@ def advance_bracket_progression(
         if old_winner_id is not None and match.next_match_id:
             next_m = db.get(models.Match, match.next_match_id)
             if next_m:
+                if next_m.status == "FINISHED":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Cannot reset match score: the next match in the bracket has already been completed.",
+                    )
                 if next_m.team_a_id == old_winner_id:
                     next_m.team_a_id = None
                 elif next_m.team_b_id == old_winner_id:
                     next_m.team_b_id = None
+
         if old_loser_id is not None and match.next_loser_match_id:
             loser_m = db.get(models.Match, match.next_loser_match_id)
             if loser_m:
+                if loser_m.status == "FINISHED":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Cannot reset match score: the lower bracket match has already been completed.",
+                    )
                 if loser_m.team_a_id == old_loser_id:
                     loser_m.team_a_id = None
                 elif loser_m.team_b_id == old_loser_id:
                     loser_m.team_b_id = None
+
         match.winner_id = None
         match.loser_id = None
         return
 
     winner_id = match.team_a_id if match.score_a > match.score_b else match.team_b_id
     loser_id = match.team_b_id if match.score_a > match.score_b else match.team_a_id
+
+    # If winner changed and next match is already FINISHED, block illegal progression desync
+    if old_winner_id is not None and old_winner_id != winner_id and match.next_match_id:
+        next_m = db.get(models.Match, match.next_match_id)
+        if next_m and next_m.status == "FINISHED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot change match winner: the next bracket match has already been played. Reset it first.",
+            )
+
+    if old_loser_id is not None and old_loser_id != loser_id and match.next_loser_match_id:
+        loser_m = db.get(models.Match, match.next_loser_match_id)
+        if loser_m and loser_m.status == "FINISHED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot change match loser: the downstream lower bracket match has already been played.",
+            )
 
     match.winner_id = winner_id
     match.loser_id = loser_id
@@ -488,9 +558,12 @@ def create_match(db: Session, payload: schemas.MatchCreate) -> schemas.MatchOut:
     db.add(match)
     db.commit()
     db.refresh(match)
-    advance_bracket_progression(db, match)
-    db.commit()
-    db.refresh(match)
+
+    if match.status == "FINISHED" and match.score_a is not None and match.score_b is not None:
+        advance_bracket_progression(db, match)
+        db.commit()
+        db.refresh(match)
+
     return enrich_match(match)
 
 
@@ -563,13 +636,14 @@ def get_tournament_brackets(db: Session, tournament_id: int) -> list[models.Brac
     return db.query(models.Bracket).filter(models.Bracket.tournament_id == tournament_id).all()
 
 
+# Generalized tournament bracket generation for N teams
 def generate_tournament_bracket(
     db: Session,
     tournament_id: int,
     payload: schemas.BracketCreate,
 ) -> schemas.TournamentBracketView:
-    """Generates a tournament bracket of the chosen type
-    (double_elimination, single_elimination, round_robin, swiss).
+    """Generates an esports tournament bracket of any type
+    (double_elimination, single_elimination, round_robin, swiss) for N teams.
     """
     tournament = get_tournament_or_404(db, tournament_id)
 
@@ -594,6 +668,14 @@ def generate_tournament_bracket(
             detail=f"Unsupported bracket type. Supported: {', '.join(valid_types)}",
         )
 
+    # Clean existing brackets and matches for this tournament to generate fresh bracket
+    db.query(models.Match).filter(models.Match.tournament_id == tournament.id).update(
+        {models.Match.next_match_id: None, models.Match.next_loser_match_id: None}
+    )
+    db.query(models.Match).filter(models.Match.tournament_id == tournament.id).delete()
+    db.query(models.Bracket).filter(models.Bracket.tournament_id == tournament.id).delete()
+    db.commit()
+
     tournament.bracket_type = bracket_type
 
     bracket_model = models.Bracket(
@@ -607,13 +689,91 @@ def generate_tournament_bracket(
     db.refresh(bracket_model)
 
     tour_date = tournament.start_date
+    n_teams = len(payload.team_ids)
+    team_ids = payload.team_ids
 
-    if bracket_type == "double_elimination":
-        t_a = payload.team_ids[0] if len(payload.team_ids) > 0 else None
-        t_b = payload.team_ids[1] if len(payload.team_ids) > 1 else None
-        t_c = payload.team_ids[2] if len(payload.team_ids) > 2 else None
-        t_d = payload.team_ids[3] if len(payload.team_ids) > 3 else None
+    # 1. Single Elimination (general for N teams: 2, 4, 8, 16...)
+    if bracket_type == "single_elimination":
+        # Calculate rounds required: ceil(log2(n_teams))
+        rounds_count = max(1, math.ceil(math.log2(n_teams)))
+        total_slots = 2 ** rounds_count
 
+        # Pad teams with None (byes) if not power of 2
+        padded_teams: list[int | None] = list(team_ids) + [None] * (total_slots - n_teams)
+
+        # Standard seeding order: [0, total_slots-1, 1, total_slots-2, ...]
+        seeded_pairs: list[tuple[int | None, int | None]] = []
+        for i in range(total_slots // 2):
+            seeded_pairs.append((padded_teams[i * 2], padded_teams[i * 2 + 1]))
+
+        round_names = {
+            1: "Grand final",
+            2: "Semifinals",
+            3: "Quarterfinals",
+            4: "Round of 16",
+            5: "Round of 32",
+        }
+
+        # Build matches backwards from Grand Final to Opening round
+        # current_round_matches holds the matches of the layer ahead
+        next_layer_matches: list[models.Match] = []
+
+        # Grand final
+        grand_final = models.Match(
+            tournament_id=tournament.id,
+            bracket_id=bracket_model.id,
+            bracket_type="grand_final",
+            round_name=round_names.get(1, "Final"),
+            round_order=rounds_count,
+            status="UPCOMING",
+            match_format=payload.match_format,
+            date=tour_date,
+            start_time="20:00 Sunday",
+        )
+        db.add(grand_final)
+        db.commit()
+        db.refresh(grand_final)
+        next_layer_matches = [grand_final]
+
+        for r in range(rounds_count - 1, 0, -1):
+            num_matches_in_round = 2 ** (rounds_count - r)
+            r_name = round_names.get(rounds_count - r + 1, f"Round {r}")
+            current_matches: list[models.Match] = []
+
+            for m_idx in range(num_matches_in_round):
+                parent_match = next_layer_matches[m_idx // 2]
+                m = models.Match(
+                    tournament_id=tournament.id,
+                    bracket_id=bracket_model.id,
+                    bracket_type="single",
+                    round_name=r_name,
+                    round_order=r,
+                    status="UPCOMING",
+                    match_format=payload.match_format,
+                    date=tour_date,
+                    start_time=f"{14 + (m_idx % 4) * 2}:00",
+                    next_match_id=parent_match.id,
+                )
+                db.add(m)
+                current_matches.append(m)
+
+            db.commit()
+            for m in current_matches:
+                db.refresh(m)
+            next_layer_matches = current_matches
+
+        # Assign initial teams to round 1 matches
+        r1_matches = next_layer_matches
+        for idx, pair in enumerate(seeded_pairs):
+            if idx < len(r1_matches):
+                r1_matches[idx].team_a_id = pair[0]
+                r1_matches[idx].team_b_id = pair[1]
+
+        db.commit()
+
+    # 2. Double Elimination (generalized for 4 to 8 teams)
+    elif bracket_type == "double_elimination":
+        # Grand Final
         grand_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -623,12 +783,13 @@ def generate_tournament_bracket(
             status="UPCOMING",
             match_format=payload.match_format,
             date=tour_date,
-            start_time="01:00 Monday",
+            start_time="21:00 Sunday",
         )
         db.add(grand_final)
         db.commit()
         db.refresh(grand_final)
 
+        # Upper Final
         upper_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -638,13 +799,14 @@ def generate_tournament_bracket(
             status="UPCOMING",
             match_format=payload.match_format,
             date=tour_date,
-            start_time="00:00 Sunday",
+            start_time="17:00 Saturday",
             next_match_id=grand_final.id,
         )
         db.add(upper_final)
         db.commit()
         db.refresh(upper_final)
 
+        # Consolidation Final (Lower Final)
         consolidation_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -654,7 +816,7 @@ def generate_tournament_bracket(
             status="UPCOMING",
             match_format=payload.match_format,
             date=tour_date,
-            start_time="22:00 Sunday",
+            start_time="19:00 Sunday",
             next_match_id=grand_final.id,
         )
         db.add(consolidation_final)
@@ -663,7 +825,8 @@ def generate_tournament_bracket(
 
         upper_final.next_loser_match_id = consolidation_final.id
 
-        lower_final = models.Match(
+        # Lower Final (semifinal in lower bracket)
+        lower_round_match = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
             bracket_type="lower",
@@ -672,137 +835,103 @@ def generate_tournament_bracket(
             status="UPCOMING",
             match_format=payload.match_format,
             date=tour_date,
-            start_time="21:00 Saturday",
+            start_time="15:00 Saturday",
             next_match_id=consolidation_final.id,
         )
-        db.add(lower_final)
+        db.add(lower_round_match)
         db.commit()
-        db.refresh(lower_final)
+        db.refresh(lower_round_match)
 
-        m1 = models.Match(
-            tournament_id=tournament.id,
-            bracket_id=bracket_model.id,
-            bracket_type="upper",
-            round_name="Opening round",
-            round_order=1,
-            status="UPCOMING",
-            match_format=payload.match_format,
-            date=tour_date,
-            start_time="21:00 Friday",
-            team_a_id=t_a,
-            team_b_id=t_b,
-            next_match_id=upper_final.id,
-            next_loser_match_id=lower_final.id,
-        )
-        m2 = models.Match(
-            tournament_id=tournament.id,
-            bracket_id=bracket_model.id,
-            bracket_type="upper",
-            round_name="Opening round",
-            round_order=1,
-            status="UPCOMING",
-            match_format=payload.match_format,
-            date=tour_date,
-            start_time="00:00 Saturday",
-            team_a_id=t_c,
-            team_b_id=t_d,
-            next_match_id=upper_final.id,
-            next_loser_match_id=lower_final.id,
-        )
-        db.add_all([m1, m2])
-        db.commit()
+        # Upper Opening Round
+        num_pairs = min(4, max(2, n_teams // 2))
+        for i in range(num_pairs):
+            t_a = team_ids[i * 2] if (i * 2) < n_teams else None
+            t_b = team_ids[i * 2 + 1] if (i * 2 + 1) < n_teams else None
 
-    elif bracket_type == "single_elimination":
-        final_match = models.Match(
-            tournament_id=tournament.id,
-            bracket_id=bracket_model.id,
-            bracket_type="grand_final",
-            round_name="Grand final",
-            round_order=2,
-            status="UPCOMING",
-            match_format=payload.match_format,
-            date=tour_date,
-            start_time="20:00 Sunday",
-        )
-        db.add(final_match)
-        db.commit()
-        db.refresh(final_match)
-
-        sf1 = models.Match(
-            tournament_id=tournament.id,
-            bracket_id=bracket_model.id,
-            bracket_type="single",
-            round_name="Semifinals",
-            round_order=1,
-            status="UPCOMING",
-            match_format=payload.match_format,
-            date=tour_date,
-            start_time="17:00 Saturday",
-            team_a_id=payload.team_ids[0] if len(payload.team_ids) > 0 else None,
-            team_b_id=payload.team_ids[1] if len(payload.team_ids) > 1 else None,
-            next_match_id=final_match.id,
-        )
-        sf2 = models.Match(
-            tournament_id=tournament.id,
-            bracket_id=bracket_model.id,
-            bracket_type="single",
-            round_name="Semifinals",
-            round_order=1,
-            status="UPCOMING",
-            match_format=payload.match_format,
-            date=tour_date,
-            start_time="20:00 Saturday",
-            team_a_id=payload.team_ids[2] if len(payload.team_ids) > 2 else None,
-            team_b_id=payload.team_ids[3] if len(payload.team_ids) > 3 else None,
-            next_match_id=final_match.id,
-        )
-        db.add_all([sf1, sf2])
-        db.commit()
-
-    elif bracket_type == "round_robin":
-        team_ids = payload.team_ids
-        round_idx = 1
-        for i in range(len(team_ids)):
-            for j in range(i + 1, len(team_ids)):
-                match = models.Match(
-                    tournament_id=tournament.id,
-                    bracket_id=bracket_model.id,
-                    bracket_type="round_robin",
-                    round_name=f"Round {round_idx}",
-                    round_order=round_idx,
-                    status="UPCOMING",
-                    match_format=payload.match_format,
-                    date=tour_date,
-                    team_a_id=team_ids[i],
-                    team_b_id=team_ids[j],
-                )
-                db.add(match)
-                round_idx += 1
-        db.commit()
-
-    elif bracket_type == "swiss":
-        team_ids = payload.team_ids
-        for i in range(0, len(team_ids) - 1, 2):
-            match = models.Match(
+            opening = models.Match(
                 tournament_id=tournament.id,
                 bracket_id=bracket_model.id,
-                bracket_type="swiss",
-                round_name="Swiss Round 1",
+                bracket_type="upper",
+                round_name="Opening round",
                 round_order=1,
                 status="UPCOMING",
                 match_format=payload.match_format,
                 date=tour_date,
-                team_a_id=team_ids[i],
-                team_b_id=team_ids[i + 1],
+                start_time=f"{12 + i * 2}:00 Friday",
+                team_a_id=t_a,
+                team_b_id=t_b,
+                next_match_id=upper_final.id,
+                next_loser_match_id=lower_round_match.id,
             )
-            db.add(match)
+            db.add(opening)
+        db.commit()
+
+    # 3. Round Robin (circle algorithm: all teams play balanced rounds)
+    elif bracket_type == "round_robin":
+        teams_list: list[int | None] = list(team_ids)
+        if len(teams_list) % 2 != 0:
+            teams_list.append(None)  # Bye for odd teams
+
+        num_teams = len(teams_list)
+        total_rounds = num_teams - 1
+        matches_per_round = num_teams // 2
+
+        rotating_teams = list(teams_list)
+        for r in range(total_rounds):
+            round_name = f"Round {r + 1}"
+            for m in range(matches_per_round):
+                t1 = rotating_teams[m]
+                t2 = rotating_teams[num_teams - 1 - m]
+
+                if t1 is not None and t2 is not None:
+                    match = models.Match(
+                        tournament_id=tournament.id,
+                        bracket_id=bracket_model.id,
+                        bracket_type="round_robin",
+                        round_name=round_name,
+                        round_order=r + 1,
+                        status="UPCOMING",
+                        match_format=payload.match_format,
+                        date=tour_date,
+                        start_time=f"{14 + m * 2}:00",
+                        team_a_id=t1,
+                        team_b_id=t2,
+                    )
+                    db.add(match)
+
+            # Rotate teams keeping first fixed
+            rotating_teams = [rotating_teams[0]] + [rotating_teams[-1]] + rotating_teams[1:-1]
+
+        db.commit()
+
+    # 4. Swiss Bracket (multi-round Swiss system)
+    elif bracket_type == "swiss":
+        rounds_count = 3  # Standard 3 Swiss rounds
+        for r in range(rounds_count):
+            round_name = f"Swiss Round {r + 1}"
+            for i in range(0, len(team_ids) - 1, 2):
+                match = models.Match(
+                    tournament_id=tournament.id,
+                    bracket_id=bracket_model.id,
+                    bracket_type="swiss",
+                    round_name=round_name,
+                    round_order=r + 1,
+                    status="UPCOMING",
+                    match_format=payload.match_format,
+                    date=tour_date,
+                    start_time=f"{15 + i}:00",
+                    # First round has teams seeded, subsequent rounds populate as games finish
+                    team_a_id=team_ids[i] if r == 0 else None,
+                    team_b_id=team_ids[i + 1] if r == 0 else None,
+                )
+                db.add(match)
+
         db.commit()
 
     return get_tournament_bracket_view(db, tournament_id)
 
 
 def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.TournamentBracketView:
-    """Produces structured bracket view data for the frontend."""
     tournament = get_tournament_or_404(db, tournament_id)
     matches = (
         db.query(models.Match)
@@ -866,38 +995,131 @@ def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.Tour
     )
 
 
-def get_team_leaderboard(db: Session) -> list[schemas.TeamLeaderboardEntry]:
-    teams = db.query(models.Team).order_by(models.Team.ranking).all()
-    return [
-        schemas.TeamLeaderboardEntry(rank=i + 1, team_id=t.id, name=t.name, logo_url=t.logo_url)
-        for i, t in enumerate(teams)
-    ]
-
-
-def get_player_leaderboard(db: Session, limit: int = 10) -> list[schemas.PlayerLeaderboardEntry]:
-    players = (
-        db.query(models.Player)
-        .order_by(models.Player.impact.desc())
-        .limit(limit)
+def calculate_team_points(db: Session, team_id: int) -> tuple[int, float]:
+    """Calculates dynamic points and win rate for a team based on played matches."""
+    matches = (
+        db.query(models.Match)
+        .filter(
+            (models.Match.team_a_id == team_id) | (models.Match.team_b_id == team_id),
+            models.Match.status == "FINISHED",
+        )
         .all()
     )
+    if not matches:
+        return 1000, 0.0
+
+    wins = sum(1 for m in matches if m.winner_id == team_id)
+    losses = len(matches) - wins
+    win_rate = round((wins / len(matches)) * 100, 1)
+    points = 1000 + (wins * 45) - (losses * 25)
+    return max(0, points), win_rate
+
+
+def get_team_leaderboard(db: Session) -> list[schemas.TeamLeaderboardEntry]:
+    teams = db.query(models.Team).order_by(models.Team.ranking).all()
+    entries = []
+    for i, t in enumerate(teams):
+        pts, wr = calculate_team_points(db, t.id)
+        entries.append(
+            schemas.TeamLeaderboardEntry(
+                rank=i + 1,
+                team_id=t.id,
+                name=t.name,
+                logo_url=t.logo_url,
+                points=pts,
+                win_rate=wr,
+            )
+        )
+    return entries
+
+
+def calculate_player_rating(kills: int, deaths: int, maps: int, adr: float, kast: float) -> float:
+    """Calculates HLTV 2.0 / 3.0 style rating based on real statistics."""
+    rounds = max(1, maps * 24)
+    kpr = kills / rounds
+    dpr = deaths / rounds
+    # HLTV 2.0 approximation
+    rating = (
+        0.35 * (kpr / 0.679)
+        + 0.25 * ((rounds - deaths) / rounds / 0.317)
+        + 0.25 * (adr / 75.0)
+        + 0.15 * (kast / 70.0)
+    )
+    return round(max(0.40, min(2.50, rating)), 2)
+
+
+def get_player_leaderboard(db: Session, limit: int = 15) -> list[schemas.PlayerLeaderboardEntry]:
+    players = db.query(models.Player).all()
+
+    player_entries = []
+    for p in players:
+        # Check if match stats exist for player
+        stats = db.query(models.PlayerMatchStat).filter(models.PlayerMatchStat.player_id == p.id).all()
+        if stats:
+            avg_rating = round(sum(s.rating for s in stats) / len(stats), 2)
+            avg_adr = round(sum(s.adr for s in stats) / len(stats), 1)
+        else:
+            try:
+                kd_f = float(p.kd)
+            except Exception:
+                kd_f = 1.0
+            avg_rating = round(p.impact / 10.0 + 0.30, 2)
+            avg_adr = round(kd_f * 65.0, 1)
+
+        player_entries.append({
+            "player_id": p.id,
+            "nickname": p.nickname,
+            "team_name": p.team.name if p.team else "",
+            "avatar_url": p.avatar_url,
+            "rating": avg_rating,
+            "kd": p.kd,
+            "adr": avg_adr,
+        })
+
+    # Sort descending by rating
+    player_entries.sort(key=lambda x: x["rating"], reverse=True)
+
     return [
         schemas.PlayerLeaderboardEntry(
             rank=i + 1,
-            player_id=p.id,
-            nickname=p.nickname,
-            team_name=p.team.name if p.team else "",
-            avatar_url=p.avatar_url,
-            rating=round(p.impact / 10 + 1, 2),
+            player_id=item["player_id"],
+            nickname=item["nickname"],
+            team_name=item["team_name"],
+            avatar_url=item["avatar_url"],
+            rating=item["rating"],
+            kd=item["kd"],
+            adr=item["adr"],
         )
-        for i, p in enumerate(players)
+        for i, item in enumerate(player_entries[:limit])
     ]
 
 
+def validate_image_url(url: str) -> str:
+    """Validates that image URL has a safe http/https/uploads scheme."""
+    cleaned = url.strip()
+    if cleaned.startswith("/uploads/"):
+        return cleaned
+
+    parsed = urlparse(cleaned)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image URL scheme. Only HTTP and HTTPS are permitted.",
+        )
+    if any(char in cleaned for char in ("<", ">", '"', "'", "`")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image URL contains illegal characters.",
+        )
+    return cleaned
+
+
 def save_uploaded_image(target_subfolder: str, entity_id: int, payload: schemas.ImageUploadPayload) -> str:
-    """Decodes base64 image data to file on disk or returns direct URL."""
+    """Safely decodes and validates image upload with magic bytes (Pillow).
+    Rejects SVG and unverified image formats to prevent XSS and file upload vulnerabilities.
+    """
     if payload.image_url:
-        return payload.image_url.strip()
+        return validate_image_url(payload.image_url)
 
     if not payload.image_base64:
         raise HTTPException(
@@ -906,15 +1128,13 @@ def save_uploaded_image(target_subfolder: str, entity_id: int, payload: schemas.
         )
 
     data = payload.image_base64
-    ext = "png"
     if "," in data:
         header, data = data.split(",", 1)
-        if "image/jpeg" in header or "image/jpg" in header:
-            ext = "jpg"
-        elif "image/webp" in header:
-            ext = "webp"
-        elif "image/svg" in header:
-            ext = "svg"
+        if "image/svg" in header.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="SVG format is disallowed for security reasons. Please upload PNG, JPG, or WEBP.",
+            )
 
     try:
         binary_data = base64.b64decode(data)
@@ -929,6 +1149,26 @@ def save_uploaded_image(target_subfolder: str, entity_id: int, payload: schemas.
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Image size exceeds maximum limit of 5MB",
         )
+
+    # Magic byte verification using Pillow
+    try:
+        img = Image.open(io.BytesIO(binary_data))
+        img_format = img.format.upper() if img.format else ""
+        if img_format not in ("PNG", "JPEG", "WEBP"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported image format '{img_format}'. Only PNG, JPEG, and WEBP are allowed.",
+            )
+        img.verify()  # Verifies file integrity
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Uploaded file is corrupted or not a valid raster image: {exc}",
+        )
+
+    ext = "png" if img_format == "PNG" else ("jpg" if img_format == "JPEG" else "webp")
 
     upload_dir = settings.UPLOAD_DIR / target_subfolder
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -961,3 +1201,85 @@ def set_player_avatar(db: Session, player_id: int, payload: schemas.ImageUploadP
     db.commit()
     db.refresh(player)
     return enrich_player(player)
+
+
+# Map results & player match stats for HLTV-level fidelity
+def add_map_result(db: Session, match_id: int, payload: schemas.MapResultCreate) -> schemas.MapResultOut:
+    match = get_match_or_404(db, match_id)
+    mr = models.MapResult(
+        match_id=match.id,
+        map_number=payload.map_number,
+        map_name=payload.map_name,
+        score_a=payload.score_a,
+        score_b=payload.score_b,
+        winner_id=payload.winner_id,
+    )
+    db.add(mr)
+    db.commit()
+    db.refresh(mr)
+    return schemas.MapResultOut(
+        id=mr.id,
+        match_id=mr.match_id,
+        map_number=mr.map_number,
+        map_name=mr.map_name,
+        score_a=mr.score_a,
+        score_b=mr.score_b,
+        winner_id=mr.winner_id,
+        winner_name=mr.winner.name if mr.winner else None,
+    )
+
+
+def add_player_match_stat(
+    db: Session, match_id: int, payload: schemas.PlayerMatchStatCreate
+) -> schemas.PlayerMatchStatOut:
+    match = get_match_or_404(db, match_id)
+    player = get_player_or_404(db, payload.player_id)
+    team = get_team_or_404(db, payload.team_id)
+
+    rating = payload.rating
+    if rating == 1.0 and payload.kills > 0:
+        rounds = 24
+        kpr = payload.kills / rounds
+        rating = round(
+            0.35 * (kpr / 0.679)
+            + 0.25 * ((rounds - payload.deaths) / rounds / 0.317)
+            + 0.25 * (payload.adr / 75.0)
+            + 0.15 * (payload.kast / 70.0),
+            2,
+        )
+
+    stat = models.PlayerMatchStat(
+        match_id=match.id,
+        map_id=payload.map_id,
+        player_id=player.id,
+        team_id=team.id,
+        kills=payload.kills,
+        deaths=payload.deaths,
+        assists=payload.assists,
+        headshots=payload.headshots,
+        adr=payload.adr,
+        kast=payload.kast,
+        rating=rating,
+        is_mvp=payload.is_mvp,
+    )
+    db.add(stat)
+    db.commit()
+    db.refresh(stat)
+
+    return schemas.PlayerMatchStatOut(
+        id=stat.id,
+        match_id=stat.match_id,
+        map_id=stat.map_id,
+        player_id=stat.player_id,
+        player_nickname=player.nickname,
+        team_id=stat.team_id,
+        team_name=team.name,
+        kills=stat.kills,
+        deaths=stat.deaths,
+        assists=stat.assists,
+        headshots=stat.headshots,
+        adr=stat.adr,
+        kast=stat.kast,
+        rating=stat.rating,
+        is_mvp=stat.is_mvp,
+    )

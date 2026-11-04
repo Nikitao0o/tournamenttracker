@@ -1,18 +1,23 @@
-from sqlalchemy import create_engine
-from sqlalchemy.engine import make_url
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import settings
 
 DATABASE_URL = settings.get_database_url()
+is_sqlite = make_url(DATABASE_URL).get_backend_name() == "sqlite"
 
-connect_args = (
-    {"check_same_thread": False}
-    if make_url(DATABASE_URL).get_backend_name() == "sqlite"
-    else {}
-)
+connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+if is_sqlite:
+    @event.listens_for(Engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        # Enable foreign key constraint enforcement in SQLite
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -27,6 +32,7 @@ def sync_db_schema():
         backend_name = engine.dialect.name
         if backend_name == "postgresql":
             with engine.begin() as conn:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;")
                 conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);")
 
                 conn.exec_driver_sql("ALTER TABLE teams ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);")

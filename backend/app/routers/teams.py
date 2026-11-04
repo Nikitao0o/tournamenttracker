@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from .. import crud, schemas
+from .. import crud, models, schemas
 from ..auth import get_current_admin
 from ..database import get_db
 
@@ -30,7 +30,7 @@ def get_team_players(team_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=schemas.TeamOut, status_code=status.HTTP_201_CREATED)
 def create_team(
     payload: schemas.TeamCreate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Create team (admin only)."""
@@ -41,7 +41,7 @@ def create_team(
 def update_team(
     team_id: int,
     payload: schemas.TeamUpdate,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Update team details (admin only)."""
@@ -52,7 +52,7 @@ def update_team(
 def upload_team_logo(
     team_id: int,
     payload: schemas.ImageUploadPayload,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Upload or update team logo (admin only).
@@ -64,7 +64,7 @@ def upload_team_logo(
 @router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_team(
     team_id: int,
-    admin = Depends(get_current_admin),
+    admin: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     """Delete team (admin only)."""

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -34,7 +34,7 @@ import { TeamLogo } from '../../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../../shared/ui/PlayerAvatar'
 import { formatDate } from '../../utils/formatting'
 import { storage } from '../../shared/api/storage'
-import { MOCK_TEAMS, MOCK_PLAYERS } from '../../mock/data'
+import { apiClient } from '../../shared/api/client'
 import type {
   CreateTournamentInput,
   Tournament,
@@ -54,8 +54,10 @@ export function AdminPage() {
   const [teamSearch, setTeamSearch] = useState('')
   const [playerSearch, setPlayerSearch] = useState('')
 
-  const [teams, setTeams] = useState<Team[]>(() => storage.getTeams() || MOCK_TEAMS)
-  const [players, setPlayers] = useState<Player[]>(() => storage.getPlayers() || MOCK_PLAYERS)
+  const [teams, setTeams] = useState<Team[]>([])
+  const [isTeamsLoading, setIsTeamsLoading] = useState(true)
+  const [players, setPlayers] = useState<Player[]>([])
+  const [isPlayersLoading, setIsPlayersLoading] = useState(true)
 
   const [formOpen, setFormOpen] = useState(false)
   const [teamDialogOpen, setTeamDialogOpen] = useState(false)
@@ -66,19 +68,78 @@ export function AdminPage() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [deletingTournament, setDeletingTournament] = useState<Tournament | null>(null)
+  const [deletingTeam, setDeletingTeam] = useState<Team | null>(null)
+  const [deletingPlayer, setDeletingPlayer] = useState<Player | null>(null)
 
   const [mediaModal, setMediaModal] = useState<{
     open: boolean
     type: 'team' | 'player'
+    id: string | number
     name: string
   }>({
     open: false,
     type: 'team',
+    id: '',
     name: '',
   })
 
-  const [, setMediaVersion] = useState(0)
   const [notification, setNotification] = useState<{ message: string; severity: 'success' | 'error' } | null>(null)
+
+  const refreshTeams = useCallback(async () => {
+    setIsTeamsLoading(true)
+    try {
+      const data = await apiClient.getTeams()
+      setTeams(data)
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to fetch teams',
+        severity: 'error',
+      })
+    } finally {
+      setIsTeamsLoading(false)
+    }
+  }, [])
+
+  const refreshPlayers = useCallback(async () => {
+    setIsPlayersLoading(true)
+    try {
+      const data = await apiClient.getPlayers()
+      setPlayers(data)
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to fetch players',
+        severity: 'error',
+      })
+    } finally {
+      setIsPlayersLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let ignore = false
+    Promise.all([apiClient.getTeams(), apiClient.getPlayers()])
+      .then(([t, p]) => {
+        if (!ignore) {
+          setTeams(t)
+          setPlayers(p)
+          setIsTeamsLoading(false)
+          setIsPlayersLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setNotification({
+            message: err instanceof Error ? err.message : 'Failed to load initial teams or players',
+            severity: 'error',
+          })
+          setIsTeamsLoading(false)
+          setIsPlayersLoading(false)
+        }
+      })
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const handleOpenCreate = () => {
     setEditingTournament(null)
@@ -123,27 +184,25 @@ export function AdminPage() {
     }
   }
 
-  const handleCreateTeam = (input: CreateTeamInput) => {
-    const slug = input.shortName.toLowerCase().replace(/[^a-z0-9]/g, '')
-    const newTeam: Team = {
-      id: `team-${slug}-${Date.now()}`,
-      name: input.name,
-      shortName: input.shortName,
-      region: input.region,
-      coach: input.coach,
-      description: input.description,
-      ranking: input.ranking,
-      roster: input.roster || [],
-      logoUrl: input.logoUrl,
+  const handleCreateTeam = async (input: CreateTeamInput) => {
+    try {
+      const created = await apiClient.createTeam(input)
+      if (input.logoUrl && input.logoUrl.startsWith('data:image')) {
+        try {
+          await apiClient.uploadTeamLogo(created.id, input.logoUrl)
+        } catch {
+          // ignore upload error
+        }
+      }
+      await refreshTeams()
+      setTeamDialogOpen(false)
+      setNotification({ message: `Team "${created.name}" created successfully!`, severity: 'success' })
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to create team',
+        severity: 'error',
+      })
     }
-    if (input.logoUrl) {
-      storage.setTeamLogo(newTeam.name, input.logoUrl)
-    }
-    const updated = [newTeam, ...teams]
-    setTeams(updated)
-    storage.setTeams(updated)
-    setTeamDialogOpen(false)
-    setNotification({ message: `Team "${newTeam.name}" created successfully!`, severity: 'success' })
   }
 
   const handleOpenEditTeam = (t: Team) => {
@@ -151,39 +210,63 @@ export function AdminPage() {
     setEditTeamDialogOpen(true)
   }
 
-  const handleUpdateTeam = (updatedTeam: Team) => {
-    if (updatedTeam.logoUrl) {
-      storage.setTeamLogo(updatedTeam.name, updatedTeam.logoUrl)
+  const handleUpdateTeam = async (updatedTeam: Team) => {
+    try {
+      await apiClient.updateTeam(updatedTeam.id, {
+        name: updatedTeam.name,
+        shortName: updatedTeam.shortName,
+        region: updatedTeam.region,
+        coach: updatedTeam.coach,
+        description: updatedTeam.description,
+        ranking: updatedTeam.ranking,
+        logoUrl: updatedTeam.logoUrl || undefined,
+      })
+      await refreshTeams()
+      setEditTeamDialogOpen(false)
+      setNotification({ message: `Team "${updatedTeam.name}" updated successfully!`, severity: 'success' })
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to update team',
+        severity: 'error',
+      })
     }
-    const updated = teams.map((t) => (t.id === updatedTeam.id ? updatedTeam : t))
-    setTeams(updated)
-    storage.setTeams(updated)
-    setEditTeamDialogOpen(false)
-    setNotification({ message: `Team "${updatedTeam.name}" updated successfully!`, severity: 'success' })
   }
 
-  const handleCreatePlayer = (input: CreatePlayerInput) => {
-    const slug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '')
-    const newPlayer: Player = {
-      id: input.id || `player-${slug}-${Date.now()}`,
-      name: input.name,
-      birthDate: input.birthDate,
-      age: input.age ?? 20,
-      role: input.role,
-      nationality: input.nationality,
-      teamId: input.teamId,
-      teamName: input.teamName,
-      avatarUrl: input.avatarUrl,
-      stats: input.stats || { kd: '1.00', impact: 1.0, maps: 0 },
+  const handleDeleteTeamConfirm = async () => {
+    if (!deletingTeam) return
+    try {
+      await apiClient.deleteTeam(deletingTeam.id)
+      await refreshTeams()
+      setNotification({ message: `Team "${deletingTeam.name}" deleted successfully`, severity: 'success' })
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to delete team',
+        severity: 'error',
+      })
+    } finally {
+      setDeletingTeam(null)
     }
-    if (input.avatarUrl) {
-      storage.setPlayerAvatar(newPlayer.name, input.avatarUrl)
+  }
+
+  const handleCreatePlayer = async (input: CreatePlayerInput) => {
+    try {
+      const created = await apiClient.createPlayer(input)
+      if (input.avatarUrl && input.avatarUrl.startsWith('data:image')) {
+        try {
+          await apiClient.uploadPlayerAvatar(created.id, input.avatarUrl)
+        } catch {
+          // ignore upload error
+        }
+      }
+      await refreshPlayers()
+      setPlayerDialogOpen(false)
+      setNotification({ message: `Player "${created.name}" created successfully!`, severity: 'success' })
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to create player',
+        severity: 'error',
+      })
     }
-    const updated = [newPlayer, ...players]
-    setPlayers(updated)
-    storage.setPlayers(updated)
-    setPlayerDialogOpen(false)
-    setNotification({ message: `Player "${newPlayer.name}" created successfully!`, severity: 'success' })
   }
 
   const handleOpenEditPlayer = (p: Player) => {
@@ -191,26 +274,66 @@ export function AdminPage() {
     setEditPlayerDialogOpen(true)
   }
 
-  const handleUpdatePlayer = (updatedPlayer: Player) => {
-    if (updatedPlayer.avatarUrl) {
-      storage.setPlayerAvatar(updatedPlayer.name, updatedPlayer.avatarUrl)
+  const handleUpdatePlayer = async (updatedPlayer: Player) => {
+    try {
+      await apiClient.updatePlayer(updatedPlayer.id, {
+        nickname: updatedPlayer.nickname || updatedPlayer.name,
+        name: updatedPlayer.name,
+        age: updatedPlayer.age,
+        role: updatedPlayer.role,
+        nationality: updatedPlayer.nationality,
+        teamId: updatedPlayer.teamId,
+        avatarUrl: updatedPlayer.avatarUrl || undefined,
+        stats: updatedPlayer.stats,
+      })
+      await refreshPlayers()
+      setEditPlayerDialogOpen(false)
+      setNotification({ message: `Player "${updatedPlayer.name}" updated successfully!`, severity: 'success' })
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to update player',
+        severity: 'error',
+      })
     }
-    const updated = players.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p))
-    setPlayers(updated)
-    storage.setPlayers(updated)
-    setEditPlayerDialogOpen(false)
-    setNotification({ message: `Player "${updatedPlayer.name}" updated successfully!`, severity: 'success' })
   }
 
-  const handleSaveMedia = (dataUrl: string) => {
-    if (mediaModal.type === 'team') {
-      storage.setTeamLogo(mediaModal.name, dataUrl)
-      setNotification({ message: `Team logo for "${mediaModal.name}" updated successfully!`, severity: 'success' })
-    } else {
-      storage.setPlayerAvatar(mediaModal.name, dataUrl)
-      setNotification({ message: `Player avatar for "${mediaModal.name}" updated successfully!`, severity: 'success' })
+  const handleDeletePlayerConfirm = async () => {
+    if (!deletingPlayer) return
+    try {
+      await apiClient.deletePlayer(deletingPlayer.id)
+      await refreshPlayers()
+      setNotification({ message: `Player "${deletingPlayer.name}" deleted successfully`, severity: 'success' })
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to delete player',
+        severity: 'error',
+      })
+    } finally {
+      setDeletingPlayer(null)
     }
-    setMediaVersion((v) => v + 1)
+  }
+
+  const handleSaveMedia = async (dataUrl: string) => {
+    try {
+      if (mediaModal.type === 'team') {
+        await apiClient.uploadTeamLogo(mediaModal.id, dataUrl)
+        storage.setTeamLogo(String(mediaModal.id), dataUrl)
+        await refreshTeams()
+        setNotification({ message: `Team logo for "${mediaModal.name}" updated successfully!`, severity: 'success' })
+      } else {
+        await apiClient.uploadPlayerAvatar(mediaModal.id, dataUrl)
+        storage.setPlayerAvatar(String(mediaModal.id), dataUrl)
+        await refreshPlayers()
+        setNotification({ message: `Player avatar for "${mediaModal.name}" updated successfully!`, severity: 'success' })
+      }
+    } catch (err: unknown) {
+      setNotification({
+        message: err instanceof Error ? err.message : 'Failed to upload media asset',
+        severity: 'error',
+      })
+    } finally {
+      setMediaModal({ open: false, type: 'team', id: '', name: '' })
+    }
   }
 
   const handleResetMedia = (name: string, type: 'team' | 'player') => {
@@ -221,7 +344,6 @@ export function AdminPage() {
       storage.removePlayerAvatar(name)
       setNotification({ message: `Player avatar for "${name}" reset to default`, severity: 'success' })
     }
-    setMediaVersion((v) => v + 1)
   }
 
   const filteredTournaments = tournaments.filter(
@@ -576,7 +698,13 @@ export function AdminPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredTeams.length === 0 ? (
+                  {isTeamsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} sx={{ p: 2 }}>
+                        <TableRowSkeleton count={4} />
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredTeams.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
                         No teams match your search.
@@ -603,7 +731,7 @@ export function AdminPage() {
                         <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{team.region}</TableCell>
                         <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{team.coach || '—'}</TableCell>
                         <TableCell align="right">
-                          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
                             <Button
                               size="small"
                               variant="outlined"
@@ -615,10 +743,10 @@ export function AdminPage() {
                             <Button
                               size="small"
                               variant="outlined"
-                              onClick={() => setMediaModal({ open: true, type: 'team', name: team.name })}
+                              onClick={() => setMediaModal({ open: true, type: 'team', id: team.id, name: team.name })}
                               sx={{ fontSize: 11 }}
                             >
-                              Change Logo
+                              Logo
                             </Button>
                             <Button
                               component={Link}
@@ -627,8 +755,20 @@ export function AdminPage() {
                               variant="outlined"
                               sx={{ fontSize: 11 }}
                             >
-                              View Team
+                              View
                             </Button>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeletingTeam(team)}
+                              aria-label="Delete team"
+                              sx={{ borderRadius: 0.5, p: 0.5 }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              </svg>
+                            </IconButton>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -693,7 +833,13 @@ export function AdminPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredPlayers.length === 0 ? (
+                  {isPlayersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ p: 2 }}>
+                        <TableRowSkeleton count={4} />
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredPlayers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
                         No players match your search.
@@ -721,7 +867,7 @@ export function AdminPage() {
                         </TableCell>
                         <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{player.nationality}</TableCell>
                         <TableCell align="right">
-                          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
                             <Button
                               size="small"
                               variant="outlined"
@@ -733,7 +879,7 @@ export function AdminPage() {
                             <Button
                               size="small"
                               variant="outlined"
-                              onClick={() => setMediaModal({ open: true, type: 'player', name: player.name })}
+                              onClick={() => setMediaModal({ open: true, type: 'player', id: player.id, name: player.name })}
                               sx={{ fontSize: 11 }}
                             >
                               Avatar
@@ -747,6 +893,18 @@ export function AdminPage() {
                             >
                               View
                             </Button>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeletingPlayer(player)}
+                              aria-label="Delete player"
+                              sx={{ borderRadius: 0.5, p: 0.5 }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              </svg>
+                            </IconButton>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -801,16 +959,30 @@ export function AdminPage() {
         onConfirm={handleDeleteConfirm}
       />
 
+      <DeleteConfirmDialog
+        open={Boolean(deletingTeam)}
+        title={deletingTeam?.name}
+        onClose={() => setDeletingTeam(null)}
+        onConfirm={handleDeleteTeamConfirm}
+      />
+
+      <DeleteConfirmDialog
+        open={Boolean(deletingPlayer)}
+        title={deletingPlayer?.name}
+        onClose={() => setDeletingPlayer(null)}
+        onConfirm={handleDeletePlayerConfirm}
+      />
+
       <MediaUploadDialog
         open={mediaModal.open}
-        title={`Upload ${mediaModal.type === 'team' ? 'team logo' : 'player avatar'} (PNG / JPG)`}
+        title={`Upload ${mediaModal.type === 'team' ? 'team logo' : 'player avatar'} (PNG / JPG / WEBP)`}
         entityName={mediaModal.name}
         currentValue={
           mediaModal.type === 'team'
-            ? storage.getTeamLogo(mediaModal.name) || undefined
-            : storage.getPlayerAvatar(mediaModal.name) || undefined
+            ? storage.getTeamLogo(String(mediaModal.id)) || undefined
+            : storage.getPlayerAvatar(String(mediaModal.id)) || undefined
         }
-        onClose={() => setMediaModal({ open: false, type: 'team', name: '' })}
+        onClose={() => setMediaModal({ open: false, type: 'team', id: '', name: '' })}
         onSave={handleSaveMedia}
         onReset={() => handleResetMedia(mediaModal.name, mediaModal.type)}
       />

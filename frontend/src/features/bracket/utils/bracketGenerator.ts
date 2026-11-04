@@ -14,7 +14,7 @@ function getTeamLogoUrl(teamName?: string): string | undefined {
   const known = TEAM_LOGOS[`team-${slug}`]?.svg
   if (known) return known
   const foundTeam = (storage.getTeams() || []).find((t) => t.name.toLowerCase() === teamName.toLowerCase())
-  return foundTeam?.logoUrl
+  return foundTeam?.logoUrl || undefined
 }
 
 function createMatch(

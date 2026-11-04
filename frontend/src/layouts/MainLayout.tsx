@@ -1,7 +1,10 @@
+import { Suspense } from 'react'
 import Box from '@mui/material/Box'
 import Container from '@mui/material/Container'
 import { Outlet } from 'react-router-dom'
 import Header from '../components/Header'
+import { ErrorBoundary } from '../shared/ui/ErrorBoundary'
+import { PageSkeleton } from '../shared/ui/LoadingSkeleton'
 
 export function MainLayout() {
   return (
@@ -10,7 +13,11 @@ export function MainLayout() {
 
       <Box component="main" sx={{ flex: 1, py: { xs: 1.5, md: 2 } }}>
         <Container maxWidth={false} sx={{ maxWidth: 1100, px: { xs: 1, sm: 2 } }}>
-          <Outlet />
+          <ErrorBoundary>
+            <Suspense fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </Container>
       </Box>
 
@@ -25,7 +32,7 @@ export function MainLayout() {
           fontSize: 11,
         }}
       >
-        Demo frontend · mock data · {new Date().getFullYear()}
+        Tournament Tracker · CS2 Esports Portal · {new Date().getFullYear()}
       </Box>
     </Box>
   )

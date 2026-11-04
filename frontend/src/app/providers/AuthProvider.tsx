@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, type ReactNode } from 'react'
 import type { User } from '../../types'
 import { apiClient } from '../../shared/api/client'
 import { storage } from '../../shared/api/storage'
@@ -9,15 +9,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => storage.getToken())
   const [isLoading, setIsLoading] = useState(false)
 
+  const logout = useCallback(() => {
+    apiClient.logout().catch(() => {})
+    setToken(null)
+    setUser(null)
+    storage.clearAuth()
+  }, [])
+
   useEffect(() => {
-    if (token && user) {
-      storage.setToken(token)
-      storage.setUser(user)
-    } else {
-      storage.clearToken()
-      storage.clearUser()
+    // Validate session on app launch
+    if (token) {
+      apiClient
+        .getMe()
+        .then((freshUser) => {
+          setUser(freshUser)
+        })
+        .catch(() => {
+          // Token invalid or expired and refresh failed
+          logout()
+        })
     }
-  }, [token, user])
+  }, [token, logout])
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
@@ -51,13 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const logout = () => {
-    setToken(null)
-    setUser(null)
-    storage.clearToken()
-    storage.clearUser()
   }
 
   const value: AuthContextType = {

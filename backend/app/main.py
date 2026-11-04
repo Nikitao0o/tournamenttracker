@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 import traceback
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,15 +13,18 @@ from .routers import admin, auth, leaderboards, matches, players, teams, tournam
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application startup initialization: database schema creation, sync and seed."""
+    """Application startup initialization: database schema creation, sync and conditional seed."""
     settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     (settings.UPLOAD_DIR / "teams").mkdir(parents=True, exist_ok=True)
     (settings.UPLOAD_DIR / "players").mkdir(parents=True, exist_ok=True)
 
     Base.metadata.create_all(bind=engine)
     sync_db_schema()
-    from .seed import seed_if_empty
-    seed_if_empty()
+
+    if settings.AUTO_SEED or settings.DEBUG:
+        from .seed import seed_if_empty
+        seed_if_empty()
+
     yield
 
 
@@ -36,16 +39,14 @@ app = FastAPI(
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """Global exception handler guaranteeing CORS headers are always returned on 500 errors.
-    Prevents browsers and Swagger UI from encountering 'Failed to fetch / CORS' on server faults.
-    """
+    """Global exception handler guaranteeing CORS headers are always returned on 500 errors."""
     traceback.print_exc()
     response = JSONResponse(
         status_code=500,
         content={"detail": f"Internal server error: {exc}"},
     )
     origin = request.headers.get("origin")
-    if origin:
+    if origin and origin in settings.ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = "*"
@@ -55,13 +56,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000",
-    ],
-    allow_origin_regex=r"^https?://.*",
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

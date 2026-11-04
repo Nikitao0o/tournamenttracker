@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Button from '@mui/material/Button'
@@ -10,20 +11,87 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { useAuth } from '../app/providers/useAuth'
-import { getPlayersByTeamId, getTeamByReference } from '../mock/data'
+import { apiClient } from '../shared/api/client'
+import type { Player, Team } from '../types'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
 import { storage } from '../shared/api/storage'
+import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
+
+function getSlug(name: string): string {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
 
 export function TeamPage() {
   const { isAdmin } = useAuth()
   const { teamRef } = useParams<{ teamRef: string }>()
-  const team = teamRef ? getTeamByReference(teamRef) : undefined
-  const players = team ? getPlayersByTeamId(team.id) : []
 
+  const [team, setTeam] = useState<Team | null>(null)
+  const [players, setPlayers] = useState<Player[]>([])
+  const [isLoading, setIsLoading] = useState(Boolean(teamRef))
+  const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [, setVersion] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    if (!teamRef) return
+
+    apiClient
+      .getTeams()
+      .then((teams) => {
+        if (!mounted) return
+        const found = teams.find(
+          (t) => String(t.id) === teamRef || getSlug(t.name) === teamRef.toLowerCase()
+        )
+        if (found) {
+          setTeam(found)
+          return apiClient.getTeamPlayers(found.id).then((roster) => {
+            if (mounted) {
+              setPlayers(roster)
+              setIsLoading(false)
+            }
+          })
+        } else {
+          setIsLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err.message || 'Error loading team data')
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [teamRef])
+
+  const handleSaveLogo = async (dataUrl: string) => {
+    if (!team) return
+    try {
+      const updated = await apiClient.uploadTeamLogo(team.id, dataUrl)
+      setTeam(updated)
+      storage.setTeamLogo(String(team.id), dataUrl)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to upload team logo'
+      alert(msg)
+    }
+  }
+
+  const handleResetLogo = () => {
+    if (!team) return
+    storage.removeTeamLogo(String(team.id))
+  }
+
+  if (isLoading) {
+    return (
+      <Stack spacing={3}>
+        <CardSkeleton count={3} />
+      </Stack>
+    )
+  }
 
   if (!team) {
     return (
@@ -57,16 +125,6 @@ export function TeamPage() {
     )
   }
 
-  const handleSaveLogo = (dataUrl: string) => {
-    storage.setTeamLogo(team.name, dataUrl)
-    setVersion((v) => v + 1)
-  }
-
-  const handleResetLogo = () => {
-    storage.removeTeamLogo(team.name)
-    setVersion((v) => v + 1)
-  }
-
   return (
     <Stack spacing={3}>
       <Breadcrumbs
@@ -90,6 +148,8 @@ export function TeamPage() {
           {team.name}
         </Typography>
       </Breadcrumbs>
+
+      {error && <Alert severity="warning">{error}</Alert>}
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Stack spacing={2}>
@@ -127,46 +187,50 @@ export function TeamPage() {
           Roster
         </Typography>
 
-        <Grid container spacing={2}>
-          {players.map((player) => (
-            <Grid key={player.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Paper variant="outlined" sx={{ p: 2.5, height: '100%' }}>
-                <Stack spacing={1.5}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                    <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={42} />
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="h3" sx={{ fontSize: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {player.name}
-                      </Typography>
-                      <Typography color="text.secondary" sx={{ fontSize: 11 }}>
-                        {player.age} • {player.nationality}
-                      </Typography>
-                    </Box>
-                    <Chip label={player.role} size="small" />
+        {players.length === 0 ? (
+          <Alert severity="info">No players assigned to this team roster yet.</Alert>
+        ) : (
+          <Grid container spacing={2}>
+            {players.map((player) => (
+              <Grid key={player.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Paper variant="outlined" sx={{ p: 2.5, height: '100%' }}>
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                      <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} teamId={player.teamId} size={42} />
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="h3" sx={{ fontSize: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {player.name}
+                        </Typography>
+                        <Typography color="text.secondary" sx={{ fontSize: 11 }}>
+                          {player.age} y/o • {player.nationality}
+                        </Typography>
+                      </Box>
+                      <Chip label={player.role} size="small" />
+                    </Stack>
+                    <Typography sx={{ fontWeight: 700 }}>K/D {player.stats.kd}</Typography>
+                    <Typography color="text.secondary">Impact rating {player.stats.impact}</Typography>
+                    <Button component={RouterLink} to={`/players/${player.id}`} variant="outlined" sx={{ mt: 'auto' }}>
+                      Player profile
+                    </Button>
                   </Stack>
-                  <Typography sx={{ fontWeight: 700 }}>K/D {player.stats.kd}</Typography>
-                  <Typography color="text.secondary">Impact rating {player.stats.impact}</Typography>
-                  <Button component={RouterLink} to={`/players/${player.id}`} variant="outlined" sx={{ mt: 'auto' }}>
-                    Player profile
-                  </Button>
-                </Stack>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Box>
 
-      {isAdmin ? (
+      {isAdmin && (
         <MediaUploadDialog
           open={dialogOpen}
           title="Upload Team Logo (PNG / JPG)"
           entityName={team.name}
-          currentValue={storage.getTeamLogo(team.name) || undefined}
+          currentValue={team.logoUrl || storage.getTeamLogo(String(team.id)) || undefined}
           onClose={() => setDialogOpen(false)}
           onSave={handleSaveLogo}
           onReset={handleResetLogo}
         />
-      ) : null}
+      )}
     </Stack>
   )
 }
