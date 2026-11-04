@@ -68,11 +68,9 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Static uploads route
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(settings.UPLOAD_DIR)), name="uploads")
 
-# Router registrations
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(tournaments.router)

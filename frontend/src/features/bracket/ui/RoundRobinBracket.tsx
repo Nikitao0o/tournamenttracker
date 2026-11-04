@@ -30,7 +30,6 @@ interface TeamStanding {
 export function RoundRobinBracket({ bracket }: RoundRobinBracketProps) {
   const { allRounds } = bracket
 
-  // Calculate dynamic group standings from all completed matches
   const standings = useMemo(() => {
     const stats: Record<string, TeamStanding> = {}
 
@@ -89,7 +88,6 @@ export function RoundRobinBracket({ bracket }: RoundRobinBracketProps) {
 
   return (
     <Stack spacing={4}>
-      {/* Group Standings Table */}
       <Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           <Box sx={{ width: 4, height: 18, bgcolor: '#00e5ff', borderRadius: 0.5 }} />
@@ -148,7 +146,6 @@ export function RoundRobinBracket({ bracket }: RoundRobinBracketProps) {
         </TableContainer>
       </Box>
 
-      {/* Group Stage Matches Schedule */}
       <Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           <Box sx={{ width: 4, height: 18, bgcolor: '#f04b3a', borderRadius: 0.5 }} />

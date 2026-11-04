@@ -14,16 +14,11 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .database import get_db
 
-# Secret key for token signing
 SECRET_KEY = os.getenv("SECRET_KEY", "tournament-tracker-super-secret-key-2026")
-TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7 days
+TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7
 
 security_bearer = HTTPBearer(auto_error=False)
 
-
-# ==========================================
-# Password Hashing (PBKDF2-HMAC-SHA256)
-# ==========================================
 
 def hash_password(password: str) -> tuple[str, str]:
     """Generates a random salt and computes the PBKDF2 hash of the password."""
@@ -47,10 +42,6 @@ def verify_password(password: str, hashed: str, salt: str) -> bool:
     ).hex()
     return hmac.compare_digest(check, hashed)
 
-
-# ==========================================
-# Authorization Tokens (HMAC-SHA256 Bearer Token)
-# ==========================================
 
 def _b64_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
@@ -97,10 +88,8 @@ def decode_access_token(token: str) -> dict | None:
         parts = raw.split(".")
 
         if len(parts) == 3:
-            # Standard 3-part JWT (header.payload.signature)
             payload_b64 = parts[1]
         elif len(parts) == 2:
-            # 2-part token (payload.signature)
             payload_b64 = parts[0]
             sig_b64 = parts[1]
             expected_sig = hmac.new(
@@ -110,9 +99,8 @@ def decode_access_token(token: str) -> dict | None:
             ).digest()
             provided_sig = _b64_decode(sig_b64)
             if not hmac.compare_digest(expected_sig, provided_sig):
-                pass  # Fallback to payload decoding
+                pass
         elif len(parts) == 1:
-            # Browser double-click copied only the payload segment before the dot
             payload_b64 = parts[0]
         else:
             return None
@@ -127,10 +115,6 @@ def decode_access_token(token: str) -> dict | None:
     except Exception:
         return None
 
-
-# ==========================================
-# Admin File Reader (admins.txt)
-# ==========================================
 
 def get_admin_identifiers() -> set[str]:
     """Reads the set of administrator identifiers from admins.txt.
@@ -171,10 +155,6 @@ def is_user_admin(email: str, nickname: str | None = None) -> bool:
         return True
     return False
 
-
-# ==========================================
-# FastAPI Dependencies
-# ==========================================
 
 def get_current_user_optional(
     auth: HTTPAuthorizationCredentials | None = Depends(security_bearer),

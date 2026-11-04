@@ -10,10 +10,6 @@ from .auth import hash_password, is_user_admin
 from .config import settings
 
 
-# ==========================================
-# Users & Authentication
-# ==========================================
-
 def get_user_by_email(db: Session, email: str) -> models.User | None:
     return db.query(models.User).filter(models.User.email == email.strip().lower()).first()
 
@@ -106,10 +102,6 @@ def get_all_users(db: Session) -> list[schemas.UserOut]:
     return [enrich_user(u) for u in users]
 
 
-# ==========================================
-# Teams
-# ==========================================
-
 def get_teams(db: Session) -> list[models.Team]:
     return db.query(models.Team).order_by(models.Team.ranking).all()
 
@@ -174,7 +166,6 @@ def update_team(db: Session, team_id: int, payload: schemas.TeamUpdate) -> model
 
 def delete_team(db: Session, team_id: int) -> None:
     team = get_team_or_404(db, team_id)
-    # Clear matches referencing this team to prevent FK deadlocks
     db.query(models.Match).filter(models.Match.team_a_id == team_id).update({models.Match.team_a_id: None})
     db.query(models.Match).filter(models.Match.team_b_id == team_id).update({models.Match.team_b_id: None})
     db.query(models.Match).filter(models.Match.winner_id == team_id).update({models.Match.winner_id: None})
@@ -182,10 +173,6 @@ def delete_team(db: Session, team_id: int) -> None:
     db.delete(team)
     db.commit()
 
-
-# ==========================================
-# Players
-# ==========================================
 
 def enrich_player(player: models.Player) -> schemas.PlayerOut:
     out = schemas.PlayerOut.model_validate(player)
@@ -304,10 +291,6 @@ def delete_player(db: Session, player_id: int) -> None:
     db.commit()
 
 
-# ==========================================
-# Tournaments
-# ==========================================
-
 def get_tournaments(db: Session, status_filter: str | None = None) -> list[models.Tournament]:
     q = db.query(models.Tournament)
     if status_filter:
@@ -345,23 +328,15 @@ def update_tournament(db: Session, tournament_id: int, payload: schemas.Tourname
 
 def delete_tournament(db: Session, tournament_id: int) -> None:
     tournament = get_tournament_or_404(db, tournament_id)
-    # 1. Break self-referential links between matches in this tournament
     db.query(models.Match).filter(models.Match.tournament_id == tournament_id).update({
         models.Match.next_match_id: None,
         models.Match.next_loser_match_id: None,
     })
-    # 2. Delete all matches belonging to this tournament
     db.query(models.Match).filter(models.Match.tournament_id == tournament_id).delete()
-    # 3. Delete all brackets belonging to this tournament
     db.query(models.Bracket).filter(models.Bracket.tournament_id == tournament_id).delete()
-    # 4. Delete the tournament itself
     db.delete(tournament)
     db.commit()
 
-
-# ==========================================
-# Matches
-# ==========================================
 
 def enrich_match(match: models.Match) -> schemas.MatchOut:
     out = schemas.MatchOut.model_validate(match)
@@ -414,7 +389,6 @@ def advance_bracket_progression(
     if old_loser_id is None:
         old_loser_id = match.loser_id
 
-    # If match is not finished or scores are missing/tied, clear downstream slots
     if (
         match.status != "FINISHED"
         or match.score_a is None
@@ -447,7 +421,6 @@ def advance_bracket_progression(
     match.winner_id = winner_id
     match.loser_id = loser_id
 
-    # 1. Advance winner to next match (next_match_id)
     if match.next_match_id:
         next_m = db.get(models.Match, match.next_match_id)
         if next_m:
@@ -460,7 +433,6 @@ def advance_bracket_progression(
             elif next_m.team_b_id is None and next_m.team_a_id != winner_id:
                 next_m.team_b_id = winner_id
 
-    # 2. Advance loser to lower bracket match (next_loser_match_id)
     if match.next_loser_match_id:
         loser_m = db.get(models.Match, match.next_loser_match_id)
         if loser_m:
@@ -581,16 +553,11 @@ def update_match(db: Session, match_id: int, payload: schemas.MatchUpdate) -> sc
 
 def delete_match(db: Session, match_id: int) -> None:
     match = get_match_or_404(db, match_id)
-    # Clear references from other matches to this match
     db.query(models.Match).filter(models.Match.next_match_id == match_id).update({models.Match.next_match_id: None})
     db.query(models.Match).filter(models.Match.next_loser_match_id == match_id).update({models.Match.next_loser_match_id: None})
     db.delete(match)
     db.commit()
 
-
-# ==========================================
-# Bracket Generation
-# ==========================================
 
 def get_tournament_brackets(db: Session, tournament_id: int) -> list[models.Bracket]:
     return db.query(models.Bracket).filter(models.Bracket.tournament_id == tournament_id).all()
@@ -641,14 +608,12 @@ def generate_tournament_bracket(
 
     tour_date = tournament.start_date
 
-    # 1. DOUBLE ELIMINATION
     if bracket_type == "double_elimination":
         t_a = payload.team_ids[0] if len(payload.team_ids) > 0 else None
         t_b = payload.team_ids[1] if len(payload.team_ids) > 1 else None
         t_c = payload.team_ids[2] if len(payload.team_ids) > 2 else None
         t_d = payload.team_ids[3] if len(payload.team_ids) > 3 else None
 
-        # Grand final
         grand_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -664,7 +629,6 @@ def generate_tournament_bracket(
         db.commit()
         db.refresh(grand_final)
 
-        # Upper final
         upper_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -681,7 +645,6 @@ def generate_tournament_bracket(
         db.commit()
         db.refresh(upper_final)
 
-        # Consolidation final
         consolidation_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -700,7 +663,6 @@ def generate_tournament_bracket(
 
         upper_final.next_loser_match_id = consolidation_final.id
 
-        # Lower final
         lower_final = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -717,7 +679,6 @@ def generate_tournament_bracket(
         db.commit()
         db.refresh(lower_final)
 
-        # Opening round
         m1 = models.Match(
             tournament_id=tournament.id,
             bracket_id=bracket_model.id,
@@ -751,7 +712,6 @@ def generate_tournament_bracket(
         db.add_all([m1, m2])
         db.commit()
 
-    # 2. SINGLE ELIMINATION
     elif bracket_type == "single_elimination":
         final_match = models.Match(
             tournament_id=tournament.id,
@@ -799,7 +759,6 @@ def generate_tournament_bracket(
         db.add_all([sf1, sf2])
         db.commit()
 
-    # 3. ROUND ROBIN
     elif bracket_type == "round_robin":
         team_ids = payload.team_ids
         round_idx = 1
@@ -821,7 +780,6 @@ def generate_tournament_bracket(
                 round_idx += 1
         db.commit()
 
-    # 4. SWISS SYSTEM
     elif bracket_type == "swiss":
         team_ids = payload.team_ids
         for i in range(0, len(team_ids) - 1, 2):
@@ -908,10 +866,6 @@ def get_tournament_bracket_view(db: Session, tournament_id: int) -> schemas.Tour
     )
 
 
-# ==========================================
-# Leaderboards
-# ==========================================
-
 def get_team_leaderboard(db: Session) -> list[schemas.TeamLeaderboardEntry]:
     teams = db.query(models.Team).order_by(models.Team.ranking).all()
     return [
@@ -939,10 +893,6 @@ def get_player_leaderboard(db: Session, limit: int = 10) -> list[schemas.PlayerL
         for i, p in enumerate(players)
     ]
 
-
-# ==========================================
-# Image Uploads (Logos & Avatars)
-# ==========================================
 
 def save_uploaded_image(target_subfolder: str, entity_id: int, payload: schemas.ImageUploadPayload) -> str:
     """Decodes base64 image data to file on disk or returns direct URL."""

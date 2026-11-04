@@ -57,14 +57,12 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(data["status"], "ok")
 
     def test_auth_and_permissions(self):
-        # 1. Register regular user
         reg_res = self.client.post(
             "/api/auth/register",
             json={"email": "newuser@test.local", "nickname": "new_player", "password": "password123"},
         )
         self.assertEqual(reg_res.status_code, 201)
 
-        # 2. Login as regular user
         login_res = self.client.post(
             "/api/auth/login",
             json={"email": "newuser@test.local", "password": "password123"},
@@ -73,7 +71,6 @@ class TestApiEndpoints(unittest.TestCase):
         token = login_res.json()["access_token"]
         user_headers = {"Authorization": f"Bearer {token}"}
 
-        # 3. Regular user views profile and updates nickname
         me_res = self.client.get("/api/auth/me", headers=user_headers)
         self.assertEqual(me_res.status_code, 200)
         self.assertFalse(me_res.json()["is_admin"])
@@ -82,7 +79,6 @@ class TestApiEndpoints(unittest.TestCase):
         self.assertEqual(up_res.status_code, 200)
         self.assertEqual(up_res.json()["nickname"], "updated_nick")
 
-        # 4. Regular user attempts to create tournament -> 403 Forbidden
         tourney_payload = {
             "title": "Unauthorized Major",
             "prize_pool": "$100",
@@ -95,7 +91,6 @@ class TestApiEndpoints(unittest.TestCase):
         forbidden_res = self.client.post("/api/tournaments", headers=user_headers, json=tourney_payload)
         self.assertEqual(forbidden_res.status_code, 403)
 
-        # 5. Admin login (admin@tracker.local from admins.txt)
         self.client.post(
             "/api/auth/register",
             json={"email": "admin@tracker.local", "nickname": "admin", "password": "password123"},
@@ -107,11 +102,9 @@ class TestApiEndpoints(unittest.TestCase):
         admin_token = admin_login.json()["access_token"]
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
-        # 6. Admin creates tournament successfully
         create_tourney = self.client.post("/api/tournaments", headers=admin_headers, json=tourney_payload)
         self.assertEqual(create_tourney.status_code, 201)
 
-        # 7. Admin creates team and player WITHOUT account
         team_res = self.client.post(
             "/api/teams",
             headers=admin_headers,
@@ -147,7 +140,6 @@ class TestApiEndpoints(unittest.TestCase):
         player_id = player_res.json()["id"]
         self.assertIsNone(player_res.json()["user_email"])
 
-        # 8. Admin claims registered user for player profile
         regular_user_id = me_res.json()["id"]
         claim_res = self.client.post(
             "/api/admin/players/claim",

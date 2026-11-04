@@ -11,7 +11,6 @@ import urllib.parse
 import urllib.request
 import json
 
-# Tiny 1x1 transparent PNG for logo and avatar upload tests
 DUMMY_PNG_B64 = (
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
     "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -97,7 +96,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         cls.tester = BaseEndpointTester(cls.backend_url)
 
     def assert_cors_headers(self, headers: dict, origin: str):
-        # Case-insensitive header keys
         norm = {k.lower(): v for k, v in headers.items()}
         allow_origin = norm.get("access-control-allow-origin")
         self.assertIsNotNone(allow_origin, f"Missing Access-Control-Allow-Origin header in {headers}")
@@ -166,7 +164,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         user_email = f"testuser_{suffix}@tracker.local"
         user_nick = f"test_{suffix}"
 
-        # 1. Register
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/register",
@@ -177,7 +174,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         self.assertIn(code, [201, 409], f"Register failed: {body}")
         self.assert_cors_headers(h, origin)
 
-        # 2. Login
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
@@ -190,7 +186,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         self.assert_cors_headers(h, origin)
         user_token = body["access_token"]
 
-        # 3. /me with token
         user_tester = BaseEndpointTester(self.backend_url)
         user_tester.token = user_token
         code, h, body = user_tester.request("GET", "/api/auth/me", origin=origin)
@@ -198,13 +193,11 @@ class TestSwaggerAndCORS(unittest.TestCase):
         self.assertEqual(body.get("email"), user_email)
         self.assert_cors_headers(h, origin)
 
-        # 4. /me PATCH
         code, h, body = user_tester.request("PATCH", "/api/auth/me", data={"nickname": f"{user_nick}_upd"}, origin=origin)
         self.assertEqual(code, 200)
         self.assertEqual(body.get("nickname"), f"{user_nick}_upd")
         self.assert_cors_headers(h, origin)
 
-        # 5. /me/avatar upload
         code, h, body = user_tester.request(
             "POST",
             "/api/auth/me/avatar",
@@ -218,7 +211,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
     def test_05_admin_endpoints_with_admin_account(self):
         """Admin accounts from admins.txt must have access to /api/admin/*."""
         origin = "http://localhost:8000"
-        # Login as pre-seeded admin
         code, h, body = self.tester.request(
             "POST",
             "/api/auth/login",
@@ -233,19 +225,16 @@ class TestSwaggerAndCORS(unittest.TestCase):
         admin_tester = BaseEndpointTester(self.backend_url)
         admin_tester.token = admin_token
 
-        # GET /api/admin/users
         code, h, users = admin_tester.request("GET", "/api/admin/users", origin=origin)
         self.assertEqual(code, 200)
         self.assertIsInstance(users, list)
         self.assert_cors_headers(h, origin)
 
-        # GET /api/admin/admins-list
         code, h, admins = admin_tester.request("GET", "/api/admin/admins-list", origin=origin)
         self.assertEqual(code, 200)
         self.assertIn("admins", admins)
         self.assert_cors_headers(h, origin)
 
-        # POST /api/admin/players (Admin creates player without account)
         import time
         p_nick = f"solo_{int(time.time() * 1000)}"
         code, h, player = admin_tester.request(
@@ -271,7 +260,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
     def test_06_tournaments_and_bracket_types(self):
         """CRUD for tournaments and generation of all 4 bracket types."""
         origin = "http://localhost:8000"
-        # Login as admin
         code, _, login_body = self.tester.request(
             "POST",
             "/api/auth/login",
@@ -282,13 +270,11 @@ class TestSwaggerAndCORS(unittest.TestCase):
         admin_tester = BaseEndpointTester(self.backend_url)
         admin_tester.token = login_body["access_token"]
 
-        # GET /api/tournaments (public)
         code, h, tourneys = self.tester.request("GET", "/api/tournaments", origin=origin, use_auth=False)
         self.assertEqual(code, 200)
         self.assertIsInstance(tourneys, list)
         self.assert_cors_headers(h, origin)
 
-        # POST /api/tournaments
         import time
         t_title = f"Championship_{int(time.time() * 1000)}"
         code, h, new_t = admin_tester.request(
@@ -309,12 +295,10 @@ class TestSwaggerAndCORS(unittest.TestCase):
         t_id = new_t["id"]
         self.assert_cors_headers(h, origin)
 
-        # GET /api/tournaments/{id}
         code, h, t_get = self.tester.request("GET", f"/api/tournaments/{t_id}", origin=origin, use_auth=False)
         self.assertEqual(code, 200)
         self.assertEqual(t_get["title"], t_title)
 
-        # Test bracket generation for each of the 4 supported types
         bracket_types = ["single_elimination", "double_elimination", "round_robin", "swiss"]
         for b_type in bracket_types:
             code, h, b_view = admin_tester.request(
@@ -331,12 +315,10 @@ class TestSwaggerAndCORS(unittest.TestCase):
             self.assertEqual(code, 200, f"Bracket generation failed for {b_type}: {b_view}")
             self.assert_cors_headers(h, origin)
 
-        # GET /api/tournaments/{id}/bracket
         code, h, b_view = self.tester.request("GET", f"/api/tournaments/{t_id}/bracket", origin=origin, use_auth=False)
         self.assertEqual(code, 200)
         self.assert_cors_headers(h, origin)
 
-        # DELETE /api/tournaments/{id}
         code, h, _ = admin_tester.request("DELETE", f"/api/tournaments/{t_id}", origin=origin)
         self.assertEqual(code, 204)
         self.assert_cors_headers(h, origin)
@@ -354,13 +336,11 @@ class TestSwaggerAndCORS(unittest.TestCase):
         admin_tester = BaseEndpointTester(self.backend_url)
         admin_tester.token = login_body["access_token"]
 
-        # GET /api/matches (public)
         code, h, matches = self.tester.request("GET", "/api/matches", origin=origin, use_auth=False)
         self.assertEqual(code, 200)
         self.assertIsInstance(matches, list)
         self.assert_cors_headers(h, origin)
 
-        # POST /api/matches
         code, h, m = admin_tester.request(
             "POST",
             "/api/matches",
@@ -378,7 +358,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         m_id = m["id"]
         self.assert_cors_headers(h, origin)
 
-        # PATCH /api/matches/{id}
         code, h, m_upd = admin_tester.request(
             "PATCH",
             f"/api/matches/{m_id}",
@@ -390,7 +369,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         self.assertEqual(m_upd["winner_id"], 1)
         self.assert_cors_headers(h, origin)
 
-        # DELETE /api/matches/{id}
         code, h, _ = admin_tester.request("DELETE", f"/api/matches/{m_id}", origin=origin)
         self.assertEqual(code, 204)
         self.assert_cors_headers(h, origin)
@@ -408,13 +386,11 @@ class TestSwaggerAndCORS(unittest.TestCase):
         admin_tester = BaseEndpointTester(self.backend_url)
         admin_tester.token = login_body["access_token"]
 
-        # GET /api/teams
         code, h, teams = self.tester.request("GET", "/api/teams", origin=origin, use_auth=False)
         self.assertEqual(code, 200)
         self.assertIsInstance(teams, list)
         self.assert_cors_headers(h, origin)
 
-        # POST /api/teams
         import time
         team_name = f"TestTeam_{int(time.time() * 1000)}"
         code, h, team = admin_tester.request(
@@ -434,7 +410,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         team_id = team["id"]
         self.assert_cors_headers(h, origin)
 
-        # POST /api/teams/{id}/logo
         code, h, logo_res = admin_tester.request(
             "POST",
             f"/api/teams/{team_id}/logo",
@@ -445,7 +420,6 @@ class TestSwaggerAndCORS(unittest.TestCase):
         self.assertTrue(logo_res.get("logo_url", "").startswith("/uploads/teams/"))
         self.assert_cors_headers(h, origin)
 
-        # DELETE /api/teams/{id}
         code, h, _ = admin_tester.request("DELETE", f"/api/teams/{team_id}", origin=origin)
         self.assertEqual(code, 204)
         self.assert_cors_headers(h, origin)
@@ -463,13 +437,11 @@ class TestSwaggerAndCORS(unittest.TestCase):
         admin_tester = BaseEndpointTester(self.backend_url)
         admin_tester.token = login_body["access_token"]
 
-        # GET /api/players
         code, h, players = self.tester.request("GET", "/api/players", origin=origin, use_auth=False)
         self.assertEqual(code, 200)
         self.assertIsInstance(players, list)
         self.assert_cors_headers(h, origin)
 
-        # POST /api/players/{id}/avatar
         code, h, p_res = admin_tester.request(
             "POST",
             "/api/players/1/avatar",

@@ -44,7 +44,6 @@ export function BracketMatchCard({ match, width = 280 }: BracketMatchCardProps) 
         },
       }}
     >
-      {/* Header bar */}
       <Box
         sx={{
           px: 1.5,
@@ -99,9 +98,7 @@ export function BracketMatchCard({ match, width = 280 }: BracketMatchCardProps) 
         </Stack>
       </Box>
 
-      {/* Teams list */}
       <Box sx={{ p: 1.2 }}>
-        {/* Team A */}
         <Box
           sx={{
             display: 'flex',
@@ -146,7 +143,6 @@ export function BracketMatchCard({ match, width = 280 }: BracketMatchCardProps) 
           </Typography>
         </Box>
 
-        {/* Team B */}
         <Box
           sx={{
             display: 'flex',

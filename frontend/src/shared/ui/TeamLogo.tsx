@@ -23,10 +23,8 @@ export function TeamLogo({
   variant = 'rounded',
   sx,
 }: TeamLogoProps) {
-  // 0: try custom or stored or logoUrl, 1: try PNG/JPG, 2: try SVG, 3: fallback to monogram
   const [attempt, setAttempt] = useState(0)
 
-  // Empty placeholder slot for TBD / unassigned team
   const isTBD = !teamName || teamName.trim() === '' || teamName.toUpperCase() === 'TBD' || teamName === 'To Be Decided'
 
   if (isTBD) {

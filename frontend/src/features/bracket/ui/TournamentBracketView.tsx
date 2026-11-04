@@ -61,7 +61,6 @@ export function TournamentBracketView({ bracket, isLoading }: TournamentBracketV
         borderRadius: 2,
       }}
     >
-      {/* Format Header Header */}
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
@@ -97,7 +96,6 @@ export function TournamentBracketView({ bracket, isLoading }: TournamentBracketV
         />
       </Stack>
 
-      {/* Dynamic bracket format renderer (Double or Single Elimination) */}
       {formatKey === 'single_elimination' ? (
         <SingleEliminationBracket bracket={bracket} />
       ) : (

@@ -152,7 +152,6 @@ export function AuthPopover() {
             </Alert>
           ) : null}
 
-          {/* Animated Nickname field on switching to Sign Up */}
           <Collapse in={mode === 'signUp'} timeout={250} unmountOnExit>
             <TextField
               label="Nickname"
@@ -266,7 +265,6 @@ export function AuthPopover() {
             </Typography>
           </Box>
 
-          {/* Quick demo buttons for testing */}
           <Box sx={{ pt: 1, borderTop: '1px dashed #333842' }}>
             <Typography variant="caption" sx={{ color: '#7b8390', display: 'block', mb: 0.8, fontSize: 10 }}>
               Quick login for testing:

@@ -83,7 +83,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
             ("direct", "http://localhost:8000"),
             ("proxy", "http://localhost:5173"),
         ]
-        # Login admin on direct backend to get auth token
         _, _, body = api_call(
             "http://localhost:8000",
             "POST",
@@ -104,13 +103,11 @@ class TestAllSwaggerRoutes(unittest.TestCase):
             with self.subTest(backend=name, url=base_url):
                 origin = "http://localhost:5173" if name == "proxy" else "http://localhost:8000"
 
-                # 1. Health
                 c, h, b = api_call(base_url, "GET", "/api/health", origin=origin)
                 self.assertEqual(c, 200)
                 self.assertEqual(b.get("status"), "ok")
                 self.assert_cors(h, origin)
 
-                # 2. Auth: Register
                 import time
                 uid = int(time.time() * 1000)
                 c, h, b = api_call(
@@ -123,7 +120,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 201)
                 self.assert_cors(h, origin)
 
-                # 3. Auth: Login
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -135,32 +131,26 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 u_token = b["access_token"]
                 self.assert_cors(h, origin)
 
-                # 4. Auth: /me
                 c, h, b = api_call(base_url, "GET", "/api/auth/me", token=u_token, origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 5. Auth: /me PATCH
                 c, h, b = api_call(base_url, "PATCH", "/api/auth/me", data={"nickname": f"upd_{uid}_{name}"}, token=u_token, origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 6. Auth: /me/avatar POST
                 c, h, b = api_call(base_url, "POST", "/api/auth/me/avatar", data={"image_base64": DUMMY_PNG_B64}, token=u_token, origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 7. Admin: /api/admin/users
                 c, h, b = api_call(base_url, "GET", "/api/admin/users", token=self.admin_token, origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 8. Admin: /api/admin/admins-list
                 c, h, b = api_call(base_url, "GET", "/api/admin/admins-list", token=self.admin_token, origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 9. Admin: /api/admin/players
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -184,8 +174,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 p_adm_id = b["id"]
                 self.assert_cors(h, origin)
 
-                # 10. Admin: /api/admin/players/claim
-                # Register another user to claim
                 c, _, reg_b = api_call(
                     base_url,
                     "POST",
@@ -205,12 +193,10 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 11. Teams: GET /api/teams
                 c, h, b = api_call(base_url, "GET", "/api/teams", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 12. Teams: POST /api/teams
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -230,12 +216,10 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 t_team_id = b["id"]
                 self.assert_cors(h, origin)
 
-                # 13. Teams: GET /api/teams/{id}
                 c, h, b = api_call(base_url, "GET", f"/api/teams/{t_team_id}", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 14. Teams: PATCH /api/teams/{id}
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
@@ -247,7 +231,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 15. Teams: POST /api/teams/{id}/logo
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -259,17 +242,14 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 16. Teams: GET /api/teams/{id}/players
                 c, h, b = api_call(base_url, "GET", f"/api/teams/{t_team_id}/players", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 17. Players: GET /api/players
                 c, h, b = api_call(base_url, "GET", "/api/players", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 18. Players: POST /api/players
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -293,12 +273,10 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 test_player_id = b["id"]
                 self.assert_cors(h, origin)
 
-                # 19. Players: GET /api/players/{id}
                 c, h, b = api_call(base_url, "GET", f"/api/players/{test_player_id}", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 20. Players: PATCH /api/players/{id}
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
@@ -310,7 +288,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 21. Players: POST /api/players/{id}/avatar
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -322,12 +299,10 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 22. Tournaments: GET /api/tournaments
                 c, h, b = api_call(base_url, "GET", "/api/tournaments", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 23. Tournaments: POST /api/tournaments
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -348,12 +323,10 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 t_tourney_id = b["id"]
                 self.assert_cors(h, origin)
 
-                # 24. Tournaments: GET /api/tournaments/{id}
                 c, h, b = api_call(base_url, "GET", f"/api/tournaments/{t_tourney_id}", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 25. Tournaments: PATCH /api/tournaments/{id}
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
@@ -365,7 +338,6 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 26. Tournaments: POST /api/tournaments/{id}/bracket/generate (Double Elimination)
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -382,22 +354,18 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 27. Tournaments: GET /api/tournaments/{id}/bracket
                 c, h, b = api_call(base_url, "GET", f"/api/tournaments/{t_tourney_id}/bracket", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 28. Tournaments: GET /api/tournaments/{id}/matches
                 c, h, b = api_call(base_url, "GET", f"/api/tournaments/{t_tourney_id}/matches", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 29. Matches: GET /api/matches
                 c, h, b = api_call(base_url, "GET", "/api/matches", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 30. Matches: POST /api/matches
                 c, h, b = api_call(
                     base_url,
                     "POST",
@@ -417,12 +385,10 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 t_match_id = b["id"]
                 self.assert_cors(h, origin)
 
-                # 31. Matches: GET /api/matches/{id}
                 c, h, b = api_call(base_url, "GET", f"/api/matches/{t_match_id}", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 32. Matches: PATCH /api/matches/{id}
                 c, h, b = api_call(
                     base_url,
                     "PATCH",
@@ -435,32 +401,26 @@ class TestAllSwaggerRoutes(unittest.TestCase):
                 self.assertEqual(b["winner_id"], 1)
                 self.assert_cors(h, origin)
 
-                # 33. Matches: DELETE /api/matches/{id}
                 c, h, _ = api_call(base_url, "DELETE", f"/api/matches/{t_match_id}", token=self.admin_token, origin=origin)
                 self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
-                # 34. Tournaments: DELETE /api/tournaments/{id}
                 c, h, _ = api_call(base_url, "DELETE", f"/api/tournaments/{t_tourney_id}", token=self.admin_token, origin=origin)
                 self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
-                # 35. Players: DELETE /api/players/{id}
                 c, h, _ = api_call(base_url, "DELETE", f"/api/players/{test_player_id}", token=self.admin_token, origin=origin)
                 self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
-                # 36. Teams: DELETE /api/teams/{id}
                 c, h, _ = api_call(base_url, "DELETE", f"/api/teams/{t_team_id}", token=self.admin_token, origin=origin)
                 self.assertEqual(c, 204)
                 self.assert_cors(h, origin)
 
-                # 37. Leaderboards: GET /api/leaderboards/teams
                 c, h, b = api_call(base_url, "GET", "/api/leaderboards/teams", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)
 
-                # 38. Leaderboards: GET /api/leaderboards/players
                 c, h, b = api_call(base_url, "GET", "/api/leaderboards/players", origin=origin)
                 self.assertEqual(c, 200)
                 self.assert_cors(h, origin)

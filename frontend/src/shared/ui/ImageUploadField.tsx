@@ -62,7 +62,6 @@ export function ImageUploadField({
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-        {/* Preview image */}
         {value ? (
           <Box
             sx={{
@@ -107,7 +106,6 @@ export function ImageUploadField({
           </Box>
         ) : null}
 
-        {/* File chooser button */}
         <div>
           <input
             ref={fileInputRef}

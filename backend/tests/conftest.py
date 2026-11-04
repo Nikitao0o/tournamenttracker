@@ -11,7 +11,6 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 from app.main import app
 
-# In-memory SQLite for fast isolated tests
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
 test_engine = create_engine(

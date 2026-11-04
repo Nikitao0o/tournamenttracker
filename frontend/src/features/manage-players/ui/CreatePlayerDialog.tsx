@@ -85,7 +85,6 @@ export function CreatePlayerDialog({ open, availableTeams, onClose, onSubmit }: 
       },
     })
 
-    // Reset
     setName('')
     setBirthDate('2004-05-15')
     setRole('Entry Fragger')

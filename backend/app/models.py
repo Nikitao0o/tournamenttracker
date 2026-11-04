@@ -17,7 +17,6 @@ class User(Base):
     created_at: Mapped[str] = mapped_column(String(30))
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Relationship to optional player profile (1:1)
     player: Mapped["Player | None"] = relationship(back_populates="user", uselist=False)
 
 
@@ -28,16 +27,13 @@ class Tournament(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(200), index=True)
     prize_pool: Mapped[str] = mapped_column(String(50))
-    start_date: Mapped[str] = mapped_column(String(10))   # YYYY-MM-DD
-    end_date: Mapped[str] = mapped_column(String(10))     # YYYY-MM-DD
-    status: Mapped[str] = mapped_column(String(20), index=True)  # Upcoming / Ongoing / Completed
+    start_date: Mapped[str] = mapped_column(String(10))
+    end_date: Mapped[str] = mapped_column(String(10))
+    status: Mapped[str] = mapped_column(String(20), index=True)
     location: Mapped[str] = mapped_column(String(120))
 
-    # Tournament bracket type selection:
-    # double_elimination / single_elimination / round_robin / swiss
     bracket_type: Mapped[str] = mapped_column(String(40), default="double_elimination", index=True)
 
-    # Cascading relationships to brackets and matches
     brackets: Mapped[list["Bracket"]] = relationship(
         back_populates="tournament",
         cascade="all, delete-orphan",
@@ -56,9 +52,9 @@ class Bracket(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
-    name: Mapped[str] = mapped_column(String(100))          # "Playoffs", "Upper Bracket", "Group Stage"
-    bracket_type: Mapped[str] = mapped_column(String(40))   # single_elimination, double_elimination, round_robin, swiss
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")  # PENDING / ACTIVE / COMPLETED
+    name: Mapped[str] = mapped_column(String(100))
+    bracket_type: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
 
     tournament: Mapped["Tournament"] = relationship(back_populates="brackets")
     matches: Mapped[list["Match"]] = relationship(
@@ -98,7 +94,7 @@ class Player(Base):
     age: Mapped[int] = mapped_column(Integer)
     role: Mapped[str] = mapped_column(String(60))
     nationality: Mapped[str] = mapped_column(String(60))
-    kd: Mapped[str] = mapped_column(String(10))          # "1.28"
+    kd: Mapped[str] = mapped_column(String(10))
     impact: Mapped[float] = mapped_column(Float)
     maps: Mapped[int] = mapped_column(Integer)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -106,7 +102,6 @@ class Player(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
     team: Mapped["Team"] = relationship(back_populates="players")
 
-    # Optional account binding (Nullable: admins can create pro players without email/password)
     user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -121,20 +116,18 @@ class Match(Base):
     __tablename__ = "matches"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    status: Mapped[str] = mapped_column(String(20), default="UPCOMING", index=True)  # UPCOMING / LIVE / FINISHED
+    status: Mapped[str] = mapped_column(String(20), default="UPCOMING", index=True)
     score_a: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score_b: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    date: Mapped[str] = mapped_column(String(10), index=True)    # YYYY-MM-DD
-    start_time: Mapped[str | None] = mapped_column(String(30), nullable=True)  # "21:00 Friday", "00:00 Saturday"
+    date: Mapped[str] = mapped_column(String(10), index=True)
+    start_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
     map_name: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    match_format: Mapped[str] = mapped_column(String(10), default="BO3")       # BO1, BO3, BO5
+    match_format: Mapped[str] = mapped_column(String(10), default="BO3")
 
-    # Bracket positioning
-    bracket_type: Mapped[str | None] = mapped_column(String(40), nullable=True) # upper, lower, grand_final, single, round_robin, swiss
-    round_name: Mapped[str | None] = mapped_column(String(80), nullable=True)   # "Opening round", "Upper final", "Grand final"
-    round_order: Mapped[int | None] = mapped_column(Integer, nullable=True)     # Round order number (1, 2, 3...)
+    bracket_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    round_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    round_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Match participants (Nullable=True for TBD slots in tournament brackets)
     team_a_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True)
     team_b_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True)
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
@@ -143,7 +136,6 @@ class Match(Base):
     tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
     bracket_id: Mapped[int | None] = mapped_column(ForeignKey("brackets.id", ondelete="CASCADE"), nullable=True, index=True)
 
-    # Progression graph links
     next_match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id", ondelete="SET NULL"), nullable=True)
     next_loser_match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id", ondelete="SET NULL"), nullable=True)
 

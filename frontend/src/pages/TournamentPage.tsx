@@ -25,7 +25,6 @@ export function TournamentPage() {
   const [bracket, setBracket] = useState<BracketViewType | null>(null)
   const [isBracketLoading, setIsBracketLoading] = useState(true)
 
-  // Look first in dynamic provider (includes tournaments created in admin), then in mocks
   const tournament = id ? (getTournament(id) || getTournamentById(id)) : undefined
   const matches = id ? getMatchesByTournamentId(id) : []
 
@@ -129,7 +128,6 @@ export function TournamentPage() {
         </Stack>
       </Paper>
 
-      {/* View switcher tabs: Bracket vs All Matches */}
       <Box sx={{ borderBottom: '1px solid #2d323b' }}>
         <Tabs
           value={activeTab}

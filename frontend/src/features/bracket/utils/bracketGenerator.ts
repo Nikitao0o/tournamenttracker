@@ -65,7 +65,6 @@ export function generateDynamicBracket(
   const title = tournamentTitle
 
   if (bracketType === 'single_elimination') {
-    // 0-2 teams: 1 empty Final match
     if (count <= 2) {
       const grandFinal = createMatch(
         1001,
@@ -89,7 +88,6 @@ export function generateDynamicBracket(
       }
     }
 
-    // 3-4 teams: Semifinals (2 matches) + Final (1 match)
     if (count <= 4) {
       const sfGroup: BracketRoundGroup = {
         roundName: 'Semifinals',
@@ -113,7 +111,6 @@ export function generateDynamicBracket(
       }
     }
 
-    // 5-8 teams: Quarterfinals (4 matches) + Semifinals (2 matches) + Final (1 match)
     if (count <= 8) {
       const qfGroup: BracketRoundGroup = {
         roundName: 'Quarterfinals',
@@ -148,7 +145,6 @@ export function generateDynamicBracket(
       }
     }
 
-    // 9-16 teams: Round of 16 (8 matches) -> QF (4 matches) -> SF (2 matches) -> Final (1 match)
     const r16Matches: BracketMatch[] = []
     for (let i = 0; i < 8; i++) {
       r16Matches.push(
@@ -188,8 +184,6 @@ export function generateDynamicBracket(
     }
   }
 
-  // DOUBLE ELIMINATION
-  // 0-2 teams: 1 empty Final match
   if (count <= 2) {
     const grandFinal = createMatch(
       1001,
@@ -213,7 +207,6 @@ export function generateDynamicBracket(
     }
   }
 
-  // 3-4 teams: Upper Semifinals (2 matches) + Upper Final (1 match), Lower R1 (1 match) + Lower Final (1 match), Grand Final (1 match)
   if (count <= 4) {
     const upperSemis: BracketRoundGroup = {
       roundName: 'Upper Semifinals',
@@ -248,9 +241,6 @@ export function generateDynamicBracket(
     }
   }
 
-  // 5-8 teams: Upper QF (4 matches) -> Upper SF (2 matches) -> Upper Final (1 match)
-  // Lower R1 (2 matches) -> Lower QF (2 matches) -> Lower SF (1 match) -> Lower Final (1 match)
-  // Grand Final (1 match)
   const upperQF: BracketRoundGroup = {
     roundName: 'Upper Quarterfinals',
     roundOrder: 1,

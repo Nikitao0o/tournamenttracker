@@ -1,7 +1,7 @@
 export const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.webp'] as const
 export const SUPPORTED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'] as const
 
-export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
+export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
 export function isSupportedImage(urlOrFileName: string): boolean {
   if (!urlOrFileName) return false

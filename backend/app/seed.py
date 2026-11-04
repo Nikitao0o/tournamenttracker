@@ -13,10 +13,8 @@ def seed_if_empty(db_session=None):
 
         print("[seed] Populating database with demo data...")
 
-        # 0. Create users (password for both is 'password123')
         pw_hash, salt = hash_password("password123")
 
-        # Administrator account (listed in admins.txt)
         admin_user = User(
             email="admin@tracker.local",
             nickname="admin",
@@ -25,7 +23,6 @@ def seed_if_empty(db_session=None):
             is_active=True,
             created_at="2026-01-01 00:00:00",
         )
-        # Standard user account (not in admins.txt)
         regular_user = User(
             email="user@tracker.local",
             nickname="player_alex",
@@ -37,7 +34,6 @@ def seed_if_empty(db_session=None):
         db.add_all([admin_user, regular_user])
         db.commit()
 
-        # 1. Create teams
         teams = [
             Team(
                 name="Team Spirit",
@@ -79,7 +75,6 @@ def seed_if_empty(db_session=None):
         db.add_all(teams)
         db.commit()
 
-        # 2. Create players (donk is linked to regular_user, others are standalone)
         players = [
             Player(nickname="donk", name="Danil Kryshkovets", age=19, role="Entry Fragger",
                    nationality="Russian", kd="1.28", impact=9.4, maps=59, team_id=teams[0].id,
@@ -118,7 +113,6 @@ def seed_if_empty(db_session=None):
         db.add_all(players)
         db.commit()
 
-        # 3. Create tournaments with distinct bracket types
         tournaments = [
             Tournament(
                 title="IEM Katowice 2026",
@@ -160,7 +154,6 @@ def seed_if_empty(db_session=None):
         db.add_all(tournaments)
         db.commit()
 
-        # 4. Create Double Elimination bracket for IEM Katowice 2026
         bracket_katowice = Bracket(
             tournament_id=tournaments[0].id,
             name="Main Playoff Bracket",
@@ -171,7 +164,6 @@ def seed_if_empty(db_session=None):
         db.commit()
         db.refresh(bracket_katowice)
 
-        # 4.1 Grand final
         grand_final = Match(
             tournament_id=tournaments[0].id,
             bracket_id=bracket_katowice.id,
@@ -187,7 +179,6 @@ def seed_if_empty(db_session=None):
         db.commit()
         db.refresh(grand_final)
 
-        # 4.2 Upper final
         upper_final = Match(
             tournament_id=tournaments[0].id,
             bracket_id=bracket_katowice.id,
@@ -204,7 +195,6 @@ def seed_if_empty(db_session=None):
         db.commit()
         db.refresh(upper_final)
 
-        # 4.3 Consolidation final
         consolidation_final = Match(
             tournament_id=tournaments[0].id,
             bracket_id=bracket_katowice.id,
@@ -223,7 +213,6 @@ def seed_if_empty(db_session=None):
 
         upper_final.next_loser_match_id = consolidation_final.id
 
-        # 4.4 Lower final
         lower_final = Match(
             tournament_id=tournaments[0].id,
             bracket_id=bracket_katowice.id,
@@ -240,7 +229,6 @@ def seed_if_empty(db_session=None):
         db.commit()
         db.refresh(lower_final)
 
-        # 4.5 Opening round matches
         m1 = Match(
             tournament_id=tournaments[0].id,
             bracket_id=bracket_katowice.id,

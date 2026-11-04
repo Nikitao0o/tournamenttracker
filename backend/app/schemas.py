@@ -1,10 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-# ==========================================
-# User / Auth
-# ==========================================
-
 class UserRegister(BaseModel):
     email: str = Field(..., min_length=3, max_length=120, description="User email address")
     nickname: str = Field(..., min_length=2, max_length=60, description="Display nickname")
@@ -42,10 +38,6 @@ class TokenOut(BaseModel):
     user: UserOut
 
 
-# ==========================================
-# Team
-# ==========================================
-
 class TeamBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=120, description="Full team name")
     short_name: str = Field(..., min_length=1, max_length=40, description="Short tag or name")
@@ -74,10 +66,6 @@ class TeamOut(TeamBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
 
-
-# ==========================================
-# Player
-# ==========================================
 
 class PlayerBase(BaseModel):
     nickname: str = Field(..., min_length=1, max_length=60, description="Player nickname")
@@ -118,15 +106,10 @@ class PlayerOut(PlayerBase):
     user_email: str | None = None
 
 
-# Admin binding schema
 class AdminClaimPlayer(BaseModel):
     player_id: int
     user_id: int
 
-
-# ==========================================
-# Tournament
-# ==========================================
 
 class TournamentBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=200, description="Tournament title")
@@ -160,10 +143,6 @@ class TournamentOut(TournamentBase):
     id: int
 
 
-# ==========================================
-# Match
-# ==========================================
-
 class MatchBase(BaseModel):
     status: str = Field(default="UPCOMING", min_length=1, max_length=20, description="Match status (UPCOMING, LIVE, FINISHED)")
     score_a: int | None = Field(default=None, ge=0, description="Team A score")
@@ -177,7 +156,6 @@ class MatchBase(BaseModel):
     round_name: str | None = Field(default=None, description="Opening round, Upper final, Grand final, etc.")
     round_order: int | None = Field(default=None, description="Round order sequence number")
 
-    # None indicates TBD (participant team not yet determined)
     team_a_id: int | None = Field(default=None, description="Team A ID (None = TBD)")
     team_b_id: int | None = Field(default=None, description="Team B ID (None = TBD)")
     tournament_id: int = Field(..., ge=1, description="Tournament ID")
@@ -237,10 +215,6 @@ class MatchOut(MatchBase):
     tournament_name: str | None = None
 
 
-# ==========================================
-# Bracket
-# ==========================================
-
 class BracketBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Bracket stage name (Playoffs, Group Stage)")
     bracket_type: str = Field(
@@ -277,10 +251,6 @@ class TournamentBracketView(BaseModel):
     all_rounds: list[BracketRoundGroup] = []
 
 
-# ==========================================
-# Leaderboards
-# ==========================================
-
 class TeamLeaderboardEntry(BaseModel):
     rank: int
     team_id: int
@@ -296,10 +266,6 @@ class PlayerLeaderboardEntry(BaseModel):
     avatar_url: str | None = None
     rating: float
 
-
-# ==========================================
-# Image upload
-# ==========================================
 
 class ImageUploadPayload(BaseModel):
     image_base64: str | None = Field(default=None, description="Base64 encoded image data string")

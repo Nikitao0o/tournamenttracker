@@ -43,7 +43,6 @@ export function AdminBracketEditorPage() {
   const currentTournament = tournamentsList.find((t) => t.id === selectedTournamentId) || initialTourney
   const tourneyTeams = currentTournament.participatingTeams ?? []
 
-  // Load custom stored bracket or fallback to dynamic generated bracket
   const [bracket, setBracket] = useState<TournamentBracketView>(() => {
     const stored = storage.getTournamentBracket(selectedTournamentId)
     if (stored) return stored
@@ -82,7 +81,6 @@ export function AdminBracketEditorPage() {
     setNotification(`Bracket regenerated as ${newFormat.replace('_', ' ').toUpperCase()}!`)
   }
 
-  // Add existing team to tournament and dynamically expand bracket
   const handleAddTeamToTournament = () => {
     if (!teamToAdd || tourneyTeams.includes(teamToAdd)) return
 
@@ -109,7 +107,6 @@ export function AdminBracketEditorPage() {
     setNotification(`Added "${teamToAdd}" to tournament! Bracket updated (${roundName}).`)
   }
 
-  // Remove team from tournament and adjust bracket
   const handleRemoveTeamFromTournament = (teamName: string) => {
     const updatedTeams = tourneyTeams.filter((t) => t !== teamName)
     const updatedTourney: Tournament = {
@@ -132,7 +129,6 @@ export function AdminBracketEditorPage() {
     setNotification(`Removed "${teamName}" from tournament!`)
   }
 
-  // Drag and drop assignment to match slots
   const assignTeamToMatch = (matchId: number | string, slot: 'A' | 'B', teamName: string) => {
     const updateMatchInGroup = (m: BracketMatch): BracketMatch => {
       if (String(m.id) === String(matchId)) {
@@ -179,7 +175,6 @@ export function AdminBracketEditorPage() {
     setNotification('Tournament bracket saved successfully!')
   }
 
-  // All matches for slot drop areas
   const allMatchesInBracket: BracketMatch[] = [
     ...bracket.upperBracket.flatMap((r) => r.matches),
     ...bracket.lowerBracket.flatMap((r) => r.matches),
@@ -187,12 +182,10 @@ export function AdminBracketEditorPage() {
     ...(bracket.grandFinal ? [bracket.grandFinal] : []),
   ]
 
-  // Unique list of matches
   const uniqueMatches = Array.from(new Map(allMatchesInBracket.map((m) => [m.id, m])).values())
 
   return (
     <Stack spacing={3}>
-      {/* Header bar */}
       <Box
         sx={{
           bgcolor: 'secondary.main',
@@ -253,7 +246,6 @@ export function AdminBracketEditorPage() {
         </Stack>
       </Box>
 
-      {/* Selectors for tournament and bracket format */}
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Grid container spacing={2} sx={{ alignItems: 'center' }}>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -294,7 +286,6 @@ export function AdminBracketEditorPage() {
         </Grid>
       </Paper>
 
-      {/* Section: Add and Manage Teams in Tournament */}
       <Paper variant="outlined" sx={{ p: 2.5, bgcolor: '#fff' }}>
         <Stack spacing={1.5}>
           <Stack direction={{ xs: 'column', md: 'row' }} sx={{ justifyContent: 'space-between', alignItems: { md: 'center' }, gap: 1.5 }}>
@@ -371,9 +362,7 @@ export function AdminBracketEditorPage() {
         </Stack>
       </Paper>
 
-      {/* Drag and Drop Seeding Workspace */}
       <Grid container spacing={3}>
-        {/* Left column: Available Teams Pool for Dragging */}
         <Grid size={{ xs: 12, md: 3.5 }}>
           <Paper
             variant="outlined"
@@ -477,10 +466,8 @@ export function AdminBracketEditorPage() {
           </Paper>
         </Grid>
 
-        {/* Right column: Match Seeding Slots with Drag-and-Drop Dropzones */}
         <Grid size={{ xs: 12, md: 8.5 }}>
           <Stack spacing={3}>
-            {/* Quick Match Seeding Slots Box */}
             <Paper variant="outlined" sx={{ p: 2.5, bgcolor: '#fff' }}>
               <Typography variant="h2" sx={{ mb: 0.5 }}>
                 Match Seeding Drop Slots ({uniqueMatches.length} Matches)
@@ -507,7 +494,6 @@ export function AdminBracketEditorPage() {
                         <Chip label={m.bracketType || 'Playoff'} size="small" sx={{ fontSize: 10, height: 20 }} />
                       </Stack>
 
-                      {/* Slot A Dropzone */}
                       <Box
                         onDragOver={(e) => {
                           e.preventDefault()
@@ -562,7 +548,6 @@ export function AdminBracketEditorPage() {
                         )}
                       </Box>
 
-                      {/* Slot B Dropzone */}
                       <Box
                         onDragOver={(e) => {
                           e.preventDefault()
@@ -621,7 +606,6 @@ export function AdminBracketEditorPage() {
               </Grid>
             </Paper>
 
-            {/* Live Bracket Visualization of the Selected Type */}
             <Paper variant="outlined" sx={{ p: 3, bgcolor: '#17191e', color: '#fff' }}>
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h2" sx={{ color: '#fff', fontSize: 16 }}>
@@ -641,7 +625,6 @@ export function AdminBracketEditorPage() {
         </Grid>
       </Grid>
 
-      {/* Snackbar feedback */}
       <Snackbar
         open={Boolean(notification)}
         autoHideDuration={3500}

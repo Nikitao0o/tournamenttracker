@@ -6,7 +6,6 @@ import { getKnownPlayerAvatar } from './playerAvatarsData'
 import { resolveImageUrl } from '../utils/image'
 import { storage } from '../api/storage'
 
-// Identical default avatar icon for any player without a unique avatar
 export const DEFAULT_PLAYER_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect width="100" height="100" rx="50" fill="%23242832"/>
   <circle cx="50" cy="50" r="48" fill="none" stroke="%233a4150" stroke-width="2"/>
@@ -35,7 +34,6 @@ export function PlayerAvatar({
 }: PlayerAvatarProps) {
   const [hasError, setHasError] = useState(false)
 
-  // Empty placeholder slot for unassigned player
   const isEmptySlot = !name || name.trim() === '' || name.toUpperCase() === 'TBD' || name === 'Unassigned' || name === 'Open Slot'
 
   if (isEmptySlot) {

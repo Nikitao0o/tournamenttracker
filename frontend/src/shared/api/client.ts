@@ -12,7 +12,6 @@ import { storage } from './storage'
 
 const API_BASE = '/api'
 
-// Demo accounts for standalone offline fallback (from admins.txt and README)
 const SEED_USERS: User[] = [
   {
     id: 1,
@@ -107,7 +106,6 @@ export const apiClient = {
       }
     }
 
-    // Fallback to local authentication when backend API is unavailable
     const normalizedEmail = email.trim().toLowerCase()
     const foundUser = SEED_USERS.find((u) => u.email.toLowerCase() === normalizedEmail)
 
@@ -121,7 +119,6 @@ export const apiClient = {
       }
     }
 
-    // Check localStorage registered users
     const registeredUsers = storage.getUser()
     if (registeredUsers && registeredUsers.email.toLowerCase() === normalizedEmail) {
       return {
@@ -143,7 +140,6 @@ export const apiClient = {
 
       if (response.ok) {
         const user = await response.json()
-        // Automatically login after registration
         const loginRes = await this.login(payload.email, payload.password)
         return {
           token: loginRes.token,
@@ -161,7 +157,6 @@ export const apiClient = {
       }
     }
 
-    // Fallback creating empty account (player_id: null, no player profile)
     const isAdmin = payload.email.toLowerCase().includes('admin') || payload.email.toLowerCase().includes('organizer')
     const newUser: User = {
       id: Date.now(),
@@ -195,7 +190,6 @@ export const apiClient = {
         }
       }
     } catch {
-      // Ignore network error and fall back to local data
     }
 
     return getLocalTournaments()
@@ -230,7 +224,6 @@ export const apiClient = {
         return newTournament
       }
     } catch {
-      // Fallback
     }
 
     const current = getLocalTournaments()
@@ -278,7 +271,6 @@ export const apiClient = {
         return updated
       }
     } catch {
-      // Fallback
     }
 
     const list = getLocalTournaments()
@@ -307,7 +299,6 @@ export const apiClient = {
         headers,
       })
     } catch {
-      // Fallback
     }
 
     const list = getLocalTournaments().filter((t) => t.id !== id)
@@ -322,7 +313,6 @@ export const apiClient = {
         return mapBracketView(data)
       }
     } catch {
-      // Fallback
     }
 
     const custom = storage.getTournamentBracket(tournamentId)

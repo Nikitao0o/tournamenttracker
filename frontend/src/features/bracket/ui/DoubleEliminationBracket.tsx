@@ -14,7 +14,6 @@ export function DoubleEliminationBracket({ bracket }: DoubleEliminationBracketPr
 
   return (
     <Stack spacing={4}>
-      {/* Upper Bracket Section */}
       <Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           <Box sx={{ width: 4, height: 18, bgcolor: '#f04b3a', borderRadius: 0.5 }} />
@@ -44,7 +43,6 @@ export function DoubleEliminationBracket({ bracket }: DoubleEliminationBracketPr
         </Box>
       </Box>
 
-      {/* Lower Bracket Section */}
       {lowerBracket.length > 0 ? (
         <Box>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
@@ -76,7 +74,6 @@ export function DoubleEliminationBracket({ bracket }: DoubleEliminationBracketPr
         </Box>
       ) : null}
 
-      {/* Grand Final Section */}
       {grandFinal ? (
         <Paper
           variant="outlined"

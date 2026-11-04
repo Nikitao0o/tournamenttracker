@@ -23,7 +23,6 @@ interface SwissTeamStatus {
 export function SwissBracket({ bracket }: SwissBracketProps) {
   const { allRounds } = bracket
 
-  // Calculate team Swiss records (W-L)
   const teamRecords = useMemo(() => {
     const records: Record<string, SwissTeamStatus> = {}
 
@@ -63,7 +62,6 @@ export function SwissBracket({ bracket }: SwissBracketProps) {
 
   return (
     <Stack spacing={4}>
-      {/* Swiss Pools Standings Banner */}
       <Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           <Box sx={{ width: 4, height: 18, bgcolor: '#b388ff', borderRadius: 0.5 }} />
@@ -117,7 +115,6 @@ export function SwissBracket({ bracket }: SwissBracketProps) {
         </Grid>
       </Box>
 
-      {/* Swiss Rounds Match Schedule */}
       <Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           <Box sx={{ width: 4, height: 18, bgcolor: '#f04b3a', borderRadius: 0.5 }} />

@@ -53,7 +53,6 @@ export function CreateTeamDialog({ open, onClose, onSubmit }: CreateTeamDialogPr
       logoUrl: logoUrl || undefined,
     })
 
-    // Reset fields
     setName('')
     setShortName('')
     setRegion('Europe')

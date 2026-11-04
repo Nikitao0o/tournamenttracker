@@ -54,11 +54,9 @@ export function AdminPage() {
   const [teamSearch, setTeamSearch] = useState('')
   const [playerSearch, setPlayerSearch] = useState('')
 
-  // Teams & Players state with storage persistence
   const [teams, setTeams] = useState<Team[]>(() => storage.getTeams() || MOCK_TEAMS)
   const [players, setPlayers] = useState<Player[]>(() => storage.getPlayers() || MOCK_PLAYERS)
 
-  // Dialog states
   const [formOpen, setFormOpen] = useState(false)
   const [teamDialogOpen, setTeamDialogOpen] = useState(false)
   const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false)
@@ -69,7 +67,6 @@ export function AdminPage() {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [deletingTournament, setDeletingTournament] = useState<Tournament | null>(null)
 
-  // Media upload modal state (for quick avatar or team logo changes)
   const [mediaModal, setMediaModal] = useState<{
     open: boolean
     type: 'team' | 'player'
@@ -254,7 +251,6 @@ export function AdminPage() {
 
   return (
     <Stack spacing={2.5}>
-      {/* Header bar */}
       <Box
         sx={{
           bgcolor: 'secondary.main',
@@ -280,7 +276,6 @@ export function AdminPage() {
           </Typography>
         </div>
 
-        {/* Global Quick Actions */}
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
           <Button
             component={Link}
@@ -356,7 +351,6 @@ export function AdminPage() {
         </Stack>
       </Box>
 
-      {/* Tabs navigation: Tournaments, Teams, Players */}
       <Paper variant="outlined" sx={{ bgcolor: '#fff' }}>
         <Tabs
           value={activeTab}
@@ -372,10 +366,8 @@ export function AdminPage() {
         </Tabs>
       </Paper>
 
-      {/* TAB 1: TOURNAMENTS */}
       {activeTab === 'tournaments' && (
         <>
-          {/* Quick stats */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Paper variant="outlined" sx={{ p: 2, flex: 1, bgcolor: '#fff' }}>
               <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
@@ -411,7 +403,6 @@ export function AdminPage() {
 
           {error ? <ErrorAlert message={error} onRetry={refreshTournaments} /> : null}
 
-          {/* Search bar */}
           <Paper variant="outlined" sx={{ p: 2 }}>
             <TextField
               placeholder="Search tournaments..."
@@ -427,7 +418,6 @@ export function AdminPage() {
             />
           </Paper>
 
-          {/* Tournaments table */}
           <TableContainer component={Paper} variant="outlined">
             <Table sx={{ minWidth: 650 }}>
               <TableHead sx={{ bgcolor: 'secondary.main' }}>
@@ -535,10 +525,8 @@ export function AdminPage() {
         </>
       )}
 
-      {/* TAB 2: TEAMS MANAGEMENT */}
       {activeTab === 'teams' && (
         <Stack spacing={2.5}>
-          {/* Teams search & actions bar */}
           <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
             <TextField
               placeholder="Search team by name, short tag, or region..."
@@ -568,7 +556,6 @@ export function AdminPage() {
             </Button>
           </Paper>
 
-          {/* Teams table */}
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h2" sx={{ fontSize: 18 }}>
@@ -654,10 +641,8 @@ export function AdminPage() {
         </Stack>
       )}
 
-      {/* TAB 3: PLAYERS MANAGEMENT (Stats removed from table, Edit Player added) */}
       {activeTab === 'players' && (
         <Stack spacing={2.5}>
-          {/* Players search & actions bar */}
           <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
             <TextField
               placeholder="Search player by nickname, team, role, or nationality..."
@@ -687,7 +672,6 @@ export function AdminPage() {
             </Button>
           </Paper>
 
-          {/* Players table without statistics */}
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h2" sx={{ fontSize: 18 }}>
@@ -775,7 +759,6 @@ export function AdminPage() {
         </Stack>
       )}
 
-      {/* Create / Edit Tournament Dialog */}
       <TournamentFormDialog
         open={formOpen}
         tournament={editingTournament}
@@ -783,14 +766,12 @@ export function AdminPage() {
         onSubmit={handleFormSubmit}
       />
 
-      {/* Create Team Dialog */}
       <CreateTeamDialog
         open={teamDialogOpen}
         onClose={() => setTeamDialogOpen(false)}
         onSubmit={handleCreateTeam}
       />
 
-      {/* Edit Team Dialog */}
       <EditTeamDialog
         open={editTeamDialogOpen}
         team={editingTeam}
@@ -798,7 +779,6 @@ export function AdminPage() {
         onSubmit={handleUpdateTeam}
       />
 
-      {/* Create Player Dialog */}
       <CreatePlayerDialog
         open={playerDialogOpen}
         availableTeams={teams}
@@ -806,7 +786,6 @@ export function AdminPage() {
         onSubmit={handleCreatePlayer}
       />
 
-      {/* Edit Player Dialog */}
       <EditPlayerDialog
         open={editPlayerDialogOpen}
         player={editingPlayer}
@@ -815,7 +794,6 @@ export function AdminPage() {
         onSubmit={handleUpdatePlayer}
       />
 
-      {/* Delete Tournament Confirm Dialog */}
       <DeleteConfirmDialog
         open={Boolean(deletingTournament)}
         title={deletingTournament?.title}
@@ -823,7 +801,6 @@ export function AdminPage() {
         onConfirm={handleDeleteConfirm}
       />
 
-      {/* Media Upload Dialog (PNG / JPG) */}
       <MediaUploadDialog
         open={mediaModal.open}
         title={`Upload ${mediaModal.type === 'team' ? 'team logo' : 'player avatar'} (PNG / JPG)`}
@@ -838,7 +815,6 @@ export function AdminPage() {
         onReset={() => handleResetMedia(mediaModal.name, mediaModal.type)}
       />
 
-      {/* Toast Notification */}
       <Snackbar
         open={Boolean(notification)}
         autoHideDuration={4000}

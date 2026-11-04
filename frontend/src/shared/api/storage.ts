@@ -20,14 +20,12 @@ export const storage = {
     try {
       localStorage.setItem(TOKEN_KEY, token)
     } catch {
-      // ignore
     }
   },
   clearToken(): void {
     try {
       localStorage.removeItem(TOKEN_KEY)
     } catch {
-      // ignore
     }
   },
 
@@ -43,14 +41,12 @@ export const storage = {
     try {
       localStorage.setItem(USER_KEY, JSON.stringify(user))
     } catch {
-      // ignore
     }
   },
   clearUser(): void {
     try {
       localStorage.removeItem(USER_KEY)
     } catch {
-      // ignore
     }
   },
 
@@ -66,7 +62,6 @@ export const storage = {
     try {
       localStorage.setItem(TOURNAMENTS_KEY, JSON.stringify(tournaments))
     } catch {
-      // ignore
     }
   },
 
@@ -82,7 +77,6 @@ export const storage = {
     try {
       localStorage.setItem(MATCHES_KEY, JSON.stringify(matches))
     } catch {
-      // ignore
     }
   },
 
@@ -98,7 +92,6 @@ export const storage = {
     try {
       localStorage.setItem(TEAMS_KEY, JSON.stringify(teams))
     } catch {
-      // ignore
     }
   },
 
@@ -114,7 +107,6 @@ export const storage = {
     try {
       localStorage.setItem(PLAYERS_KEY, JSON.stringify(players))
     } catch {
-      // ignore
     }
   },
 
@@ -130,7 +122,6 @@ export const storage = {
     try {
       localStorage.setItem(`${BRACKET_PREFIX}${tournamentId}`, JSON.stringify(bracket))
     } catch {
-      // ignore
     }
   },
 
@@ -145,14 +136,12 @@ export const storage = {
     try {
       localStorage.setItem(`tt_team_logo_${teamId.toLowerCase()}`, dataUrl)
     } catch {
-      // ignore
     }
   },
   removeTeamLogo(teamId: string): void {
     try {
       localStorage.removeItem(`tt_team_logo_${teamId.toLowerCase()}`)
     } catch {
-      // ignore
     }
   },
 
@@ -167,14 +156,12 @@ export const storage = {
     try {
       localStorage.setItem(`tt_player_avatar_${playerId.toLowerCase()}`, dataUrl)
     } catch {
-      // ignore
     }
   },
   removePlayerAvatar(playerId: string): void {
     try {
       localStorage.removeItem(`tt_player_avatar_${playerId.toLowerCase()}`)
     } catch {
-      // ignore
     }
   },
 }

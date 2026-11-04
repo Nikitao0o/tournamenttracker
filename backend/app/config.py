@@ -36,17 +36,14 @@ class Settings(BaseModel):
     APP_VERSION: str = "0.2.0"
     DEBUG: bool = Field(default_factory=lambda: os.getenv("DEBUG", "False").lower() in ("true", "1", "t"))
 
-    # PostgreSQL connection parameters
     POSTGRES_USER: str = Field(default_factory=lambda: os.getenv("POSTGRES_USER", "tracker"))
     POSTGRES_PASSWORD: str = Field(default_factory=lambda: os.getenv("POSTGRES_PASSWORD", "tracker"))
     POSTGRES_DB: str = Field(default_factory=lambda: os.getenv("POSTGRES_DB", "tracker"))
     POSTGRES_HOST: str = Field(default_factory=lambda: os.getenv("POSTGRES_HOST", "localhost"))
     POSTGRES_PORT: int = Field(default_factory=lambda: int(os.getenv("POSTGRES_PORT", "5432")))
 
-    # Direct database connection URL (takes priority if provided)
     DATABASE_URL: str = Field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
 
-    # Static uploads directory for logos and avatars
     UPLOAD_DIR: Path = Field(
         default_factory=lambda: Path(os.getenv("UPLOAD_DIR", "uploads")).resolve()
     )
@@ -69,7 +66,7 @@ class Settings(BaseModel):
             return postgres_url
 
         try:
-            import psycopg  # noqa: F401
+            import psycopg
             return postgres_url
         except ImportError:
             return "sqlite:///./tracker.db"

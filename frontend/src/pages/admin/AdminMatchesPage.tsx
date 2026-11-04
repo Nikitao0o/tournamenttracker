@@ -47,7 +47,6 @@ export function AdminMatchesPage() {
   const [editingMatch, setEditingMatch] = useState<Match | null>(null)
   const [notification, setNotification] = useState<string | null>(null)
 
-  // Edit match state
   const [editScoreA, setEditScoreA] = useState<number>(0)
   const [editScoreB, setEditScoreB] = useState<number>(0)
   const [editStatus, setEditStatus] = useState<MatchStatus>('UPCOMING')
@@ -109,7 +108,6 @@ export function AdminMatchesPage() {
 
   return (
     <Stack spacing={2.5}>
-      {/* Header bar */}
       <Box
         sx={{
           bgcolor: 'secondary.main',
@@ -159,7 +157,6 @@ export function AdminMatchesPage() {
         <Chip label={`Total matches: ${matches.length}`} sx={{ bgcolor: '#f04b3a', color: '#fff', fontWeight: 800 }} />
       </Box>
 
-      {/* Filters bar */}
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Grid container spacing={2} sx={{ alignItems: 'center' }}>
           <Grid size={{ xs: 12, sm: 4 }}>
@@ -209,7 +206,6 @@ export function AdminMatchesPage() {
         </Grid>
       </Paper>
 
-      {/* Matches Table */}
       <TableContainer component={Paper} variant="outlined">
         <Table sx={{ minWidth: 650 }}>
           <TableHead sx={{ bgcolor: 'secondary.main' }}>
@@ -287,7 +283,6 @@ export function AdminMatchesPage() {
         </Table>
       </TableContainer>
 
-      {/* Edit Match Dialog */}
       <Dialog open={Boolean(editingMatch)} onClose={() => setEditingMatch(null)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: 'secondary.main', color: '#fff', py: 2 }}>
           <Typography variant="h2" sx={{ color: '#fff', fontSize: 16 }}>
@@ -417,7 +412,6 @@ export function AdminMatchesPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar feedback */}
       <Snackbar
         open={Boolean(notification)}
         autoHideDuration={3000}

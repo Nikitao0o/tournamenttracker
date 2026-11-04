@@ -25,7 +25,6 @@ export function SingleEliminationBracket({ bracket }: SingleEliminationBracketPr
 
         <Box sx={{ overflowX: 'auto', pb: 2 }}>
           <Stack direction="row" spacing={4} sx={{ minWidth: 'max-content', alignItems: 'center' }}>
-            {/* Elimination Rounds */}
             {rounds.map((round) => (
               <Stack key={round.roundName} spacing={2} sx={{ width: 280 }}>
                 <Box sx={{ pb: 0.5, borderBottom: '2px solid #282c35' }}>
@@ -42,7 +41,6 @@ export function SingleEliminationBracket({ bracket }: SingleEliminationBracketPr
               </Stack>
             ))}
 
-            {/* Grand Final Column */}
             {grandFinal ? (
               <Stack spacing={2} sx={{ width: 300 }}>
                 <Box sx={{ pb: 0.5, borderBottom: '2px solid #ffb300' }}>
