@@ -969,7 +969,7 @@ export const apiClient = {
       nickname: string
       team_name: string
       avatar_url?: string | null
-      rating: number
+      rating: number | null
       kd?: string | null
       adr?: number | null
     }> = await response.json()
@@ -979,7 +979,7 @@ export const apiClient = {
       nickname: p.nickname,
       teamName: p.team_name,
       avatarUrl: p.avatar_url || undefined,
-      rating: p.rating,
+      rating: p.rating != null ? Number(p.rating) : null,
       kd: p.kd || '1.00',
       adr: p.adr ?? 80,
     }))

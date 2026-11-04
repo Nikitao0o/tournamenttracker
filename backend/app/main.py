@@ -18,8 +18,9 @@ async def lifespan(app: FastAPI):
     (settings.UPLOAD_DIR / "teams").mkdir(parents=True, exist_ok=True)
     (settings.UPLOAD_DIR / "players").mkdir(parents=True, exist_ok=True)
 
-    Base.metadata.create_all(bind=engine)
-    sync_db_schema()
+    if "sqlite" in str(settings.get_database_url()).lower():
+        Base.metadata.create_all(bind=engine)
+        sync_db_schema()
 
     from .database import SessionLocal
     from .auth import ensure_admin
@@ -49,9 +50,10 @@ app = FastAPI(
 async def unhandled_exception_handler(request: Request, exc: Exception):
     """Global exception handler guaranteeing CORS headers are always returned on 500 errors."""
     traceback.print_exc()
+    error_detail = f"Internal server error: {exc}" if settings.DEBUG else "Internal server error"
     response = JSONResponse(
         status_code=500,
-        content={"detail": f"Internal server error: {exc}"},
+        content={"detail": error_detail},
     )
     origin = request.headers.get("origin")
     if origin and origin in settings.ALLOWED_ORIGINS:

@@ -39,7 +39,7 @@ export function PlayerLeaderboardPage() {
 
   return (
     <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-      <SectionHeader title="Top players (HLTV Rating 2.0)" />
+      <SectionHeader title="Top players (Rating (approx.))" />
 
       {error && <Alert severity="warning">{error}</Alert>}
 
@@ -125,10 +125,17 @@ export function PlayerLeaderboardPage() {
                 textAlign: 'center',
                 fontWeight: 900,
                 fontSize: 14,
-                color: player.rating >= 1.2 ? 'success.main' : (player.rating < 0.95 ? 'error.main' : 'text.primary'),
+                color:
+                  player.rating != null
+                    ? player.rating >= 1.2
+                      ? 'success.main'
+                      : player.rating < 0.95
+                        ? 'error.main'
+                        : 'text.primary'
+                    : 'text.secondary',
               }}
             >
-              {player.rating.toFixed(2)}
+              {player.rating != null ? player.rating.toFixed(2) : '—'}
             </Typography>
           </Box>
         ))

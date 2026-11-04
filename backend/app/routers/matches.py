@@ -8,11 +8,13 @@ from ..database import get_db
 router = APIRouter(prefix="/api/matches", tags=["matches"])
 
 
-@router.get("", response_model=list[schemas.MatchOut])
+@router.get("", response_model=list[schemas.MatchListOut])
 def list_matches(
     status: str | None = None,
     tournament_id: int | None = None,
     team_id: int | None = None,
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
 ):
     """Public list of matches with filtering."""
@@ -21,6 +23,8 @@ def list_matches(
         status_filter=status,
         tournament_id=tournament_id,
         team_id=team_id,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -73,6 +77,18 @@ def add_map(
 ):
     """Add individual map score breakdown to a match (admin only)."""
     return crud.add_map_result(db, match_id, payload)
+
+
+@router.patch("/{match_id}/maps/{map_id}", response_model=schemas.MapResultOut)
+def update_map(
+    match_id: int,
+    map_id: int,
+    payload: schemas.MapResultUpdate,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Update map score breakdown in a match (admin only)."""
+    return crud.update_map_result(db, match_id, map_id, payload)
 
 
 @router.delete("/{match_id}/maps/{map_id}", status_code=status.HTTP_204_NO_CONTENT)

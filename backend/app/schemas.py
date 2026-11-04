@@ -1,6 +1,19 @@
 import datetime
 import re
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+def validate_image_url(url: str | None) -> str | None:
+    """Validates that an image URL begins with /uploads/, http://, or https://."""
+    if url is None:
+        return None
+    url = url.strip()
+    if not url:
+        return None
+    if url.startswith("/uploads/") or url.startswith("http://") or url.startswith("https://"):
+        return url
+    raise ValueError("Image URL must start with 'http://', 'https://', or '/uploads/'")
 
 
 class UserRegister(BaseModel):
@@ -28,6 +41,11 @@ class UserUpdate(BaseModel):
     nickname: str | None = Field(default=None, min_length=2, max_length=60)
     password: str | None = Field(default=None, min_length=6, max_length=100)
     avatar_url: str | None = Field(default=None, max_length=500)
+
+    @field_validator("avatar_url", mode="before")
+    @classmethod
+    def check_avatar_url(cls, v: str | None) -> str | None:
+        return validate_image_url(v)
 
 
 class UserOut(BaseModel):
@@ -62,6 +80,11 @@ class TeamBase(BaseModel):
     ranking: int = Field(..., ge=1, description="World ranking position")
     logo_url: str | None = Field(default=None, max_length=500, description="Team logo URL")
 
+    @field_validator("logo_url", mode="before")
+    @classmethod
+    def check_logo_url(cls, v: str | None) -> str | None:
+        return validate_image_url(v)
+
 
 class TeamCreate(TeamBase):
     pass
@@ -75,6 +98,11 @@ class TeamUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=500)
     ranking: int | None = Field(default=None, ge=1)
     logo_url: str | None = Field(default=None, max_length=500)
+
+    @field_validator("logo_url", mode="before")
+    @classmethod
+    def check_logo_url(cls, v: str | None) -> str | None:
+        return validate_image_url(v)
 
 
 class TeamOut(TeamBase):
@@ -95,6 +123,11 @@ class PlayerBase(BaseModel):
     user_id: int | None = Field(default=None, description="Linked user account ID (if any)")
     avatar_url: str | None = Field(default=None, max_length=500, description="Player avatar URL")
 
+    @field_validator("avatar_url", mode="before")
+    @classmethod
+    def check_avatar_url(cls, v: str | None) -> str | None:
+        return validate_image_url(v)
+
 
 class PlayerCreate(PlayerBase):
     pass
@@ -112,6 +145,11 @@ class PlayerUpdate(BaseModel):
     team_id: int | None = Field(default=None, ge=1)
     user_id: int | None = Field(default=None)
     avatar_url: str | None = Field(default=None, max_length=500)
+
+    @field_validator("avatar_url", mode="before")
+    @classmethod
+    def check_avatar_url(cls, v: str | None) -> str | None:
+        return validate_image_url(v)
 
 
 class PlayerOut(PlayerBase):
@@ -131,12 +169,22 @@ class TournamentBase(BaseModel):
     prize_pool: str = Field(..., min_length=1, max_length=50, description="Prize pool (e.g. '$1,000,000')")
     start_date: str = Field(..., min_length=8, max_length=10, description="Start date (YYYY-MM-DD)")
     end_date: str = Field(..., min_length=8, max_length=10, description="End date (YYYY-MM-DD)")
-    status: str = Field(..., min_length=1, max_length=20, description="Status (Upcoming, Ongoing, Completed)")
+    status: Literal["Upcoming", "Ongoing", "Completed"] = "Upcoming"
     location: str = Field(..., min_length=1, max_length=120, description="Location (City, Country)")
-    bracket_type: str = Field(
-        default="double_elimination",
-        description="Bracket type: double_elimination, single_elimination, round_robin, swiss",
-    )
+    bracket_type: Literal["single_elimination", "double_elimination", "round_robin", "swiss"] = "double_elimination"
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        try:
+            d_start = datetime.date.fromisoformat(self.start_date)
+            d_end = datetime.date.fromisoformat(self.end_date)
+            if d_end < d_start:
+                raise ValueError("end_date must be greater than or equal to start_date")
+        except ValueError as e:
+            if "greater than or equal to" in str(e):
+                raise
+            raise ValueError("Dates must be valid ISO dates in YYYY-MM-DD format")
+        return self
 
 
 class TournamentCreate(TournamentBase):
@@ -148,9 +196,23 @@ class TournamentUpdate(BaseModel):
     prize_pool: str | None = Field(default=None, min_length=1, max_length=50)
     start_date: str | None = Field(default=None, min_length=8, max_length=10)
     end_date: str | None = Field(default=None, min_length=8, max_length=10)
-    status: str | None = Field(default=None, min_length=1, max_length=20)
+    status: Literal["Upcoming", "Ongoing", "Completed"] | None = None
     location: str | None = Field(default=None, min_length=1, max_length=120)
-    bracket_type: str | None = Field(default=None)
+    bracket_type: Literal["single_elimination", "double_elimination", "round_robin", "swiss"] | None = None
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.start_date and self.end_date:
+            try:
+                d_start = datetime.date.fromisoformat(self.start_date)
+                d_end = datetime.date.fromisoformat(self.end_date)
+                if d_end < d_start:
+                    raise ValueError("end_date must be greater than or equal to start_date")
+            except ValueError as e:
+                if "greater than or equal to" in str(e):
+                    raise
+                raise ValueError("Dates must be valid ISO dates in YYYY-MM-DD format")
+        return self
 
 
 class TournamentOut(TournamentBase):
@@ -168,6 +230,14 @@ class MapResultBase(BaseModel):
 
 class MapResultCreate(MapResultBase):
     pass
+
+
+class MapResultUpdate(BaseModel):
+    map_number: int | None = Field(default=None, ge=1)
+    map_name: str | None = Field(default=None, min_length=1, max_length=40)
+    score_a: int | None = Field(default=None, ge=0)
+    score_b: int | None = Field(default=None, ge=0)
+    winner_id: int | None = None
 
 
 class MapResultOut(MapResultBase):
@@ -192,7 +262,7 @@ class PlayerMatchStatBase(BaseModel):
 
 
 class PlayerMatchStatCreate(PlayerMatchStatBase):
-    pass
+    rating: float | None = None
 
 
 class PlayerMatchStatUpdate(BaseModel):
@@ -216,13 +286,15 @@ class PlayerMatchStatOut(PlayerMatchStatBase):
 
 
 class MatchBase(BaseModel):
-    status: str = Field(default="UPCOMING", min_length=1, max_length=20, description="Match status (UPCOMING, LIVE, FINISHED)")
+    status: Literal["UPCOMING", "LIVE", "FINISHED"] = Field(
+        default="UPCOMING", description="Match status (UPCOMING, LIVE, FINISHED)"
+    )
     score_a: int | None = Field(default=None, ge=0, description="Team A score")
     score_b: int | None = Field(default=None, ge=0, description="Team B score")
     date: str = Field(..., min_length=8, max_length=10, description="Match date (YYYY-MM-DD)")
     start_time: str | None = Field(default=None, description="Time and day (e.g. '21:00 Friday')")
     map_name: str | None = Field(default=None, max_length=40, description="Map name (Mirage, Inferno, Dust2...)")
-    match_format: str = Field(default="BO3", description="Series format (BO1, BO3, BO5)")
+    match_format: Literal["BO1", "BO3", "BO5"] = Field(default="BO3", description="Series format (BO1, BO3, BO5)")
 
     bracket_type: str | None = Field(default=None, description="upper, lower, grand_final, single, round_robin, swiss")
     round_name: str | None = Field(default=None, description="Opening round, Upper final, Grand final, etc.")
@@ -246,13 +318,13 @@ class MatchCreate(MatchBase):
 
 
 class MatchUpdate(BaseModel):
-    status: str | None = Field(default=None, min_length=1, max_length=20)
+    status: Literal["UPCOMING", "LIVE", "FINISHED"] | None = None
     score_a: int | None = Field(default=None, ge=0)
     score_b: int | None = Field(default=None, ge=0)
     date: str | None = Field(default=None, min_length=8, max_length=10)
     start_time: str | None = Field(default=None)
     map_name: str | None = Field(default=None, max_length=40)
-    match_format: str | None = Field(default=None)
+    match_format: Literal["BO1", "BO3", "BO5"] | None = None
     team_a_id: int | None = Field(default=None)
     team_b_id: int | None = Field(default=None)
     winner_id: int | None = Field(default=None)
@@ -274,24 +346,32 @@ class MatchUpdate(BaseModel):
         return self
 
 
-class MatchOut(MatchBase):
+class MatchListOut(MatchBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    team_a_name: str | None = None
-    team_b_name: str | None = None
-    team_a_logo_url: str | None = None
-    team_b_logo_url: str | None = None
     winner_id: int | None = None
     loser_id: int | None = None
+    team_a_name: str | None = None
+    team_b_name: str | None = None
+    team_a_short: str | None = None
+    team_b_short: str | None = None
+    team_a_logo_url: str | None = None
+    team_b_logo_url: str | None = None
     winner_name: str | None = None
     tournament_name: str | None = None
+
+
+class MatchDetailOut(MatchListOut):
     map_results: list[MapResultOut] = []
     player_stats: list[PlayerMatchStatOut] = []
 
 
+MatchOut = MatchDetailOut
+
+
 class BracketBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Bracket stage name (Playoffs, Group Stage)")
-    bracket_type: str = Field(
+    bracket_type: Literal["single_elimination", "double_elimination", "round_robin", "swiss"] = Field(
         ...,
         description="Bracket type: single_elimination, double_elimination, round_robin, swiss",
     )
@@ -300,7 +380,7 @@ class BracketBase(BaseModel):
 
 class BracketCreate(BracketBase):
     team_ids: list[int] = Field(..., min_length=2, description="List of participant team IDs")
-    match_format: str = Field(default="BO3", description="Series format (BO1, BO3, BO5)")
+    match_format: Literal["BO1", "BO3", "BO5"] = Field(default="BO3", description="Series format (BO1, BO3, BO5)")
 
 
 class BracketOut(BracketBase):
@@ -340,7 +420,7 @@ class PlayerLeaderboardEntry(BaseModel):
     nickname: str
     team_name: str
     avatar_url: str | None = None
-    rating: float
+    rating: float | None = None
     kd: str = "1.00"
     adr: float = 70.0
 

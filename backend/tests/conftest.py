@@ -26,6 +26,8 @@ if pytest is not None:
         """Creates a clean database schema for each test."""
         Base.metadata.create_all(bind=test_engine)
         session = TestingSessionLocal()
+        from app.auth import ensure_admin
+        ensure_admin(session)
         try:
             yield session
         finally:
@@ -45,3 +47,11 @@ if pytest is not None:
         with TestClient(app) as test_client:
             yield test_client
         app.dependency_overrides.clear()
+
+    @pytest.fixture(scope="function")
+    def admin_token_headers(client):
+        """Logs in as admin and returns authorization bearer header."""
+        resp = client.post("/api/auth/login", json={"email": "admin@local.com", "password": "admin"})
+        assert resp.status_code == 200, resp.text
+        token = resp.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}

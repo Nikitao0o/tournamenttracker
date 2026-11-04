@@ -243,7 +243,7 @@ export type LeaderboardPlayer = {
   nickname: string
   teamName: string
   avatarUrl?: string | null
-  rating: number
+  rating: number | null
   kd: string
   adr: number
 }

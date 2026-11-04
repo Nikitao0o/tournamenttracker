@@ -20,7 +20,7 @@ def get_tournament(tournament_id: int, db: Session = Depends(get_db)):
     return crud.get_tournament_or_404(db, tournament_id)
 
 
-@router.get("/{tournament_id}/matches", response_model=list[schemas.MatchOut])
+@router.get("/{tournament_id}/matches", response_model=list[schemas.MatchListOut])
 def get_tournament_matches(tournament_id: int, db: Session = Depends(get_db)):
     """Matches of a tournament."""
     crud.get_tournament_or_404(db, tournament_id)
@@ -31,6 +31,19 @@ def get_tournament_matches(tournament_id: int, db: Session = Depends(get_db)):
 def get_tournament_bracket(tournament_id: int, db: Session = Depends(get_db)):
     """Get structured tournament bracket (Upper, Lower, Grand final)."""
     return crud.get_tournament_bracket_view(db, tournament_id)
+
+
+@router.post(
+    "/{tournament_id}/bracket/next-round",
+    response_model=schemas.TournamentBracketView,
+)
+def generate_next_round(
+    tournament_id: int,
+    admin: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate the next Swiss round pairing (admin only)."""
+    return crud.generate_swiss_next_round(db, tournament_id)
 
 
 @router.post("", response_model=schemas.TournamentOut, status_code=status.HTTP_201_CREATED)
