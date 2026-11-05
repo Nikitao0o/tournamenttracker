@@ -16,6 +16,7 @@ import type { Player, Team } from '../types'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
+import { EditPlayerDialog } from '../features/manage-players/ui/EditPlayerDialog'
 import { getErrorMessage } from '../shared/api/errors'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
@@ -25,13 +26,19 @@ export function PlayerPage() {
 
   const [player, setPlayer] = useState<Player | null>(null)
   const [team, setTeam] = useState<Team | null>(null)
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([])
   const [isLoading, setIsLoading] = useState(Boolean(id))
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editPlayerOpen, setEditPlayerOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
     if (!id) return
+
+    apiClient.getTeams().then((tList) => {
+      if (mounted) setAvailableTeams(tList)
+    }).catch(() => {})
 
     apiClient
       .getPlayers()
@@ -165,6 +172,22 @@ export function PlayerPage() {
 
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <Chip label={player.role} color="secondary" sx={{ fontWeight: 700 }} />
+              {isAdmin && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => setEditPlayerOpen(true)}
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    bgcolor: '#f04b3a',
+                    color: '#fff',
+                    '&:hover': { bgcolor: '#d93b2a' },
+                  }}
+                >
+                  ✏ Edit Player
+                </Button>
+              )}
               {canEditAvatar && (
                 <Button
                   variant="outlined"
@@ -172,7 +195,7 @@ export function PlayerPage() {
                   onClick={() => setDialogOpen(true)}
                   sx={{ fontSize: 11, fontWeight: 700 }}
                 >
-                  Change Avatar (PNG / JPG)
+                  Change Avatar
                 </Button>
               )}
             </Stack>
@@ -238,6 +261,38 @@ export function PlayerPage() {
           onClose={() => setDialogOpen(false)}
           onSave={handleSaveAvatar}
           onReset={handleResetAvatar}
+        />
+      )}
+
+      {isAdmin && (
+        <EditPlayerDialog
+          open={editPlayerOpen}
+          player={player}
+          availableTeams={availableTeams}
+          onClose={() => setEditPlayerOpen(false)}
+          onSubmit={async (updated) => {
+            try {
+              const res = await apiClient.updatePlayer(updated.id, {
+                nickname: updated.nickname,
+                name: updated.name,
+                age: updated.age,
+                role: updated.role,
+                nationality: updated.nationality,
+                teamId: updated.teamId,
+                avatarUrl: updated.avatarUrl || undefined,
+                stats: updated.stats,
+              })
+              setPlayer(res)
+              if (res.teamId) {
+                apiClient.getTeam(res.teamId).then(setTeam).catch(() => setTeam(null))
+              } else {
+                setTeam(null)
+              }
+              setEditPlayerOpen(false)
+            } catch (err) {
+              setError(getErrorMessage(err))
+            }
+          }}
         />
       )}
     </Stack>

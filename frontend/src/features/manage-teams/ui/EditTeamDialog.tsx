@@ -33,6 +33,7 @@ function EditTeamFormContent({
   const [shortName, setShortName] = useState(() => team.shortName)
   const [region, setRegion] = useState(() => team.region)
   const [coach, setCoach] = useState(() => team.coach || '')
+  const [ranking, setRanking] = useState<number | ''>(() => (typeof team.ranking === 'number' ? team.ranking : ''))
   const [description, setDescription] = useState(() => team.description || '')
   const [rosterText, setRosterText] = useState(() => (team.roster || []).join(', '))
   const [logoUrl, setLogoUrl] = useState(() => team.logoUrl || '')
@@ -58,6 +59,7 @@ function EditTeamFormContent({
       shortName: shortName.trim().toUpperCase(),
       region: region.trim(),
       coach: coach.trim(),
+      ranking: typeof ranking === 'number' && ranking >= 1 ? ranking : undefined,
       description: description.trim(),
       roster,
       logoUrl: logoUrl.trim() || undefined,
@@ -108,7 +110,7 @@ function EditTeamFormContent({
           </Grid>
 
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 label="Region"
                 value={region}
@@ -122,11 +124,24 @@ function EditTeamFormContent({
                 required
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 label="Coach"
                 value={coach}
                 onChange={(e) => setCoach(e.target.value)}
+                fullWidth
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                label="World Ranking"
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+                value={ranking}
+                onChange={(e) =>
+                  setRanking(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10)))
+                }
+                helperText="Global ranking position (>= 1)"
                 fullWidth
               />
             </Grid>

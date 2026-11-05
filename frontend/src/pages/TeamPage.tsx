@@ -16,6 +16,7 @@ import type { Player, Team } from '../types'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { MediaUploadDialog } from '../features/manage-media/ui/MediaUploadDialog'
+import { EditTeamDialog } from '../features/manage-teams/ui/EditTeamDialog'
 import { getErrorMessage } from '../shared/api/errors'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
 
@@ -32,6 +33,7 @@ export function TeamPage() {
   const [isLoading, setIsLoading] = useState(Boolean(teamRef))
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editTeamOpen, setEditTeamOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -163,14 +165,30 @@ export function TeamPage() {
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <Chip label={`#${team.ranking} World Rank`} color="secondary" sx={{ fontWeight: 800 }} />
               {isAdmin ? (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setDialogOpen(true)}
-                  sx={{ fontSize: 11, fontWeight: 700 }}
-                >
-                  Change Logo (PNG / JPG)
-                </Button>
+                <>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => setEditTeamOpen(true)}
+                    sx={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      bgcolor: '#f04b3a',
+                      color: '#fff',
+                      '&:hover': { bgcolor: '#d93b2a' },
+                    }}
+                  >
+                    ✏ Edit Team
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setDialogOpen(true)}
+                    sx={{ fontSize: 11, fontWeight: 700 }}
+                  >
+                    Change Logo
+                  </Button>
+                </>
               ) : null}
             </Stack>
           </Stack>
@@ -218,15 +236,39 @@ export function TeamPage() {
       </Box>
 
       {isAdmin && (
-        <MediaUploadDialog
-          open={dialogOpen}
-          title="Upload Team Logo (PNG / JPG)"
-          entityName={team.name}
-          currentValue={team.logoUrl || undefined}
-          onClose={() => setDialogOpen(false)}
-          onSave={handleSaveLogo}
-          onReset={handleResetLogo}
-        />
+        <>
+          <MediaUploadDialog
+            open={dialogOpen}
+            title="Upload Team Logo (PNG / JPG)"
+            entityName={team.name}
+            currentValue={team.logoUrl || undefined}
+            onClose={() => setDialogOpen(false)}
+            onSave={handleSaveLogo}
+            onReset={handleResetLogo}
+          />
+          <EditTeamDialog
+            open={editTeamOpen}
+            team={team}
+            onClose={() => setEditTeamOpen(false)}
+            onSubmit={async (updated) => {
+              try {
+                const res = await apiClient.updateTeam(updated.id, {
+                  name: updated.name,
+                  shortName: updated.shortName,
+                  region: updated.region,
+                  coach: updated.coach,
+                  ranking: updated.ranking,
+                  description: updated.description,
+                  logoUrl: updated.logoUrl || undefined,
+                })
+                setTeam(res)
+                setEditTeamOpen(false)
+              } catch (err) {
+                setError(getErrorMessage(err))
+              }
+            }}
+          />
+        </>
       )}
     </Stack>
   )

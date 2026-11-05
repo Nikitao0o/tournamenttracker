@@ -1,4 +1,6 @@
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import type { Tournament } from '../types'
@@ -7,9 +9,10 @@ import { formatDateShort } from '../utils/formatting'
 
 type TournamentCardProps = {
   tournament: Tournament
+  onEdit?: (tournament: Tournament) => void
 }
 
-export function TournamentCard({ tournament }: TournamentCardProps) {
+export function TournamentCard({ tournament, onEdit }: TournamentCardProps) {
   return (
     <Box
       component={Link}
@@ -39,8 +42,26 @@ export function TournamentCard({ tournament }: TournamentCardProps) {
         {formatDateShort(tournament.startDate)} – {formatDateShort(tournament.endDate)}
       </Typography>
       <Box sx={{ textAlign: 'right' }}>
-        <Typography sx={{ fontSize: 12, fontWeight: 700 }}>{tournament.prizePool}</Typography>
-        <TournamentStatusLabel status={tournament.status} />
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+          <div>
+            <Typography sx={{ fontSize: 12, fontWeight: 700 }}>{tournament.prizePool}</Typography>
+            <TournamentStatusLabel status={tournament.status} />
+          </div>
+          {onEdit && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onEdit(tournament)
+              }}
+              sx={{ minWidth: 'auto', px: 1, py: 0.2, fontSize: 11, borderColor: '#f04b3a', color: '#f04b3a' }}
+            >
+              ✏ Edit
+            </Button>
+          )}
+        </Stack>
       </Box>
     </Box>
   )

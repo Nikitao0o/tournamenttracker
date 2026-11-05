@@ -17,15 +17,18 @@ import { apiClient } from '../shared/api/client'
 import type { Match, TournamentBracketView as BracketViewType } from '../types'
 import { formatDate } from '../utils/formatting'
 import { TournamentBracketView } from '../features/bracket/ui/TournamentBracketView'
+import { TournamentFormDialog } from '../features/manage-tournaments/ui/TournamentFormDialog'
+import type { CreateTournamentInput } from '../types'
 
 export function TournamentPage() {
   const { id } = useParams<{ id: string }>()
   const { isAdmin } = useAuth()
-  const { getTournament } = useTournaments()
+  const { getTournament, updateTournament, refreshTournaments } = useTournaments()
   const [activeTab, setActiveTab] = useState<'bracket' | 'matches'>('bracket')
   const [bracket, setBracket] = useState<BracketViewType | null>(null)
   const [isBracketLoading, setIsBracketLoading] = useState(true)
   const [matches, setMatches] = useState<Match[]>([])
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   const tournament = id ? getTournament(id) : undefined
 
@@ -126,15 +129,31 @@ export function TournamentPage() {
             </Typography>
             <TournamentStatusLabel status={tournament.status} />
             {isAdmin ? (
-              <Button
-                component={RouterLink}
-                to={`/admin/bracket?tournament=${tournament.id}`}
-                size="small"
-                variant="outlined"
-                sx={{ ml: 'auto', fontSize: 11, fontWeight: 700 }}
-              >
-                ⚙ Manage Bracket & Seeds
-              </Button>
+              <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => setEditDialogOpen(true)}
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    bgcolor: '#f04b3a',
+                    color: '#fff',
+                    '&:hover': { bgcolor: '#d93b2a' },
+                  }}
+                >
+                  ✏ Edit Tournament
+                </Button>
+                <Button
+                  component={RouterLink}
+                  to={`/admin/bracket?tournament=${tournament.id}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: 11, fontWeight: 700 }}
+                >
+                  ⚙ Manage Bracket & Seeds
+                </Button>
+              </Stack>
             ) : null}
           </Stack>
           <Typography color="text.secondary">{tournament.location}</Typography>
@@ -179,6 +198,19 @@ export function TournamentPage() {
           </Typography>
           <MatchList matches={matches} emptyText="No matches for this tournament yet." />
         </div>
+      )}
+
+      {tournament && (
+        <TournamentFormDialog
+          open={editDialogOpen}
+          tournament={tournament}
+          onClose={() => setEditDialogOpen(false)}
+          onSubmit={async (data: CreateTournamentInput) => {
+            await updateTournament(tournament.id, data)
+            await refreshTournaments()
+            setEditDialogOpen(false)
+          }}
+        />
       )}
     </Stack>
   )

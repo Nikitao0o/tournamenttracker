@@ -7,12 +7,16 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { apiClient } from '../shared/api/client'
+import { useAuth } from '../app/providers/useAuth'
 import type { Team } from '../types'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
+import { EditTeamDialog } from '../features/manage-teams/ui/EditTeamDialog'
 
 export function TeamsPage() {
+  const { isAdmin } = useAuth()
   const [teams, setTeams] = useState<Team[]>([])
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,12 +82,48 @@ export function TeamsPage() {
                 </Stack>
               )}
 
-              <Button component={Link} to={`/teams/${team.id}`} variant="contained" sx={{ alignSelf: 'flex-start' }}>
-                View team
-              </Button>
+              <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-start' }}>
+                <Button component={Link} to={`/teams/${team.id}`} variant="contained">
+                  View team
+                </Button>
+                {isAdmin ? (
+                  <Button
+                    variant="outlined"
+                    onClick={() => setEditingTeam(team)}
+                    sx={{ borderColor: '#f04b3a', color: '#f04b3a' }}
+                  >
+                    ✏ Edit
+                  </Button>
+                ) : null}
+              </Stack>
             </Stack>
           </Paper>
         ))
+      )}
+
+      {isAdmin && (
+        <EditTeamDialog
+          open={Boolean(editingTeam)}
+          team={editingTeam}
+          onClose={() => setEditingTeam(null)}
+          onSubmit={async (updated) => {
+            try {
+              const res = await apiClient.updateTeam(updated.id, {
+                name: updated.name,
+                shortName: updated.shortName,
+                region: updated.region,
+                coach: updated.coach,
+                ranking: updated.ranking,
+                description: updated.description,
+                logoUrl: updated.logoUrl || undefined,
+              })
+              setTeams((prev) => prev.map((t) => (t.id === res.id ? res : t)))
+              setEditingTeam(null)
+            } catch (err: unknown) {
+              setError(err instanceof Error ? err.message : 'Failed to update team')
+            }
+          }}
+        />
       )}
     </Stack>
   )

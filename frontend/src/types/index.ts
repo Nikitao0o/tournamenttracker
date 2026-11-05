@@ -129,6 +129,8 @@ export type AuthToken = {
   user: User
 }
 
+export type MatchFormat = 'BO1' | 'BO3' | 'BO5'
+
 export type CreateTournamentInput = {
   title: string
   prizePool: string
@@ -149,7 +151,7 @@ export type CreateTeamInput = {
   description: string
   ranking?: number
   roster?: string[]
-  logoUrl?: string
+  logoUrl?: string | null
 }
 
 export type CreatePlayerInput = {
@@ -160,9 +162,12 @@ export type CreatePlayerInput = {
   age?: number
   role: string
   nationality: string
-  teamId: string
-  teamName: string
-  avatarUrl?: string
+  teamId?: string | null
+  teamName?: string
+  avatarUrl?: string | null
+  kd?: string
+  impact?: number
+  maps?: number
   stats?: {
     kd: string
     impact: number

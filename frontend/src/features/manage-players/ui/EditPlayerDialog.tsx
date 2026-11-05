@@ -40,14 +40,18 @@ function EditPlayerFormContent({
 }) {
   const [nickname, setNickname] = useState(() => player.nickname || player.name)
   const [name, setName] = useState(() => player.name)
-  const [role, setRole] = useState(() => player.role)
-  const [nationality, setNationality] = useState(() => player.nationality)
-  const [selectedTeamId, setSelectedTeamId] = useState(() => player.teamId || availableTeams[0]?.id || '')
+  const [age, setAge] = useState<number | ''>(() => (typeof player.age === 'number' ? player.age : 20))
+  const [role, setRole] = useState(() => player.role || 'Rifler')
+  const [nationality, setNationality] = useState(() => player.nationality || '')
+  const [selectedTeamId, setSelectedTeamId] = useState(() => player.teamId || '')
+  const [kd, setKd] = useState(() => player.stats?.kd || '1.00')
+  const [impact, setImpact] = useState<number | ''>(() => (player.stats?.impact !== undefined ? player.stats.impact : 1.0))
+  const [maps, setMaps] = useState<number | ''>(() => (player.stats?.maps !== undefined ? player.stats.maps : 0))
   const [avatarUrl, setAvatarUrl] = useState(() => player.avatarUrl || '')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const selectedTeam = availableTeams.find((t) => t.id === selectedTeamId)
+  const selectedTeam = availableTeams.find((t) => String(t.id) === String(selectedTeamId))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,8 +61,12 @@ function EditPlayerFormContent({
       name,
       role,
       nationality,
-      teamName: selectedTeam?.name || player.teamName || 'Free Agent',
+      teamName: selectedTeam?.name || 'Free Agent',
     })
+
+    if (age !== '' && (age < 10 || age > 100)) {
+      formErrors.age = 'Age must be between 10 and 100'
+    }
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors)
@@ -69,11 +77,18 @@ function EditPlayerFormContent({
       ...player,
       nickname: nickname.trim(),
       name: name.trim(),
+      age: typeof age === 'number' ? age : 20,
       role,
       nationality: nationality.trim(),
-      teamId: selectedTeamId,
-      teamName: selectedTeam?.name || player.teamName || 'Free Agent',
+      teamId: selectedTeamId ? String(selectedTeamId) : '',
+      teamName: selectedTeam?.name || 'Free Agent',
       avatarUrl: avatarUrl.trim() || undefined,
+      stats: {
+        ...player.stats,
+        kd: kd.trim() || '1.00',
+        impact: typeof impact === 'number' ? impact : 1.0,
+        maps: typeof maps === 'number' ? maps : 0,
+      },
     }
 
     onSubmit(updated)
@@ -121,7 +136,22 @@ function EditPlayerFormContent({
           </Grid>
 
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                label="Age (10-100)"
+                type="number"
+                slotProps={{ htmlInput: { min: 10, max: 100 } }}
+                value={age}
+                onChange={(e) =>
+                  setAge(e.target.value === '' ? '' : parseInt(e.target.value, 10))
+                }
+                error={Boolean(errors.age)}
+                helperText={errors.age}
+                fullWidth
+                required
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <FormControl fullWidth>
                 <InputLabel id="edit-player-role-label">Role</InputLabel>
                 <Select
@@ -138,7 +168,7 @@ function EditPlayerFormContent({
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 label="Nationality / Region"
                 value={nationality}
@@ -162,6 +192,9 @@ function EditPlayerFormContent({
               label="Assigned Team"
               onChange={(e) => setSelectedTeamId(e.target.value)}
             >
+              <MenuItem value="">
+                <em>Free Agent / Unassigned</em>
+              </MenuItem>
               {availableTeams.map((team) => (
                 <MenuItem key={team.id} value={team.id}>
                   {team.name} ({team.shortName})
@@ -169,6 +202,48 @@ function EditPlayerFormContent({
               ))}
             </Select>
           </FormControl>
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', pt: 1 }}>
+            Player Career Statistics
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                label="K/D Ratio"
+                placeholder="1.25"
+                value={kd}
+                onChange={(e) => setKd(e.target.value)}
+                helperText="e.g. 1.25"
+                fullWidth
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                label="Impact Rating"
+                type="number"
+                slotProps={{ htmlInput: { step: '0.01', min: 0 } }}
+                value={impact}
+                onChange={(e) =>
+                  setImpact(e.target.value === '' ? '' : parseFloat(e.target.value))
+                }
+                helperText="e.g. 1.30"
+                fullWidth
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                label="Maps Played"
+                type="number"
+                slotProps={{ htmlInput: { min: 0 } }}
+                value={maps}
+                onChange={(e) =>
+                  setMaps(e.target.value === '' ? '' : parseInt(e.target.value, 10))
+                }
+                helperText="Total maps count"
+                fullWidth
+              />
+            </Grid>
+          </Grid>
 
           <ImageUploadField
             label="Player Avatar (.PNG or .JPG):"

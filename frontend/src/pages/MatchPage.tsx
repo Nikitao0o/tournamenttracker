@@ -21,12 +21,16 @@ import { apiClient } from '../shared/api/client'
 import type { Match } from '../types'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
+import { useAuth } from '../app/providers/useAuth'
+import { EditMatchDialog } from '../features/manage-matches/ui/EditMatchDialog'
 
 export function MatchPage() {
   const { id } = useParams<{ id: string }>()
+  const { isAdmin } = useAuth()
   const [match, setMatch] = useState<Match | null>(null)
   const [isLoading, setIsLoading] = useState(Boolean(id))
   const [error, setError] = useState<string | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -139,7 +143,27 @@ export function MatchPage() {
           >
             {match.tournamentName || 'Tournament'} • {match.roundName || 'Match'} ({match.matchFormat || 'BO3'})
           </Typography>
-          <MatchStatusLabel status={match.status} />
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <MatchStatusLabel status={match.status} />
+            {isAdmin ? (
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => setEditDialogOpen(true)}
+                sx={{
+                  bgcolor: '#f04b3a',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: 11,
+                  py: 0.2,
+                  px: 1.2,
+                  '&:hover': { bgcolor: '#d93b2a' },
+                }}
+              >
+                ✏ Edit Match
+              </Button>
+            ) : null}
+          </Stack>
         </Box>
 
         <Box
@@ -329,6 +353,17 @@ export function MatchPage() {
           </TableContainer>
         </Paper>
       )}
+
+      {/* Admin Match Edit Dialog */}
+      <EditMatchDialog
+        open={editDialogOpen}
+        match={match}
+        onClose={() => setEditDialogOpen(false)}
+        onSuccess={(updated) => {
+          setMatch(updated)
+          setEditDialogOpen(false)
+        }}
+      />
     </Stack>
   )
 }

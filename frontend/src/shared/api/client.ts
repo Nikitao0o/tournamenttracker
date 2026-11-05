@@ -219,12 +219,12 @@ export function mapBackendPlayer(item: BackendPlayer): Player {
   const kdVal = typeof item.kd === 'string' ? item.kd : (item.kd ? String(item.kd) : '1.00')
   return {
     id: String(item.id),
-    nickname: item.nickname,
-    name: item.nickname ? `${item.nickname} (${item.name})` : item.name,
+    nickname: item.nickname || item.name,
+    name: item.name,
     age: item.age || 20,
     role: item.role || 'Rifler',
     nationality: item.nationality || 'International',
-    teamId: String(item.team_id ?? item.teamId ?? '1'),
+    teamId: item.team_id != null ? String(item.team_id) : (item.teamId != null ? String(item.teamId) : ''),
     teamName: item.team_name ?? item.teamName ?? '',
     avatarUrl: item.avatar_url ?? item.avatarUrl ?? null,
     stats: {
@@ -755,10 +755,15 @@ export const apiClient = {
     if (input.age !== undefined) payload.age = input.age
     if (input.role !== undefined) payload.role = input.role
     if (input.nationality !== undefined) payload.nationality = input.nationality
-    if (input.stats?.kd !== undefined) payload.kd = input.stats.kd
-    if (input.stats?.impact !== undefined) payload.impact = input.stats.impact
-    if (input.stats?.maps !== undefined) payload.maps = input.stats.maps
-    if (input.teamId !== undefined) payload.team_id = Number(input.teamId)
+    const kd = input.kd ?? input.stats?.kd
+    if (kd !== undefined) payload.kd = kd
+    const impact = input.impact ?? input.stats?.impact
+    if (impact !== undefined) payload.impact = Number(impact)
+    const maps = input.maps ?? input.stats?.maps
+    if (maps !== undefined) payload.maps = Number(maps)
+    if (input.teamId !== undefined) {
+      payload.team_id = input.teamId && input.teamId !== '' ? Number(input.teamId) : null
+    }
     if (input.avatarUrl !== undefined) payload.avatar_url = input.avatarUrl
 
     const response = await requestWithAuth(`${API_BASE}/players/${id}`, {

@@ -9,23 +9,28 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link } from 'react-router-dom'
 import { apiClient } from '../shared/api/client'
-import type { Player } from '../types'
+import { useAuth } from '../app/providers/useAuth'
+import type { Player, Team } from '../types'
 import { PlayerAvatar } from '../shared/ui/PlayerAvatar'
 import { TeamLogo } from '../shared/ui/TeamLogo'
 import { CardSkeleton } from '../shared/ui/LoadingSkeleton'
+import { EditPlayerDialog } from '../features/manage-players/ui/EditPlayerDialog'
 
 export function PlayersPage() {
+  const { isAdmin } = useAuth()
   const [players, setPlayers] = useState<Player[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
-    apiClient
-      .getPlayers()
-      .then((data) => {
+    Promise.all([apiClient.getPlayers(), apiClient.getTeams()])
+      .then(([playersList, teamsList]) => {
         if (mounted) {
-          setPlayers(data)
+          setPlayers(playersList)
+          setTeams(teamsList)
           setIsLoading(false)
         }
       })
@@ -84,14 +89,52 @@ export function PlayersPage() {
                     K/D: <strong>{player.stats.kd}</strong> • Impact: <strong>{player.stats.impact}</strong>
                   </Typography>
 
-                  <Button component={Link} to={`/players/${player.id}`} variant="contained" sx={{ mt: 'auto' }}>
-                    View profile
-                  </Button>
+                  <Stack direction="row" spacing={1} sx={{ mt: 'auto' }}>
+                    <Button component={Link} to={`/players/${player.id}`} variant="contained" fullWidth>
+                      View profile
+                    </Button>
+                    {isAdmin ? (
+                      <Button
+                        variant="outlined"
+                        onClick={() => setEditingPlayer(player)}
+                        sx={{ borderColor: '#f04b3a', color: '#f04b3a' }}
+                      >
+                        ✏ Edit
+                      </Button>
+                    ) : null}
+                  </Stack>
                 </Stack>
               </Paper>
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {isAdmin && (
+        <EditPlayerDialog
+          open={Boolean(editingPlayer)}
+          player={editingPlayer}
+          availableTeams={teams}
+          onClose={() => setEditingPlayer(null)}
+          onSubmit={async (updated) => {
+            try {
+              const res = await apiClient.updatePlayer(updated.id, {
+                nickname: updated.nickname,
+                name: updated.name,
+                age: updated.age,
+                role: updated.role,
+                nationality: updated.nationality,
+                teamId: updated.teamId,
+                avatarUrl: updated.avatarUrl || undefined,
+                stats: updated.stats,
+              })
+              setPlayers((prev) => prev.map((p) => (p.id === res.id ? res : p)))
+              setEditingPlayer(null)
+            } catch (err: unknown) {
+              setError(err instanceof Error ? err.message : 'Failed to update player')
+            }
+          }}
+        />
       )}
     </Stack>
   )
