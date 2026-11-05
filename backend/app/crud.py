@@ -117,8 +117,16 @@ def get_all_users(db: Session) -> list[schemas.UserOut]:
     return [enrich_user(u) for u in users]
 
 
-def get_teams(db: Session) -> list[models.Team]:
-    return db.query(models.Team).order_by(models.Team.ranking).all()
+def get_teams(db: Session, search: str | None = None) -> list[models.Team]:
+    q = db.query(models.Team)
+    if search and search.strip():
+        s = f"%{search.strip().lower()}%"
+        q = q.filter(
+            func.lower(models.Team.name).like(s)
+            | func.lower(models.Team.short_name).like(s)
+            | func.lower(models.Team.region).like(s)
+        )
+    return q.order_by(models.Team.ranking).all()
 
 
 def get_team_or_404(db: Session, team_id: int) -> models.Team:
@@ -220,10 +228,18 @@ def enrich_player(player: models.Player) -> schemas.PlayerOut:
     return out
 
 
-def get_players(db: Session, team_id: int | None = None) -> list[schemas.PlayerOut]:
+def get_players(db: Session, team_id: int | None = None, search: str | None = None) -> list[schemas.PlayerOut]:
     q = db.query(models.Player)
     if team_id is not None:
         q = q.filter(models.Player.team_id == team_id)
+    if search and search.strip():
+        s = f"%{search.strip().lower()}%"
+        q = q.filter(
+            func.lower(models.Player.nickname).like(s)
+            | func.lower(models.Player.name).like(s)
+            | func.lower(models.Player.role).like(s)
+            | func.lower(models.Player.nationality).like(s)
+        )
     return [enrich_player(p) for p in q.all()]
 
 

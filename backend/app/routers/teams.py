@@ -9,9 +9,9 @@ router = APIRouter(prefix="/api/teams", tags=["teams"])
 
 
 @router.get("", response_model=list[schemas.TeamOut])
-def list_teams(db: Session = Depends(get_db)):
-    """Public list of teams ordered by ranking."""
-    return crud.get_teams(db)
+def list_teams(search: str | None = None, db: Session = Depends(get_db)):
+    """Public list of teams ordered by ranking with optional search filtering."""
+    return crud.get_teams(db, search=search)
 
 
 @router.get("/{team_id}", response_model=schemas.TeamOut)

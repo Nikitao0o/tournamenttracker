@@ -360,6 +360,7 @@ export function AdminPage() {
 
   const filteredPlayers = players.filter(
     (player) =>
+      (player.nickname && player.nickname.toLowerCase().includes(playerSearch.toLowerCase())) ||
       player.name.toLowerCase().includes(playerSearch.toLowerCase()) ||
       player.role.toLowerCase().includes(playerSearch.toLowerCase()) ||
       player.nationality.toLowerCase().includes(playerSearch.toLowerCase()) ||

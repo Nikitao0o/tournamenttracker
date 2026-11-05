@@ -9,9 +9,13 @@ router = APIRouter(prefix="/api/players", tags=["players"])
 
 
 @router.get("", response_model=list[schemas.PlayerOut])
-def list_players(team_id: int | None = None, db: Session = Depends(get_db)):
-    """Public list of players with optional team filtering."""
-    return crud.get_players(db, team_id=team_id)
+def list_players(
+    team_id: int | None = None,
+    search: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Public list of players with optional team and search filtering."""
+    return crud.get_players(db, team_id=team_id, search=search)
 
 
 @router.get("/{player_id}", response_model=schemas.PlayerOut)

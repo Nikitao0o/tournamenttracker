@@ -617,8 +617,9 @@ export const apiClient = {
   },
 
   // Teams
-  async getTeams(): Promise<Team[]> {
-    const response = await requestWithAuth(`${API_BASE}/teams`)
+  async getTeams(search?: string): Promise<Team[]> {
+    const q = search ? `?search=${encodeURIComponent(search.trim())}` : ''
+    const response = await requestWithAuth(`${API_BASE}/teams${q}`)
     if (!response.ok) throw new Error('Failed to fetch teams')
     const data = await response.json()
     const mapped = data.map(mapBackendTeam)
@@ -718,8 +719,11 @@ export const apiClient = {
   },
 
   // Players
-  async getPlayers(teamId?: number): Promise<Player[]> {
-    const q = teamId ? `?team_id=${teamId}` : ''
+  async getPlayers(teamId?: number, search?: string): Promise<Player[]> {
+    const params = new URLSearchParams()
+    if (teamId !== undefined && teamId !== null) params.set('team_id', String(teamId))
+    if (search && search.trim()) params.set('search', search.trim())
+    const q = params.toString() ? `?${params.toString()}` : ''
     const response = await requestWithAuth(`${API_BASE}/players${q}`)
     if (!response.ok) throw new Error('Failed to fetch players')
     const data = await response.json()
