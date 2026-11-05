@@ -4,6 +4,7 @@ import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../../app/providers/useAuth'
 
 export function UserBadge() {
@@ -46,6 +47,29 @@ export function UserBadge() {
           }}
         />
       </Stack>
+
+      {isAdmin && (
+        <Button
+          component={Link}
+          to="/admin"
+          size="small"
+          variant="contained"
+          sx={{
+            bgcolor: '#f04b3a',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 800,
+            px: 1.5,
+            py: 0.5,
+            borderRadius: 0.5,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            '&:hover': { bgcolor: '#d93b2a' },
+          }}
+        >
+          Admin Panel
+        </Button>
+      )}
 
       <Button
         variant="outlined"
