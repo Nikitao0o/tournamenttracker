@@ -94,9 +94,18 @@ def update_user_self(db: Session, user: models.User, payload: schemas.UserUpdate
         user.salt = salt
 
     if payload.avatar_url is not None:
-        user.avatar_url = payload.avatar_url
+        avatar_val = payload.avatar_url.strip() if payload.avatar_url else ""
+        if avatar_val.startswith("data:image/"):
+            url = save_uploaded_image(
+                "players", user.id, schemas.ImageUploadPayload(image_base64=avatar_val)
+            )
+        elif avatar_val:
+            url = validate_image_url(avatar_val)
+        else:
+            url = None
+        user.avatar_url = url
         if user.player:
-            user.player.avatar_url = payload.avatar_url
+            user.player.avatar_url = url
 
     db.commit()
     db.refresh(user)
@@ -129,7 +138,14 @@ def create_team(db: Session, payload: schemas.TeamCreate) -> models.Team:
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Team with name '{payload.name}' already exists",
         )
-    team = models.Team(**payload.model_dump())
+    data = payload.model_dump()
+    logo_base64 = None
+    if data.get("logo_url") and data["logo_url"].startswith("data:image/"):
+        logo_base64 = data.pop("logo_url")
+    elif data.get("logo_url"):
+        data["logo_url"] = validate_image_url(data["logo_url"])
+
+    team = models.Team(**data)
     db.add(team)
     try:
         db.commit()
@@ -140,6 +156,14 @@ def create_team(db: Session, payload: schemas.TeamCreate) -> models.Team:
             status_code=status.HTTP_409_CONFLICT,
             detail="Integrity error while creating team",
         )
+
+    if logo_base64:
+        team.logo_url = save_uploaded_image(
+            "teams", team.id, schemas.ImageUploadPayload(image_base64=logo_base64)
+        )
+        db.commit()
+        db.refresh(team)
+
     return team
 
 
@@ -154,6 +178,15 @@ def update_team(db: Session, team_id: int, payload: schemas.TeamUpdate) -> model
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Team with name '{update_data['name']}' already exists",
             )
+
+    if "logo_url" in update_data:
+        logo_val = update_data["logo_url"]
+        if logo_val and logo_val.startswith("data:image/"):
+            update_data["logo_url"] = save_uploaded_image(
+                "teams", team.id, schemas.ImageUploadPayload(image_base64=logo_val)
+            )
+        elif logo_val:
+            update_data["logo_url"] = validate_image_url(logo_val)
 
     for key, value in update_data.items():
         setattr(team, key, value)
@@ -225,10 +258,25 @@ def create_player(db: Session, payload: schemas.PlayerCreate) -> schemas.PlayerO
                 detail=f"User with id={payload.user_id} is already linked to player {existing_profile.nickname}",
             )
 
-    player = models.Player(**payload.model_dump())
+    data = payload.model_dump()
+    avatar_base64 = None
+    if data.get("avatar_url") and data["avatar_url"].startswith("data:image/"):
+        avatar_base64 = data.pop("avatar_url")
+    elif data.get("avatar_url"):
+        data["avatar_url"] = validate_image_url(data["avatar_url"])
+
+    player = models.Player(**data)
     db.add(player)
     db.commit()
     db.refresh(player)
+
+    if avatar_base64:
+        player.avatar_url = save_uploaded_image(
+            "players", player.id, schemas.ImageUploadPayload(image_base64=avatar_base64)
+        )
+        db.commit()
+        db.refresh(player)
+
     return enrich_player(player)
 
 
@@ -261,6 +309,15 @@ def update_player(db: Session, player_id: int, payload: schemas.PlayerUpdate) ->
                     status_code=status.HTTP_409_CONFLICT,
                     detail="This account is already linked to another player",
                 )
+
+    if "avatar_url" in update_data:
+        avatar_val = update_data["avatar_url"]
+        if avatar_val and avatar_val.startswith("data:image/"):
+            update_data["avatar_url"] = save_uploaded_image(
+                "players", player.id, schemas.ImageUploadPayload(image_base64=avatar_val)
+            )
+        elif avatar_val:
+            update_data["avatar_url"] = validate_image_url(avatar_val)
 
     for key, value in update_data.items():
         setattr(player, key, value)
@@ -1625,7 +1682,10 @@ def save_uploaded_image(target_subfolder: str, entity_id: int, payload: schemas.
             detail="Either image_base64 or image_url must be provided",
         )
 
-    data = payload.image_base64
+    data = payload.image_base64.strip()
+    if data.startswith("http://") or data.startswith("https://") or data.startswith("/uploads/"):
+        return validate_image_url(data)
+
     if "," in data:
         header, data = data.split(",", 1)
         if "image/svg" in header.lower():

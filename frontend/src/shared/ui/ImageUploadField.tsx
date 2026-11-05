@@ -110,7 +110,7 @@ export function ImageUploadField({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png, image/jpeg, image/jpg, image/svg+xml, image/webp"
+            accept="image/png, image/jpeg, image/jpg, image/webp"
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
@@ -121,11 +121,11 @@ export function ImageUploadField({
               onClick={() => fileInputRef.current?.click()}
               sx={{ fontSize: 12, fontWeight: 700 }}
             >
-              {value ? 'Replace image (PNG / JPG)' : 'Choose PNG or JPG'}
+              {value ? 'Replace image (PNG, JPG, WEBP)' : 'Choose image (PNG, JPG, WEBP)'}
             </Button>
             <Chip label=".PNG" size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
             <Chip label=".JPG" size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
-            <Chip label=".SVG" size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
+            <Chip label=".WEBP" size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
           </Stack>
         </div>
       </Stack>
@@ -138,7 +138,7 @@ export function ImageUploadField({
         <FormHelperText sx={{ mt: 0.5 }}>{helperText}</FormHelperText>
       ) : (
         <FormHelperText sx={{ mt: 0.5 }}>
-          Supports PNG, JPG/JPEG up to 5 MB
+          Supports PNG, JPG/JPEG, WEBP up to 5 MB
         </FormHelperText>
       )}
     </Box>

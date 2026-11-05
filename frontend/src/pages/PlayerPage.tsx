@@ -7,6 +7,7 @@ import Chip from '@mui/material/Chip'
 import Grid from '@mui/material/Grid'
 import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
+import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link as RouterLink, useParams } from 'react-router-dom'
@@ -31,6 +32,7 @@ export function PlayerPage() {
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editPlayerOpen, setEditPlayerOpen] = useState(false)
+  const [notification, setNotification] = useState<{ message: string; severity: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -80,13 +82,25 @@ export function PlayerPage() {
     try {
       const updated = await apiClient.uploadPlayerAvatar(player.id, dataUrl)
       setPlayer(updated)
+      setNotification({ message: 'Player avatar updated successfully!', severity: 'success' })
     } catch (err: unknown) {
-      alert(getErrorMessage(err))
+      const msg = getErrorMessage(err)
+      setNotification({ message: msg, severity: 'error' })
+      throw err
     }
   }
 
-  const handleResetAvatar = () => {
+  const handleResetAvatar = async () => {
     if (!player) return
+    try {
+      const updated = await apiClient.updatePlayer(player.id, { avatarUrl: '' })
+      setPlayer(updated)
+      setNotification({ message: 'Player avatar reset successfully', severity: 'success' })
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err)
+      setNotification({ message: msg, severity: 'error' })
+      throw err
+    }
   }
 
   if (isLoading) {
@@ -272,29 +286,49 @@ export function PlayerPage() {
           onClose={() => setEditPlayerOpen(false)}
           onSubmit={async (updated) => {
             try {
-              const res = await apiClient.updatePlayer(updated.id, {
+              let savedPlayer = await apiClient.updatePlayer(updated.id, {
                 nickname: updated.nickname,
                 name: updated.name,
                 age: updated.age,
                 role: updated.role,
                 nationality: updated.nationality,
                 teamId: updated.teamId,
-                avatarUrl: updated.avatarUrl || undefined,
+                avatarUrl: updated.avatarUrl && !updated.avatarUrl.startsWith('data:image') ? updated.avatarUrl : undefined,
                 stats: updated.stats,
               })
-              setPlayer(res)
-              if (res.teamId) {
-                apiClient.getTeam(res.teamId).then(setTeam).catch(() => setTeam(null))
+              if (updated.avatarUrl && updated.avatarUrl.startsWith('data:image')) {
+                savedPlayer = await apiClient.uploadPlayerAvatar(updated.id, updated.avatarUrl)
+              }
+              setPlayer(savedPlayer)
+              if (savedPlayer.teamId) {
+                apiClient.getTeam(savedPlayer.teamId).then(setTeam).catch(() => setTeam(null))
               } else {
                 setTeam(null)
               }
               setEditPlayerOpen(false)
+              setNotification({ message: 'Player profile updated successfully!', severity: 'success' })
             } catch (err) {
               setError(getErrorMessage(err))
             }
           }}
         />
       )}
+
+      <Snackbar
+        open={Boolean(notification)}
+        autoHideDuration={4000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity={notification?.severity || 'info'}
+          onClose={() => setNotification(null)}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {notification?.message}
+        </Alert>
+      </Snackbar>
     </Stack>
   )
 }

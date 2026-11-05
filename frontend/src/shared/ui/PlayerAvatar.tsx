@@ -21,6 +21,12 @@ export function PlayerAvatar({
   sx,
 }: PlayerAvatarProps) {
   const [hasError, setHasError] = useState(false)
+  const [prevUrl, setPrevUrl] = useState(avatarUrl)
+
+  if (prevUrl !== avatarUrl) {
+    setPrevUrl(avatarUrl)
+    setHasError(false)
+  }
 
   const isEmptySlot =
     !name ||

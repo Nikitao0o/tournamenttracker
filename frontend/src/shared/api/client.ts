@@ -462,7 +462,7 @@ export const apiClient = {
     }
 
     const err = await response.json().catch(() => ({}))
-    throw new Error(err.detail || 'Invalid email or password')
+    throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Invalid email or password', err)
   },
 
   async register(payload: { email: string; nickname: string; password: string }): Promise<{ token: string; user: User }> {
@@ -481,7 +481,7 @@ export const apiClient = {
     }
 
     const err = await response.json().catch(() => ({}))
-    throw new Error(err.detail || 'Registration failed. Check your data.')
+    throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Registration failed. Check your data.', err)
   },
 
   async logout(): Promise<void> {
@@ -502,7 +502,7 @@ export const apiClient = {
 
   async getMe(): Promise<User> {
     const response = await requestWithAuth(`${API_BASE}/auth/me`)
-    if (!response.ok) throw new Error('Failed to get current user profile')
+    if (!response.ok) throw new ApiError(response.status, 'Failed to get current user profile')
     const user = await response.json()
     storage.setUser(user)
     return user
@@ -515,7 +515,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to update profile')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to update profile', err)
     }
     const updated = await response.json()
     storage.setUser(updated)
@@ -555,7 +555,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to create tournament')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to create tournament', err)
     }
     const data = await response.json()
     return mapBackendTournament(data)
@@ -577,7 +577,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to update tournament')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to update tournament', err)
     }
     const data = await response.json()
     return mapBackendTournament(data)
@@ -589,13 +589,13 @@ export const apiClient = {
     })
     if (!response.ok && response.status !== 204) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to delete tournament')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to delete tournament', err)
     }
   },
 
   async getTournamentBracket(tournamentId: string | number): Promise<TournamentBracketView> {
     const response = await requestWithAuth(`${API_BASE}/tournaments/${tournamentId}/bracket`)
-    if (!response.ok) throw new Error('Failed to load tournament bracket')
+    if (!response.ok) throw new ApiError(response.status, 'Failed to load tournament bracket')
     const data = await response.json()
     return mapBracketView(data)
   },
@@ -610,7 +610,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to generate bracket')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to generate bracket', err)
     }
     const data = await response.json()
     return mapBracketView(data)
@@ -655,7 +655,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to create team')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to create team', err)
     }
     const data = await response.json()
     return mapBackendTeam(data)
@@ -677,7 +677,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to update team')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to update team', err)
     }
     const data = await response.json()
     return mapBackendTeam(data)
@@ -689,18 +689,29 @@ export const apiClient = {
     })
     if (!response.ok && response.status !== 204) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to delete team')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to delete team', err)
     }
   },
 
   async uploadTeamLogo(teamId: string | number, image_base64: string): Promise<Team> {
-    const response = await requestWithAuth(`${API_BASE}/teams/${teamId}/logo`, {
+    const id = Number(teamId)
+    if (!Number.isFinite(id) || id <= 0) {
+      throw new ApiError(400, `Invalid team id: ${teamId}`)
+    }
+    const cleanImage = (image_base64 || '').trim()
+    const isUrl =
+      cleanImage.startsWith('http://') ||
+      cleanImage.startsWith('https://') ||
+      cleanImage.startsWith('/uploads/')
+    const payload = isUrl ? { image_url: cleanImage } : { image_base64: cleanImage }
+
+    const response = await requestWithAuth(`${API_BASE}/teams/${id}/logo`, {
       method: 'POST',
-      body: JSON.stringify({ image_base64 }),
+      body: JSON.stringify(payload),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to upload team logo')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to upload team logo', err)
     }
     const data = await response.json()
     return mapBackendTeam(data)
@@ -742,7 +753,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to create player')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to create player', err)
     }
     const data = await response.json()
     return mapBackendPlayer(data)
@@ -772,7 +783,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to update player')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to update player', err)
     }
     const data = await response.json()
     return mapBackendPlayer(data)
@@ -784,18 +795,29 @@ export const apiClient = {
     })
     if (!response.ok && response.status !== 204) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to delete player')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to delete player', err)
     }
   },
 
   async uploadPlayerAvatar(playerId: string | number, image_base64: string): Promise<Player> {
-    const response = await requestWithAuth(`${API_BASE}/players/${playerId}/avatar`, {
+    const id = Number(playerId)
+    if (!Number.isFinite(id) || id <= 0) {
+      throw new ApiError(400, `Invalid player id: ${playerId}`)
+    }
+    const cleanImage = (image_base64 || '').trim()
+    const isUrl =
+      cleanImage.startsWith('http://') ||
+      cleanImage.startsWith('https://') ||
+      cleanImage.startsWith('/uploads/')
+    const payload = isUrl ? { image_url: cleanImage } : { image_base64: cleanImage }
+
+    const response = await requestWithAuth(`${API_BASE}/players/${id}/avatar`, {
       method: 'POST',
-      body: JSON.stringify({ image_base64 }),
+      body: JSON.stringify(payload),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to upload player avatar')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to upload player avatar', err)
     }
     const data = await response.json()
     return mapBackendPlayer(data)
@@ -810,7 +832,7 @@ export const apiClient = {
     const q = params.toString() ? `?${params.toString()}` : ''
 
     const response = await requestWithAuth(`${API_BASE}/matches${q}`)
-    if (!response.ok) throw new Error('Failed to fetch matches')
+    if (!response.ok) throw new ApiError(response.status, 'Failed to fetch matches')
     const data = await response.json()
     const mapped = data.map(mapBackendMatch)
     return mapped
@@ -818,7 +840,7 @@ export const apiClient = {
 
   async getMatch(id: string | number): Promise<Match> {
     const response = await requestWithAuth(`${API_BASE}/matches/${id}`)
-    if (!response.ok) throw new Error(`Match #${id} not found`)
+    if (!response.ok) throw new ApiError(response.status, `Match #${id} not found`)
     const data = await response.json()
     return mapBackendMatch(data)
   },
@@ -830,7 +852,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to create match')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to create match', err)
     }
     const data = await response.json()
     return mapBackendMatch(data)
@@ -843,7 +865,7 @@ export const apiClient = {
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Failed to update match')
+      throw new ApiError(response.status, parseFastApiDetail(err.detail) || 'Failed to update match', err)
     }
     const data = await response.json()
     return mapBackendMatch(data)

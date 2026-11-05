@@ -7,6 +7,7 @@ import Chip from '@mui/material/Chip'
 import Grid from '@mui/material/Grid'
 import MuiLink from '@mui/material/Link'
 import Paper from '@mui/material/Paper'
+import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { Link as RouterLink, useParams } from 'react-router-dom'
@@ -34,6 +35,7 @@ export function TeamPage() {
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTeamOpen, setEditTeamOpen] = useState(false)
+  const [notification, setNotification] = useState<{ message: string; severity: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -75,13 +77,25 @@ export function TeamPage() {
     try {
       const updated = await apiClient.uploadTeamLogo(team.id, dataUrl)
       setTeam(updated)
+      setNotification({ message: 'Team logo updated successfully!', severity: 'success' })
     } catch (err: unknown) {
-      alert(getErrorMessage(err))
+      const msg = getErrorMessage(err)
+      setNotification({ message: msg, severity: 'error' })
+      throw err
     }
   }
 
-  const handleResetLogo = () => {
+  const handleResetLogo = async () => {
     if (!team) return
+    try {
+      const updated = await apiClient.updateTeam(team.id, { logoUrl: '' })
+      setTeam(updated)
+      setNotification({ message: 'Team logo reset successfully', severity: 'success' })
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err)
+      setNotification({ message: msg, severity: 'error' })
+      throw err
+    }
   }
 
   if (isLoading) {
@@ -252,17 +266,21 @@ export function TeamPage() {
             onClose={() => setEditTeamOpen(false)}
             onSubmit={async (updated) => {
               try {
-                const res = await apiClient.updateTeam(updated.id, {
+                let savedTeam = await apiClient.updateTeam(updated.id, {
                   name: updated.name,
                   shortName: updated.shortName,
                   region: updated.region,
                   coach: updated.coach,
                   ranking: updated.ranking,
                   description: updated.description,
-                  logoUrl: updated.logoUrl || undefined,
+                  logoUrl: updated.logoUrl && !updated.logoUrl.startsWith('data:image') ? updated.logoUrl : undefined,
                 })
-                setTeam(res)
+                if (updated.logoUrl && updated.logoUrl.startsWith('data:image')) {
+                  savedTeam = await apiClient.uploadTeamLogo(updated.id, updated.logoUrl)
+                }
+                setTeam(savedTeam)
                 setEditTeamOpen(false)
+                setNotification({ message: 'Team updated successfully!', severity: 'success' })
               } catch (err) {
                 setError(getErrorMessage(err))
               }
@@ -270,6 +288,22 @@ export function TeamPage() {
           />
         </>
       )}
+
+      <Snackbar
+        open={Boolean(notification)}
+        autoHideDuration={4000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity={notification?.severity || 'info'}
+          onClose={() => setNotification(null)}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {notification?.message}
+        </Alert>
+      </Snackbar>
     </Stack>
   )
 }

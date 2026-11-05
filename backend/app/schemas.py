@@ -5,15 +5,20 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 def validate_image_url(url: str | None) -> str | None:
-    """Validates that an image URL begins with /uploads/, http://, or https://."""
+    """Validates that an image URL begins with /uploads/, http://, https://, or data:image/."""
     if url is None:
         return None
     url = url.strip()
     if not url:
         return None
-    if url.startswith("/uploads/") or url.startswith("http://") or url.startswith("https://"):
+    if (
+        url.startswith("/uploads/")
+        or url.startswith("http://")
+        or url.startswith("https://")
+        or url.startswith("data:image/")
+    ):
         return url
-    raise ValueError("Image URL must start with 'http://', 'https://', or '/uploads/'")
+    raise ValueError("Image URL must start with 'http://', 'https://', '/uploads/', or 'data:image/'")
 
 
 class UserRegister(BaseModel):
@@ -40,7 +45,7 @@ class UserUpdate(BaseModel):
     """Standard user can update nickname, password, and avatar. Email changes are restricted."""
     nickname: str | None = Field(default=None, min_length=2, max_length=60)
     password: str | None = Field(default=None, min_length=6, max_length=100)
-    avatar_url: str | None = Field(default=None, max_length=500)
+    avatar_url: str | None = Field(default=None, max_length=10_000_000)
 
     @field_validator("avatar_url", mode="before")
     @classmethod
@@ -78,7 +83,7 @@ class TeamBase(BaseModel):
     coach: str = Field(..., min_length=1, max_length=120, description="Head coach")
     description: str = Field(..., max_length=500, description="Team description")
     ranking: int = Field(..., ge=1, description="World ranking position")
-    logo_url: str | None = Field(default=None, max_length=500, description="Team logo URL")
+    logo_url: str | None = Field(default=None, max_length=10_000_000, description="Team logo URL")
 
     @field_validator("logo_url", mode="before")
     @classmethod
@@ -97,7 +102,7 @@ class TeamUpdate(BaseModel):
     coach: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
     ranking: int | None = Field(default=None, ge=1)
-    logo_url: str | None = Field(default=None, max_length=500)
+    logo_url: str | None = Field(default=None, max_length=10_000_000)
 
     @field_validator("logo_url", mode="before")
     @classmethod
@@ -121,7 +126,7 @@ class PlayerBase(BaseModel):
     maps: int = Field(..., ge=0, description="Number of played maps")
     team_id: int = Field(..., ge=1, description="Team ID")
     user_id: int | None = Field(default=None, description="Linked user account ID (if any)")
-    avatar_url: str | None = Field(default=None, max_length=500, description="Player avatar URL")
+    avatar_url: str | None = Field(default=None, max_length=10_000_000, description="Player avatar URL")
 
     @field_validator("avatar_url", mode="before")
     @classmethod
@@ -144,7 +149,7 @@ class PlayerUpdate(BaseModel):
     maps: int | None = Field(default=None, ge=0)
     team_id: int | None = Field(default=None, ge=1)
     user_id: int | None = Field(default=None)
-    avatar_url: str | None = Field(default=None, max_length=500)
+    avatar_url: str | None = Field(default=None, max_length=10_000_000)
 
     @field_validator("avatar_url", mode="before")
     @classmethod

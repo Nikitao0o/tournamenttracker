@@ -55,15 +55,24 @@ export function getErrorMessage(error: unknown): string {
     if (error.status === 404) return error.message || 'Resource not found.'
     if (error.status === 409) return error.message || 'Resource already exists.'
     if (error.status === 422) return error.message || 'Validation error. Please check your input.'
-    return error.message
+    if (error.message && error.message !== '[object Object]' && !error.message.includes('[object Object]')) {
+      return error.message
+    }
+    return 'Operation failed. Please check your input.'
   }
 
   if (error instanceof Error) {
-    return error.message
+    if (error.message && error.message !== '[object Object]' && !error.message.includes('[object Object]')) {
+      return error.message
+    }
+    return 'An unexpected error occurred. Please verify your data.'
   }
 
   if (typeof error === 'string') {
-    return error
+    if (error !== '[object Object]' && !error.includes('[object Object]')) {
+      return error
+    }
+    return 'An unexpected error occurred'
   }
 
   if (typeof error === 'object' && error !== null) {
@@ -71,7 +80,7 @@ export function getErrorMessage(error: unknown): string {
     if (errObj.detail) {
       return parseFastApiDetail(errObj.detail)
     }
-    if (typeof errObj.message === 'string') {
+    if (typeof errObj.message === 'string' && errObj.message !== '[object Object]') {
       return errObj.message
     }
   }

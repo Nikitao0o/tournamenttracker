@@ -21,6 +21,12 @@ export function TeamLogo({
   sx,
 }: TeamLogoProps) {
   const [hasError, setHasError] = useState(false)
+  const [prevUrl, setPrevUrl] = useState(logoUrl)
+
+  if (prevUrl !== logoUrl) {
+    setPrevUrl(logoUrl)
+    setHasError(false)
+  }
 
   const isTBD =
     !teamName ||

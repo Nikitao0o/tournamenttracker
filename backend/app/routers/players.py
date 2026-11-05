@@ -56,7 +56,7 @@ def upload_player_avatar(
     """
     player = crud.get_player_or_404(db, player_id)
     is_owner = current_user.player and current_user.player.id == player_id
-    admin_status = is_user_admin(current_user.email, current_user.is_admin)
+    admin_status = is_user_admin(current_user)
     if not admin_status and not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

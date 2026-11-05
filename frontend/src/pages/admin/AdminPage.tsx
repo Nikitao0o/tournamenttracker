@@ -219,14 +219,17 @@ export function AdminPage() {
         coach: updatedTeam.coach,
         description: updatedTeam.description,
         ranking: updatedTeam.ranking,
-        logoUrl: updatedTeam.logoUrl || undefined,
+        logoUrl: updatedTeam.logoUrl && !updatedTeam.logoUrl.startsWith('data:image') ? updatedTeam.logoUrl : undefined,
       })
+      if (updatedTeam.logoUrl && updatedTeam.logoUrl.startsWith('data:image')) {
+        await apiClient.uploadTeamLogo(updatedTeam.id, updatedTeam.logoUrl)
+      }
       await refreshTeams()
       setEditTeamDialogOpen(false)
       setNotification({ message: `Team "${updatedTeam.name}" updated successfully!`, severity: 'success' })
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Failed to update team',
+        message: getErrorMessage(err),
         severity: 'error',
       })
     }
@@ -240,7 +243,7 @@ export function AdminPage() {
       setNotification({ message: `Team "${deletingTeam.name}" deleted successfully`, severity: 'success' })
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Failed to delete team',
+        message: getErrorMessage(err),
         severity: 'error',
       })
     } finally {
@@ -263,7 +266,7 @@ export function AdminPage() {
       setNotification({ message: `Player "${created.name}" created successfully!`, severity: 'success' })
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Failed to create player',
+        message: getErrorMessage(err),
         severity: 'error',
       })
     }
@@ -283,15 +286,18 @@ export function AdminPage() {
         role: updatedPlayer.role,
         nationality: updatedPlayer.nationality,
         teamId: updatedPlayer.teamId,
-        avatarUrl: updatedPlayer.avatarUrl || undefined,
+        avatarUrl: updatedPlayer.avatarUrl && !updatedPlayer.avatarUrl.startsWith('data:image') ? updatedPlayer.avatarUrl : undefined,
         stats: updatedPlayer.stats,
       })
+      if (updatedPlayer.avatarUrl && updatedPlayer.avatarUrl.startsWith('data:image')) {
+        await apiClient.uploadPlayerAvatar(updatedPlayer.id, updatedPlayer.avatarUrl)
+      }
       await refreshPlayers()
       setEditPlayerDialogOpen(false)
       setNotification({ message: `Player "${updatedPlayer.name}" updated successfully!`, severity: 'success' })
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Failed to update player',
+        message: getErrorMessage(err),
         severity: 'error',
       })
     }
@@ -305,7 +311,7 @@ export function AdminPage() {
       setNotification({ message: `Player "${deletingPlayer.name}" deleted successfully`, severity: 'success' })
     } catch (err: unknown) {
       setNotification({
-        message: err instanceof Error ? err.message : 'Failed to delete player',
+        message: getErrorMessage(err),
         severity: 'error',
       })
     } finally {
@@ -329,6 +335,7 @@ export function AdminPage() {
         message: getErrorMessage(err),
         severity: 'error',
       })
+      throw err
     } finally {
       setMediaModal({ open: false, type: 'team', id: '', name: '' })
     }
